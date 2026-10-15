@@ -29,6 +29,11 @@ use std::sync::Arc;
 /// bus's textures the first time it appears, which used to cost a frame of 100-200 ms
 /// each and a minute of stutter after loading Spandau.
 pub const AI_SCHEMES: usize = 4;
+
+/// The share of the textures' budget the vehicles' textures (AI traffic, the timetable) may take
+/// before the paints nobody wears are no longer kept on the GPU: they are never shrunk, so
+/// what they hold the scenery lacks.
+pub const VEHICLE_SHARE: f64 = 0.30;
 const SCRIPT_UPLOAD_BUDGET: usize = 4 << 20;
 const AI_JOB_SECS: f32 = 50e-6;
 
@@ -485,6 +490,22 @@ pub struct AiCar {
     pub reserved: Vec<usize>,
     /// The light (controller, lamp) the driver decided to pass on yellow.
     pub amber: Option<(usize, usize)>,
+    /// [ROLLBACK stuck-130] Where the car was when it last moved a couple of metres (the
+    /// bodies in the world, not the odometer: a car that spins its wheels in one place has
+    /// an odometer that runs).
+    pub moved_from: DVec2,
+    /// [ROLLBACK stuck-130] Until when (`Traffic::time`) the car does not wait for the rules
+    /// of the road (right of way, a merge, a car it keeps back from): it stood two minutes.
+    pub unstick: f32,
+    /// [ROLLBACK blinker-130] The indicator as it is shown, and since when (s): it does not
+    /// swing from one side to the other in a moment.
+    pub blinker_shown: (i32, f32),
+    /// [ROLLBACK plan-131] The lane and the next lane it planned at its last step, and how
+    /// many times the plan changed on the same lane (logged, a few times a car).
+    pub plan_seen: (usize, Option<usize>),
+    pub plan_flips: u8,
+    /// [ROLLBACK cycle-132] Frames in a row in which the car passed to another lane.
+    pub lane_hops: u8,
     pub passing: Option<Passing>,
     /// Finished (a dead end, the end of a timetable trip, given up): taken off the road as
     /// soon as nobody can see it.
@@ -1139,7 +1160,11 @@ fn record_rail_trail(trail: &mut std::collections::VecDeque<(f64, DVec3)>, odome
 fn rail_behind(trail: &std::collections::VecDeque<(f64, DVec3)>, state: &AiState, net: &Network, d: f64) -> DVec3 {
     let u = state.odometer as f64 - d;
     let newest = trail.back().map_or(f64::MIN, |b| b.0);
-    if u >= newest {
+    // [ROLLBACK trail-142] older than the trail reaches (it was just started, or started
+    // afresh after a jump): the way, not the trail's oldest point - every car of a long train
+    // behind the trail's end was put on that one point, one inside the other
+    let oldest = trail.front().map_or(f64::MAX, |f| f.0);
+    if u >= newest || u < oldest {
         return state.way_point(net, -d as f32);
     }
     crate::rail_drive::point_at(trail, u).unwrap_or_else(|| state.way_point(net, -d as f32))
@@ -1932,10 +1957,15 @@ impl Traffic {
     pub(crate) fn coupled_chain(&mut self, ty: &Arc<VehicleType>, rev: bool, toward_back: bool) -> Vec<(Arc<VehicleType>, bool)> {
         let mut out = Vec::new();
         let (mut lead, mut lead_rev) = (ty.clone(), rev);
-        for _ in 0..8 {
+        let mut seen = vec![lead.def.path.clone()];
+        for _ in 0..crate::spawn::MAX_COUPLED_PARTS {
             let Some((path, r)) = crate::spawn::next_coupled(&lead.def, lead_rev, toward_back) else {
                 break;
             };
+            // a consist that comes round again ends here (see `spawn::chain_has_part`)
+            if crate::spawn::chain_has_part(&seen, &path) {
+                break;
+            }
             let root = self.root.clone();
             let t =
                 self.trailer_types.entry(path.clone()).or_insert_with(
@@ -1949,6 +1979,7 @@ impl Traffic {
                 );
             let Some(t) = t.clone() else { break };
             out.push((t.clone(), r));
+            seen.push(path);
             lead = t;
             lead_rev = r;
         }
@@ -3231,6 +3262,12 @@ impl Traffic {
             light_hold: false,
             reserved: Vec::new(),
             amber: None,
+            moved_from: DVec2::ZERO,
+            unstick: 0.0,
+            blinker_shown: (0, 0.0),
+            plan_seen: (usize::MAX, None),
+            plan_flips: 0,
+            lane_hops: 0,
             passing: None,
             gone: false,
             fresh: 1.5,
@@ -3289,11 +3326,24 @@ impl Traffic {
 
     /// The vehicle/paint sets the random traffic draws from.
     pub fn random_sets(&self) -> Vec<(Arc<VehicleType>, Option<usize>)> {
+        // (the first paint of every type, then the second of every type that has one, and so on:
+        // where the textures' budget does not hold them all, every type is there before any
+        // type has all its paints)
         let mut sets: Vec<(Arc<VehicleType>, Option<usize>)> = Vec::new();
-        for (ty, ..) in &self.types {
-            let n = ty.paint_schemes.len().min(AI_SCHEMES);
-            let schemes: Vec<Option<usize>> = if n == 0 { vec![None] } else { (0..n).map(Some).collect() };
-            for scheme in schemes {
+        let most = self.types.iter().map(|(ty, ..)| ty.paint_schemes.len().min(AI_SCHEMES)).max().unwrap_or(0).max(1);
+        for k in 0..most {
+            for (ty, ..) in &self.types {
+                let n = ty.paint_schemes.len().min(AI_SCHEMES);
+                let scheme = if n == 0 {
+                    if k > 0 {
+                        continue;
+                    }
+                    None
+                } else if k < n {
+                    Some(k)
+                } else {
+                    continue;
+                };
                 if !sets.iter().any(|(t, s)| t.def.path == ty.def.path && *s == scheme) {
                     sets.push((ty.clone(), scheme));
                 }
@@ -3305,10 +3355,18 @@ impl Traffic {
     pub fn precache_random(&mut self, world: &World, renderer: &Renderer, scene: &mut Scene) {
         let t0 = std::time::Instant::now();
         let sets = self.random_sets();
+        let mut held = 0;
         for chunk in sets.chunks(3) {
+            // (the vehicles' textures are never shrunk: past a third of the textures' budget the
+            // rest of the paints are uploaded when a car first wears them, not ahead of time)
+            if world.vehicle_pressure(scene, VEHICLE_SHARE) {
+                log::info!("traffic: {held} of {} vehicle/paint sets uploaded ahead, the vehicles' textures take {:.0} MB of the budget; the rest when first used", sets.len(), world.vehicle_texture_bytes(scene) as f64 / 1e6);
+                break;
+            }
             world.prefetch_vehicle_sets(renderer, chunk);
             for (ty, scheme) in chunk {
                 world.precache_vehicle(renderer, scene, ty, *scheme);
+                held += 1;
             }
         }
         world.forget_prefetched();
@@ -3360,6 +3418,56 @@ impl Traffic {
             log::info!("aircraft {} on its flight path at ({:.0}, {:.0}), height {:.0} m, {ground}, {:.0} km/h", ty.def.path.file_name().unwrap_or_default().to_string_lossy(), p.x, p.y, p.z, self.cars[ci].state.speed * 3.6);
         }
         Some(ci)
+    }
+
+    /// [ROLLBACK aispawn-137] An AI car of the random traffic on the street lane nearest to
+    /// `p` (the tools window: a click on a street), driving on by itself from there.
+    pub fn spawn_random_at(
+        &mut self,
+        world: &World,
+        renderer: &Renderer,
+        scene: &mut Scene,
+        p: DVec3,
+    ) -> Result<String, String> {
+        let Some((lane, s, d)) = self.net.nearest_lane(p, LaneKind::Street) else {
+            return Err("there is no street here".into());
+        };
+        if d > 8.0 {
+            return Err(format!(
+                "no street within reach ({d:.0} m to the nearest lane)"
+            ));
+        }
+        let len = self.net.lanes[lane].length();
+        let s = s.clamp(1.0, (len - 1.0).max(1.0));
+        let (pos, h) = self.net.lanes[lane].at(s);
+        let Some(ty) = self.pick_type(LaneKind::Street, Some(lane)) else {
+            return Err(format!("no vehicle drives on lane {lane}"));
+        };
+        if !self.spawn_clear(&ty, pos, h as f64) {
+            return Err("another vehicle stands there".into());
+        }
+        let seed = self.rand();
+        let center = self.viewer.map(|v| v.pos).unwrap_or(pos);
+        let name = format!("{} {}", ty.def.manufacturer, ty.def.type_name);
+        let id = self.create_car(
+            world,
+            renderer,
+            scene,
+            center,
+            LaneKind::Street,
+            lane,
+            s,
+            ty,
+            seed,
+            None,
+            None,
+            None,
+            None,
+        );
+        Ok(format!(
+            "AI car #{id} ({}) put on lane {lane} at {s:.0} m",
+            name.trim()
+        ))
     }
 
     /// Nearest vehicle ahead of position `s` on `lane` (following the lanes `plan` has
@@ -5317,6 +5425,11 @@ impl Traffic {
         let v = st.speed;
         let mut stop = None;
         let mut amber = car.amber;
+        // [ROLLBACK lights-130] standing in a queue (a car close ahead, itself hardly moving):
+        // the "at the line on green, goes whatever comes next" and the yellow decision are
+        // for the car that is first at the line - the queue's cars that stood within three
+        // metres of the line when the green ended went through the red that followed
+        let queued = v < 1.0 && car.lead_info.is_some_and(|(_, g)| g < 8.0);
         for (k, &(_, d)) in way.iter().enumerate().skip(1) {
             if d > 150.0 {
                 break;
@@ -5336,13 +5449,13 @@ impl Traffic {
                     // (a light that is green for a second a cycle - Westcountry's lights on
                     // its invisible lanes - let nobody through: the first car was still
                     // taking in the green when it went red again, for ever)
-                    if gap < 3.0 {
+                    if gap < 3.0 && !queued {
                         amber = Some((c, li));
                     }
                     true
                 }
                 Aspect::Yellow | Aspect::GreenYellow => {
-                    if amber == Some((c, li)) || gap < comfortable {
+                    if !queued && (amber == Some((c, li)) || gap < comfortable) {
                         amber = Some((c, li));
                         true
                     } else {
@@ -5351,7 +5464,8 @@ impl Traffic {
                 }
                 // decided to go on yellow and too close to stop now, or past stopping at all
                 Aspect::Red | Aspect::RedYellow => {
-                    let go = (amber == Some((c, li)) && gap < comfortable) || gap < possible - 0.5;
+                    let go = (amber == Some((c, li)) && gap < comfortable && !queued)
+                        || gap < possible - 0.5;
                     if !go && amber == Some((c, li)) {
                         amber = None;
                     }
@@ -5578,7 +5692,32 @@ impl Traffic {
                     // a vehicle with priority goes before one without, whatever the lanes say;
                     // one without gives way to it
                     let o_prio = prio(o);
-                    if jn.inside || committed || (me_prio && !o_prio) || (!self.net.must_yield(l, m) && !(o_prio && !me_prio)) {
+                    if (me_prio && !o_prio) || (!self.net.must_yield(l, m) && !(o_prio && !me_prio)) {
+                        continue;
+                    }
+                    if jn.inside || committed {
+                        // [ROLLBACK priority-139] A driver who has decided to go (or is in the
+                        // junction) keeps to it - but not into the path of a vehicle with the
+                        // right of way that is moving and would be on the meeting place before
+                        // this one is clear of it, where there is still room to stop short of it
+                        // (a left turn out of a side road went on whatever came along the main
+                        // road once it had started, and across the second lane of the main road
+                        // it never looked at all)
+                        let room_here = point - c.before - st.front;
+                        let course = o.state.speed > 1.0
+                            && !waits_short
+                            && t_j != f32::MAX
+                            && t_j < t_clear
+                            && t_j + 1.5 > t_mine;
+                        if course && (!jn.inside || room_here > 2.0) {
+                            hard = true;
+                            if explain {
+                                why.push(format!("car {} has the right of way at {l}/{m} and arrives in {t_j:.1} s, this one is clear in {t_clear:.1} s", o.id));
+                            }
+                            if jn.inside {
+                                stop_at = Some(stop_at.unwrap_or(f32::MAX).min(point - c.before));
+                            }
+                        }
                         continue;
                     }
                     // the gap a driver takes in the main road's traffic: the critical gap of
@@ -5688,7 +5827,10 @@ impl Traffic {
             // everybody is waiting for somebody: the longest waiter goes
             let wins = soft.iter().all(|&j| {
                 let o = &self.cars[j];
-                (o.yielding || o.state.speed < 0.3)
+                // [ROLLBACK priority-130] (yielding itself, or standing for a while: a car with
+                // the right of way that has only just stopped, or is about to move off, is
+                // not waiting - the one that gave way went in front of it)
+                (o.yielding || (o.state.speed < 0.3 && o.stopped > 4.0))
                     && (wait > o.state.yield_time + 0.05
                         || ((wait - o.state.yield_time).abs() <= 0.05 && self.cars[i].id < o.id))
             });
@@ -6312,11 +6454,11 @@ impl Traffic {
                     }
                 }
             }
-            for (l, d) in self
-                .way_lanes(&c.state, LOOK_AHEAD + 30.0)
-                .into_iter()
-                .skip(1)
-            {
+            // [ROLLBACK priority-139] as far as a gap of eight seconds reaches (it was a hundred
+            // metres whatever the speed: on a main road at 70 km/h that is five seconds, less than
+            // the gap a side road's driver takes, and the car was not seen coming)
+            let seen = (c.state.speed * 8.0 + 30.0).clamp(LOOK_AHEAD + 30.0, LOOK_AHEAD_MAX + 70.0);
+            for (l, d) in self.way_lanes(&c.state, seen).into_iter().skip(1) {
                 if !self.net.crossings[l].is_empty() {
                     coming.entry(l).or_default().push((i, d));
                 }
@@ -6909,10 +7051,25 @@ impl Traffic {
             self.cars[i].pull_out = (self.cars[i].pull_out - dt).max(0.0);
             // the player's bus indicating out of its stop
             let let_out = self.player.and_then(|p| self.letting_out(i, &p)).map(|g| self.cars[i].state.front + (g - 1.0).max(0.0));
-            let mut stop_at = [light, yield_at, merge_wait, keep_back, people, parked_wait, let_out]
-                .into_iter()
-                .flatten()
-                .reduce(f32::min);
+            // [ROLLBACK stuck-130] (see `AiCar::unstick`)
+            let unstuck = self.time < self.cars[i].unstick;
+            let (yield_in, merge_in, back_in) = if unstuck {
+                (None, None, None)
+            } else {
+                (yield_at, merge_wait, keep_back)
+            };
+            let mut stop_at = [
+                light,
+                yield_in,
+                merge_in,
+                back_in,
+                people,
+                parked_wait,
+                let_out,
+            ]
+            .into_iter()
+            .flatten()
+            .reduce(f32::min);
             let mut why: (&'static str, f32) = ("", f32::MAX);
             for (name, v) in [("light", light), ("yield", yield_at), ("merge", merge_wait), ("keep_back", keep_back), ("people", people), ("pull_out", parked_wait), ("let_out", let_out)] {
                 if let Some(v) = v {
@@ -7152,12 +7309,34 @@ impl Traffic {
             } else {
                 car.crawl = 0.0;
             }
-            if (car.state.odometer - car.progress.0).abs() > 2.0 || car.at_stop() {
+            // [ROLLBACK stuck-130] (and the body has moved too: a car whose wheels turn in one
+            // place - its odometer runs - was never taken for one that stood)
+            let body_at = car.vehicle.position.truncate();
+            if ((car.state.odometer - car.progress.0).abs() > 2.0
+                && (body_at - car.moved_from).length() > 1.0)
+                || car.at_stop()
+            {
                 car.progress = (car.state.odometer, 0.0);
+                car.moved_from = body_at;
             } else {
                 car.progress.1 += dt;
             }
             let stood = car.stopped.max(car.progress.1);
+            // [ROLLBACK stuck-130] twelve minutes without moving, held by nothing a light or a person
+            // asks for: the right of way, a merge and the keeping back are given up for a few
+            // seconds (a bus that could not pull out of its stop, two cars each waiting for
+            // the other's gap, stood for good)
+            if stood > 720.0
+                && !car.light_hold
+                && !car.at_stop()
+                && !car.trip_done()
+                && car.unstick < self.time
+            {
+                car.unstick = self.time + 8.0;
+                car.progress.1 = 600.0;
+                car.stopped = car.stopped.min(600.0);
+                log::info!("t={:.1}: car {} ({}) stood {:.0} s ({}, yielding {}): goes on without waiting for the rules of the road", self.time, car.id, car.vehicle.ty.def.type_name, stood, car.why.0, car.yielding);
+            }
             // a random car that has stood for a minute without a light or a junction
             // holding it has given up: it leaves as soon as nobody sees it
             // (one yielding for minutes is in a gridlock nobody else will end)
@@ -7234,6 +7413,22 @@ impl Traffic {
                 remove.push(i);
                 continue;
             }
+            // [ROLLBACK plan-131] the way on chosen again on the same lane (a car that cannot
+            // make up its mind which way to go): said in the log, a few times for each car
+            {
+                let now = (car.state.lane, car.state.planned_next);
+                if car.plan_seen.0 == now.0
+                    && car.plan_seen.1.is_some()
+                    && car.plan_seen.1 != now.1
+                    && car.state.route.is_empty()
+                    && car.state.change.is_none()
+                    && car.plan_flips < 6
+                {
+                    car.plan_flips += 1;
+                    log::info!("t={:.2}: car {} on lane {} changed its mind about the way on: {:?} -> {:?} (ahead {:?}, v {:.1}, s {:.1}/{:.1})", self.time, car.id, now.0, car.plan_seen.1, now.1, car.state.ahead, car.state.speed, car.state.s, self.net.lanes[now.0].length());
+                }
+                car.plan_seen = now;
+            }
             if debug && car.state.acc < -4.5 {
                 // hard braking is for emergencies: say what asked for it
                 let who = match lead.and_then(|l| l.1) {
@@ -7243,6 +7438,19 @@ impl Traffic {
                     None => "-".to_string(),
                 };
                 log::info!("t={:.2}: car {} brakes {:.1} m/s² at {:.1} m/s on lane {lane_now} s {s_now:.2} (len {:.1}): lead {:?} ({who}), stop {:?} (light {:?}, junction {:?}, merge {:?})", self.time, car.id, car.state.acc, speed_before, self.net.lanes[lane_now].length(), lead_now, stop_at.map(|x| x - car.state.front), light.map(|x| x - car.state.front), yield_at.map(|x| x - car.state.front), merge_wait);
+            }
+            // [ROLLBACK cycle-132] on another lane in twelve frames running: lanes that lead
+            // into each other in a loop (the car stands on the spot, wheels turning, the way on
+            // chosen anew every frame): taken off the road
+            car.lane_hops = if car.state.lane != lane_before {
+                car.lane_hops.saturating_add(1)
+            } else {
+                0
+            };
+            if car.lane_hops >= 12 {
+                log::info!("t={:.2}: car {} went over twelve lanes in twelve frames (lane {}, next {:?}, ahead {:?}, v {:.1}): taken off the road", self.time, car.id, car.state.lane, car.state.planned_next, car.state.ahead, car.state.speed);
+                remove.push(i);
+                continue;
             }
             if car.state.lane != lane_before
                 && self.first_turner.is_none()
@@ -7273,13 +7481,31 @@ impl Traffic {
             let priority_warning = car.vehicle.var("TrafficPriority").is_some_and(|v| v > 0.5)
                 && (lead_now.is_some_and(|l| l.gap < PRIORITY_WARN_GAP && l.speed < car.state.speed + 0.5)
                     || stop_at.is_some_and(|x| x - car.state.front < PRIORITY_WARN_GAP));
+            // [ROLLBACK blinker-130] the indicator shown does not swing from one side to the
+            // other within a second and a half, nor go out within half a second
+            let shown_blinker = {
+                let (shown, since) = car.blinker_shown;
+                let want = car.state.blinker;
+                let age = self.time - since;
+                let hold = if shown == 0 {
+                    0.0
+                } else if want == 0 {
+                    0.5
+                } else {
+                    1.5
+                };
+                if want != shown && age >= hold {
+                    car.blinker_shown = (want, self.time);
+                }
+                car.blinker_shown.0
+            };
             // [ROLLBACK aiparked-73] a long layover at the terminus: engine off
             car.vehicle.ai_parked = car.bus.as_ref().is_some_and(|b| b.parked(self.day_time));
             frames[i] = Some(AiFrame {
                 speed: car.state.speed,
                 odometer: car.state.odometer,
                 steer_deg: 0.0,
-                blinker: car.state.blinker,
+                blinker: shown_blinker,
                 brake: car.state.braking,
                 lights: self.night,
                 at_station: car.at_station() as i32,
@@ -8618,6 +8844,12 @@ impl Traffic {
             light_hold: false,
             reserved: Vec::new(),
             amber: None,
+            moved_from: DVec2::ZERO,
+            unstick: 0.0,
+            blinker_shown: (0, 0.0),
+            plan_seen: (usize::MAX, None),
+            plan_flips: 0,
+            lane_hops: 0,
             passing: None,
             gone: false,
             fresh: 0.0,

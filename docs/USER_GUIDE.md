@@ -291,7 +291,25 @@ the panel's own light, and the glow draws a halo around them; only materials the
 `\S:n` mask are sampled at the level their screen footprint asks for, never coarser than
 this. 0 point-samples them, the sharpest dots and the worst shimmer; 1.3 keeps a matrix's
 dots a couple of pixels across where the full chain has run them together; 4 is near the
-calm of the full chain), `mouse_sens` (mouse steering,
+calm of the full chain), `night_sky` (0..2, 1 by default: the stars, the Milky Way and the
+moon with its phases in the sky - the real sky of the map's place and hour - and the
+night's own light following the moon: a full moon high up lights a night, a night without a
+moon is darker; 0 = no stars, no moon, the night as before), `sun_glare` (0..2, 1 by default,
+Enhanced only: the glare round the sun and the moon, fainter as a tree or a building covers
+them, and shafts of light through gaps; 0 = off, `OMSI_NO_GLARE=1` too), `aurora` (0..2, 1 by
+default: how often the night sky has an aurora of its own accord. The map's place (its
+`[location]`) and the day decide it - by a geomagnetic storm's index drawn from the calendar day,
+so it is the same on the same day - and a place near the pole has one almost every night, while
+one in mid-latitudes (Szczecin) sees one low over the poleward horizon on about seven nights a
+year, a big one once in some years, a surprise; 2 = much oftener, 0 = never. Each display has a
+look of its own - the direction and number of its arcs, their thickness, their pace, a rhythm of
+break-ups. It is green up to a strength of 100 %; the red and the violet come only above it.
+The World window's Sky page has Aurora strength (above 100 % the arcs come nearer, the red and
+the violet join), Aurora duration and a Start / Stop button: a display wherever the map lies,
+which rises, holds and fades on its own; the same Sky page has a **Thunderstorm**: a strength, a duration and a Start / Stop button, and while it lasts there are flashes of lightning in the sky - a jagged bolt with forks, the clouds lit by it - the street lit by each flash and the thunder after it, as late as the sound takes to come the distance, 9 seconds for 3 km; it works best under a thick sky and rain. The thunder is recorded: the files in `assets/sounds/thunder/` (`near*.wav` for a strike under 4 km, `mid*.wav` for 4-12 km, `far*.wav` over 12 km) are compiled into the game, one of the right distance is picked at random; a `Sounds\Thunder\` folder with `.wav` files in the content root replaces them. Without any recording the game makes the thunder up. Now and then a shooting star crosses a clear night sky too. At sunrise and sunset the sky has the earth's shadow and the belt of Venus opposite the sun, a flattened sun, in thin high cloud a halo and a pillar of light, warm undersides of the clouds and a golden mist in the street; many autumn mornings start with a mist, which `OMSI_NO_MIST=1` turns off), `new_sky`
+(1 by default: Vanilla and Vanilla+ draw the Enhanced sky - the clouds, the sun, the moon with
+its phases, the stars and the aurora - on the OMSI picture; 0 = the old sky of the envir textures,
+`OMSI_OLD_SKY=1` for one run; the mirrors keep the old sky), `mouse_sens` (mouse steering,
 1 = OMSI's), `mouse_smooth` (0: the mouse's wheel follows the cursor without easing),
 `ui_scale` (the size of the game's interface over the picture - its texts,
 the menu, the timetable, the navigator and the city map - from 0.5 to 2, 1 by default, on
@@ -368,6 +386,9 @@ is dark enough, and a city's lamps light its own haze and clouds (brightest on a
 night). The camera exposes like one: for daylight, part of the way towards the light of the
 moment, with a camera's middle-tone contrast; street lamps are bright points with a little
 glare in clear air and wide halos in mist and rain.
+
+Ray tracing is locked by default: the options below only show up (and the keys only count) after
+Ctrl+Alt+R in the launcher, which sets `rt_unlocked=1`.
 
 Enhanced with `rt_shadows=1` (ray traced shadows and occlusion) and/or `rt_reflections=player|full`
 (ray traced reflections on the player's vehicle only, or on every surface; `off` keeps the
@@ -543,6 +564,24 @@ before (the model starts three days back), with the season's and the latitude's 
 It sets everything a weather sets - visibility, wind, temperature, rain or snow, the wet
 road - for every graphics mode; Enhanced and Enhanced+ also take its cloud amounts and its
 air. `OMSI_DAY_AIR=haze,angstrom[,height,strat]` fixes the air for comparisons.
+
+**Fogged and frosted windows, cold exhaust.** (The windows' fog and frost are off at the
+moment: start the game with `OMSI_GLASS_ICE=1` to try them; the cold exhaust is on.) The player's bus fogs its windows from the
+inside when the air of the cabin holds more water than it can at the glass's temperature (a
+full bus on a cold or rainy day, a moving bus more than a standing one: the air outside
+carries the heat off the glass), frosts them on the outside on a humid night under freezing,
+and ices the steam on the inside when the glass is under freezing. The steam builds in a
+minute or two and clears as slowly when the cabin dries; frost takes several minutes to grow
+and melts when the glass warms. The glass follows the air with a delay of a few minutes, and
+every session starts as if the bus had stood out all night: on a cold, humid morning it
+starts frosted, and the cabin's heat (or the bus's defroster switch, where its variables
+name one: `defrost`, `demist`, `entfrost`...) melts it. The ice is drawn in the windows' rain layer (the `Rain_Window_*`
+film of the bus) and stays on a door that is opened: from the cab it lies over the rain drops
+(the steam is on the inner face), from outside under them. A bus without such a layer shows none, and none shows while it snows. It reads the
+bus's own cabin air (`Cabinair_Temp`, `Cabinair_relHum`) when its scripts keep one. In cold air the exhaust's vapour shows white
+and thick. **Ctrl+Shift+F** shows the effects whatever the weather - fog, a half fog, frost,
+a half frost, the cold exhaust, everything - one preview after the other, and back to the
+weather's own; `OMSI_FX_PREVIEW=n` (0 to 6) starts the game in one of them.
 
 ## Radio
 

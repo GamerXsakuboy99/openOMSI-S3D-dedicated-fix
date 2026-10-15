@@ -26,7 +26,12 @@ const VANILLA_HEADLIGHT_INTENSITY: f32 = 0.5;
 /// Lighting parameters for the renderer from the daylight model.
 pub fn lighting_from(d: &Daylight, fog_range: f32) -> Lighting {
     // fog density from the weather's visibility range (an object at `range` is ~90% fogged)
-    let density = (2.3 / fog_range.max(50.0)).max(0.00005);
+    let mut density = (2.3 / fog_range.max(50.0)).max(0.00005);
+    // [ROLLBACK twilight-1] the morning's mist, on the mornings that have one (`OMSI_NO_MIST=1`: none)
+    if omsi_cfg::env::var_os("OMSI_NO_MIST").is_none() {
+        let alt = d.sun_dir.normalize_or_zero().z.clamp(-1.0, 1.0).asin().to_degrees();
+        density += omsi_sim::mist::dawn_mist(alt, d.azimuth_rad < std::f32::consts::PI, d.day_of_year, d.day_seed);
+    }
     Lighting {
         sun_dir: d.sun_dir,
         sun_intensity: 1.0,
@@ -43,6 +48,7 @@ pub fn lighting_from(d: &Daylight, fog_range: f32) -> Lighting {
         envir_tint: d.envir_tint,
         moon_dir: d.moon_dir,
         moon_illum: d.moon_illum,
+        sidereal: d.sidereal_rad,
         day_of_year: d.day_of_year,
         latitude: d.latitude,
         day_seed: d.day_seed,
@@ -728,10 +734,20 @@ pub fn particle_sprites(set: &omsi_sim::particles::ParticleSet, smoke: &mut Vec<
 /// [`particle_sprites`] for a vehicle's set: its own tyre spray is not drawn in the body
 /// `cab` that the camera sits in (spray shows behind and beside the cab, never in it).
 pub fn particle_sprites_in(set: &omsi_sim::particles::ParticleSet, smoke: &mut Vec<omsi_render::SmokeParticle>, coronas: &mut Vec<Corona>, cab: &[crate::puddles::Body]) {
+    let cold = crate::glass_fx::cold_vapour();
     for (p, def) in set.particles() {
         let mut alpha = p.alpha();
         if !cab.is_empty() && !def.emissive && crate::puddles::is_tyre_spray(def) {
             alpha *= crate::puddles::cab_fade(cab, p.pos, p.size() * 0.5);
+        }
+        // [ROLLBACK glassfx-1] the vapour of a cold exhaust: whiter, thicker, a little bigger
+        let (mut colour, mut size_k) = (p.color, 1.0);
+        if cold > 0.01 && !def.emissive && crate::glass_fx::is_exhaust(def) {
+            let fade = 1.0 - p.age / p.life.max(1e-3);
+            let (c, a, k) = crate::glass_fx::dress_puff(p.color, alpha, fade, cold);
+            colour = c;
+            alpha = a;
+            size_k = k;
         }
         if alpha <= 0.002 {
             continue;
@@ -750,8 +766,8 @@ pub fn particle_sprites_in(set: &omsi_sim::particles::ParticleSet, smoke: &mut V
         } else {
             smoke.push(omsi_render::SmokeParticle {
                 position: p.pos,
-                size: p.size() * 0.5,
-                color: p.color,
+                size: p.size() * 0.5 * size_k,
+                color: colour,
                 alpha,
                 spin: p.spin,
                 z_offset: SMOKE_Z_OFFSET,

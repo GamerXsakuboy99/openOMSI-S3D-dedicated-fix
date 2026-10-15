@@ -30,6 +30,12 @@ struct Camera {
     wind: vec4<f32>,
     light_view_proj_lamp: mat4x4<f32>,
     lamp: vec4<f32>,
+    parts: array<vec4<f32>, 9>,
+    fx: vec4<f32>,
+    night: vec4<f32>,        // x local sidereal time (rad), y latitude (rad), z night-sky strength (0 = off), w night (0 day .. 1 night)
+    moon: vec4<f32>,         // xyz towards the moon, w its angular radius (rad)
+    bolt: vec4<f32>,         // [ROLLBACK storm-1] xyz towards the middle of the strongest strike's bolt, w the flash's light (0..1.3)
+    bolt2: vec4<f32>,        // x how visible the bolt is (0 = none), y its shape (seed 0..1023), z its distance (km)
 };
 
 // A hash of a lattice point, from its integer bits.
@@ -137,6 +143,7 @@ fn vs_main(@location(0) pos: vec3<f32>) -> VsOut {
 @fragment
 fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     let d = normalize(in.dir);
+    let pix = length(fwidth(d)) * 0.7;
     let az = atan2(d.x, d.y);
     let u = fract((az - camera.sky.x) / 6.2831853 + 0.5);
     let elev = asin(clamp(d.z, -1.0, 1.0));
@@ -144,7 +151,9 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     let v = clamp(1.0 - elev / 1.5707963, 0.0, 0.995);
     let uv = vec2<f32>(u, v);
     let c = textureSample(t_day, s_sky, uv).rgb * camera.sky.y + textureSample(t_twilight, s_sky, uv).rgb * camera.sky.z * 0.8 + textureSample(t_night, s_sky, uv).rgb * camera.sky.w * 0.6;
-    var col = c;
+    // the stars, the Milky Way and the moon (stars.wgsl), behind whatever cloud there is
+    let base_sky = c;
+    var col = vanilla_night(d, c, pix);
     if (camera.clouds.x > 0.001 && d.z > 0.01) {
         // a flat layer 1500 m up drawn from the cloud field (weather_setup::cloud_field)
         let t = 1500.0 / d.z;
@@ -163,7 +172,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
         let core = 1.0 - 0.2 * smoothstep(0.45, 1.0, c.x) * (0.5 + 0.5 * c.y);
         let sun_up = clamp(camera.sun_dir.z * 4.0 + 0.3, 0.0, 1.0);
         let lit = camera.sun_color.rgb * 1.1 * sun_up + camera.ambient.rgb * mix(0.5, 1.5, sun_up) + camera.sky_color.rgb * 0.3;
-        var cloud_col = max(min(lit, vec3<f32>(0.97)) * core, col * 1.12);
+        var cloud_col = max(min(lit, vec3<f32>(0.97)) * core, base_sky * 1.12);
         // the deck greys over
         cloud_col = cloud_col * (1.0 - 0.3 * closed) * mix(1.0, 0.85 + 0.3 * c.x, closed);
         col = mix(col, cloud_col, cover);

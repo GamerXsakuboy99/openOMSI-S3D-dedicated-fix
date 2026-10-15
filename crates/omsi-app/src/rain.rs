@@ -244,6 +244,10 @@ impl Rain {
                 lamps.truncate(24);
             }
         }
+        // [ROLLBACK rainwind-1] the way a drop falls - down at 9 m/s, along with the wind - is the
+        // way its streak lies (a streak was always upright, so that in a wind the drops slid
+        // aslant on upright strokes)
+        let fall_dir = Vec3::new(wind.x, wind.y, -9.0).normalize_or_zero();
         let light = self.light;
         let frame = self.frame;
         self.frame = self.frame.wrapping_add(1);
@@ -327,7 +331,7 @@ impl Rain {
                     size: 0.05,
                     color: [0.75, 0.8, 0.9],
                     brightness: 0.35 * fade,
-                    direction: Vec3::ZERO,
+                    direction: fall_dir,
                     cone_cos: -2.0,
                     ..Default::default()
                 });

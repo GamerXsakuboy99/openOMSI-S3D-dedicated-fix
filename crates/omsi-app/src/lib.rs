@@ -10,6 +10,8 @@
 //! window of one process.
 
 mod admin;
+mod aurora_fx;
+mod storm_fx;
 mod discord;
 #[cfg(steam)]
 mod steam;
@@ -27,6 +29,9 @@ mod platform;
 mod touch;
 mod quick_menu;
 mod trip_summary;
+pub mod career_session;
+pub mod assets;
+pub mod decals;
 mod placing;
 mod mt;
 mod version;
@@ -57,6 +62,7 @@ mod money;
 mod radio;
 
 mod puddles;
+mod glass_fx;
 mod quit;
 mod rain;
 mod scene;
@@ -445,6 +451,7 @@ pub(crate) fn make_app(mut args: Args, server_cfg: Option<server::ServerCfg>) ->
     // (as the last session left it, #1164)
     let info_bar = settings.info_bar;
     units::set_imperial(settings.imperial);
+    let career_session = args.career.as_deref().and_then(career_session::Session::load);
     let mut app = App {
         args,
         instance: graphics_instance(),
@@ -568,6 +575,7 @@ pub(crate) fn make_app(mut args: Args, server_cfg: Option<server::ServerCfg>) ->
         editor_sync_t: 0.0,
         remote_added: Default::default(),
         placing: None,
+        ai_pick: false,
         admin_list: None,
         list_kind: None,
         route_arrows: Default::default(),
@@ -586,6 +594,7 @@ pub(crate) fn make_app(mut args: Args, server_cfg: Option<server::ServerCfg>) ->
         dragging: false,
         html_pressed: None,
         html_object_pressed: None,
+        pressed_scenery_object: None,
         drag_delta: (0.0, 0.0),
         look: (0.0, 0.0),
         look_smooth: (0.0, 0.0),
@@ -633,6 +642,7 @@ pub(crate) fn make_app(mut args: Args, server_cfg: Option<server::ServerCfg>) ->
         touch: touch::Touch::new(),
         quick: quick_menu::QuickMenu::new(),
         summary: trip_summary::SummaryWindow::new(),
+        career_session,
     };
     app.lan = lan;
     app.remotes = lan_game;

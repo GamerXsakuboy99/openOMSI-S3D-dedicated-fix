@@ -36,6 +36,9 @@ pub struct Daylight {
     pub moon_dir: Vec3,
     /// How much of the moon's disc is lit (0 new moon .. 1 full moon).
     pub moon_illum: f32,
+    /// The local sidereal time in radians: the right ascension on the meridian, which turns
+    /// the stars over the place (`crate::night`).
+    pub sidereal_rad: f32,
     /// The day of the year (1..366) and the map's latitude (degrees north): the season.
     pub day_of_year: f32,
     pub latitude: f32,
@@ -229,6 +232,7 @@ impl Daylight {
         let (m_alt, m_az, moon_illum) = moon_position(clock, &here);
         let (ma, mz) = (m_alt.to_radians(), m_az.to_radians());
         let moon_dir = Vec3::new((ma.cos() * mz.sin()) as f32, (ma.cos() * mz.cos()) as f32, ma.sin() as f32).normalize_or_zero();
+        let sidereal_rad = crate::night::local_sidereal_rad(days_j2000(clock, &here), here.longitude) as f32;
         let day_seed = (clock.year.rem_euclid(10_000) as u32) * 400 + clock.day_of_year.max(0) as u32;
         Daylight {
             sun_dir,
@@ -246,6 +250,7 @@ impl Daylight {
             envir_tint,
             moon_dir,
             moon_illum: moon_illum as f32,
+            sidereal_rad,
             day_of_year: clock.day_of_year as f32,
             latitude: here.latitude as f32,
             day_seed,
@@ -322,6 +327,18 @@ mod tests {
         let (alt, az, illum) = moon_position(&c, &berlin);
         assert!((illum - 0.5).abs() < 0.08, "illum {illum}");
         assert!((90.0..200.0).contains(&az) && alt > 0.0, "alt {alt} az {az}");
+    }
+
+    #[test]
+    fn the_stars_turn_with_the_clock() {
+        // the sidereal time moves on by 360.9856 degrees a day: a quarter of an hour of the
+        // map's clock is 3.76 degrees, and a whole day brings it round to just under 1 degree on
+        let a = Daylight::compute(&clock_at(23.0), None).sidereal_rad.to_degrees();
+        let b = Daylight::compute(&clock_at(23.25), None).sidereal_rad.to_degrees();
+        assert!(((b - a).rem_euclid(360.0) - 3.7603).abs() < 0.01, "{a} {b}");
+        let day = SimClock { day_of_year: 183, time: 23.0 * 3600.0, ..Default::default() };
+        let c = Daylight::compute(&day, None).sidereal_rad.to_degrees();
+        assert!(((c - a).rem_euclid(360.0) - 0.9856).abs() < 0.02, "{a} {c}");
     }
 
     #[test]

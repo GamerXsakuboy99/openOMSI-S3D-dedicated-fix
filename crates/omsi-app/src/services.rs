@@ -9,14 +9,19 @@ pub(crate) fn run_export(args: &Args, out: &PathBuf) -> Result<()> {
         .clone()
         .ok_or_else(|| anyhow!("--export-glb needs --bus"))?;
     let path = player_bus_path(&args.root, &bus)?;
-    let vt = Arc::new(omsi_sim::VehicleType::load(&args.root, &path)?);
+    let mut vt0 = omsi_sim::VehicleType::load(&args.root, &path)?;
+    if let Some(p) = args.paint.as_deref() {
+        omsi_sim::paint_mix::apply(&mut vt0, p, None);
+    }
+    let vt = Arc::new(vt0);
     let scheme = paint_scheme(&vt, args.paint.as_deref());
     let mut host = omsi_sim::VehicleHost::new(start_clock(args));
     host.paint_scheme = Some(scheme);
     let mut vehicle = omsi_sim::VehicleInstance::new(vt.clone(), host);
     vehicle.apply_paint_vars(scheme);
     // the coupled rear of an articulated bus
-    load_coupled_parts(&args.root, &mut vehicle);
+    let mix = args.paint.as_deref().filter(|p| omsi_sim::paint_mix::is_mix(p)).zip(scheme);
+    load_coupled_parts(&args.root, &mut vehicle, mix);
     for _ in 0..3 {
         vehicle.update(1.0 / 30.0);
     }

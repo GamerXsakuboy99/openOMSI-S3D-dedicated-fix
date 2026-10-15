@@ -49,22 +49,53 @@ pub(crate) fn next_coupled(def: &omsi_vehicle::vehicle::Vehicle, rev: bool, towa
     Some((path, flag ^ rev))
 }
 
+/// How many coupled parts one vehicle may have behind it. A consist that closes on itself
+/// stops on its own (see [`chain_has_part`]); this only guards against a coupling chain that
+/// keeps growing through different files.
+pub(crate) const MAX_COUPLED_PARTS: usize = 32;
+
+/// Whether the vehicle file `path` is already one of the parts of the consist `seen` - the
+/// same file, not the same spelling, so a chain that comes round again ends there instead of
+/// growing. The NF6D tram closes on itself: its rear cab car `[couple_back]`s the
+/// articulation its front car starts with, and the whole unit is eleven parts long.
+pub(crate) fn chain_has_part(seen: &[PathBuf], path: &Path) -> bool {
+    seen.iter().any(|s| omsi_vehicle::vehicle::same_file(s, path))
+}
+
 /// Load the `[couple_back]` chain behind `vehicle` (articulated rear sections, trailers),
 /// each file resolved from the folder of the part before it in whichever content root
-/// holds it.
+/// holds it. `mix`: the paint worn, when it is a mix of repaints (`omsi_sim::paint_mix`), and
+/// the number of its scheme in the front part: the parts get the same mix at the same number.
 pub(crate) fn load_coupled_parts(
     root: &Path,
     vehicle: &mut omsi_sim::VehicleInstance,
+    mix: Option<(&str, usize)>,
 ) -> Vec<Arc<omsi_sim::VehicleType>> {
     let mut parts = Vec::new();
     let mut lead = vehicle.ty.clone();
     let mut lead_rev = false;
-    for _ in 0..8 {
+    let mut seen = vec![lead.def.path.clone()];
+    for _ in 0..MAX_COUPLED_PARTS {
         let Some((path, reversed)) = next_coupled(&lead.def, lead_rev, true) else {
             break;
         };
+        if chain_has_part(&seen, &path) {
+            log::info!(
+                "coupled behind {}: {} - already in the train, the consist closes here",
+                lead.def
+                    .path
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy(),
+                path.display()
+            );
+            break;
+        }
         match omsi_sim::VehicleType::load(root, &path) {
-            Ok(t) => {
+            Ok(mut t) => {
+                if let Some((paint, at)) = mix {
+                    omsi_sim::paint_mix::apply(&mut t, paint, Some(at));
+                }
                 let t = Arc::new(t);
                 log::info!(
                     "coupled behind {}: {} ({} meshes{})",
@@ -79,6 +110,7 @@ pub(crate) fn load_coupled_parts(
                 );
                 vehicle.attach_trailer_ex(t.clone(), reversed);
                 parts.push(t.clone());
+                seen.push(path);
                 lead = t;
                 lead_rev = reversed;
             }
@@ -93,6 +125,34 @@ pub(crate) fn load_coupled_parts(
         }
     }
     parts
+}
+
+#[cfg(test)]
+mod preparation_tests {
+    use super::*;
+
+    /// The NF6D tram is eleven parts long and its rear cab car `[couple_back]`s the
+    /// articulation its front car starts with: the chain has to be walked whole and must
+    /// stop where it comes round, or the last carriage is left off the tram.
+    #[test]
+    fn a_consist_that_closes_on_itself_ends_at_the_part_it_returns_to() {
+        let dir = std::env::temp_dir().join(format!("openomsi-chain-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let front = dir.join("NF6D_A.bus");
+        let rear = dir.join("NF6D_B_User.bus");
+        std::fs::write(&front, "[couple_back]\nNF6D_B_User.bus\nfalse\n").unwrap();
+        std::fs::write(&rear, "[couple_back]\nNF6D_A.bus\nfalse\n").unwrap();
+
+        assert!(!chain_has_part(&[front.clone()], &rear));
+        assert!(chain_has_part(&[front.clone(), rear.clone()], &front));
+        assert!(
+            MAX_COUPLED_PARTS >= 11,
+            "a part bound below eleven cuts an NF6D tram's last carriage off"
+        );
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }
 
 /// Choose the player's fleet number and registration before the script VM runs `{init}`.
@@ -166,7 +226,16 @@ pub(crate) fn spawn_player(
         return Ok(None);
     };
     let path = player_bus_path(&args.root, bus)?;
-    let vt = Arc::new(omsi_sim::VehicleType::load(&args.root, &path)?);
+    let mut vt0 = omsi_sim::VehicleType::load(&args.root, &path)?;
+    // the stickers the player put on it in the livery editor (the bus's own set in a Career
+    // session, else its model's)
+    let owner = args.career.as_deref().and_then(crate::career_session::Session::load).map(|s| s.bus_id).filter(|id| *id != 0);
+    crate::decals::apply_saved(&mut vt0, owner);
+    // (a paint that mixes the repaints of the bus becomes a scheme of its own)
+    if let Some(p) = args.paint.as_deref() {
+        omsi_sim::paint_mix::apply(&mut vt0, p, None);
+    }
+    let vt = Arc::new(vt0);
     log::info!(
         "vehicle {} {}: {} meshes, {} script blocks, {} variables",
         vt.def.manufacturer,
@@ -302,7 +371,8 @@ pub(crate) fn spawn_player(
     }
     let render = world.add_vehicle(renderer, scene, &vt, scheme);
     // coupled rear sections / trailers
-    let trailer_renders: Vec<scene::VehicleRender> = load_coupled_parts(&args.root, &mut vehicle)
+    let mix = args.paint.as_deref().filter(|p| omsi_sim::paint_mix::is_mix(p)).zip(scheme);
+    let trailer_renders: Vec<scene::VehicleRender> = load_coupled_parts(&args.root, &mut vehicle, mix)
         .iter()
         .map(|t| {
             world.add_vehicle_part(

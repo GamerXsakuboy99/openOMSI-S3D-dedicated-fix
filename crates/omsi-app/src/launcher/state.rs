@@ -661,6 +661,7 @@ impl State {
             season: Some(c.season.clone()).filter(|s| s != "auto"),
             tutorial: None,
             situation: None,
+            career: None,
         }
     }
 
@@ -700,6 +701,20 @@ impl State {
         d.lan = Some("off".into());
         self.set_status("Continuing where you left off…", false);
         self.queued_launch = Some(d);
+    }
+
+    /// Start this duty as it is (Career Mode makes its own).
+    pub fn launch_duty(&mut self, d: core::Duty) -> bool {
+        if !self.save_pending_settings() {
+            return false;
+        }
+        if !omsi_cfg::missing_original_essentials(std::path::Path::new(&self.config.root)).is_empty() {
+            self.set_status("A session needs the original OMSI 2: choose its folder under Setup first.", true);
+            return false;
+        }
+        self.set_status("Starting the game…", false);
+        self.queued_launch = Some(d);
+        true
     }
 
     /// Start one of OMSI's tutorials (1..4).

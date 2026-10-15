@@ -20,6 +20,7 @@ fn main() {
     println!("cargo:rerun-if-changed=../../.git/index");
     windows_icon();
     steam();
+    thunder_assets();
     // (the executable exports the two switchable-graphics hints of main.rs, see there)
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") && std::env::var("CARGO_CFG_TARGET_ENV").as_deref() == Ok("msvc") {
         for sym in ["NvOptimusEnablement", "AmdPowerXpressRequestHighPerformance"] {
@@ -83,5 +84,38 @@ fn windows_icon() {
         .set("ProductVersion", &std::env::var("OPENOMSI_VERSION").unwrap_or_default());
     if let Err(e) = res.compile() {
         println!("cargo:warning=no icon in the executable: {e}");
+    }
+}
+
+/// [ROLLBACK storm-2] The recorded thunders (`assets/sounds/thunder/*.wav`) become part of the
+/// executable: a list of (name, bytes) written to `thunder_embedded.rs` in the build's output
+/// folder, which `src/ambience.rs` includes. A missing or empty folder is an empty list (the
+/// game then makes its thunder up); a file added or removed rebuilds.
+fn thunder_assets() {
+    let dir = std::path::Path::new(&std::env::var("CARGO_MANIFEST_DIR").unwrap_or_default()).join("../../assets/sounds/thunder");
+    println!("cargo:rerun-if-changed={}", dir.display());
+    let mut files: Vec<std::path::PathBuf> = std::fs::read_dir(&dir)
+        .map(|rd| {
+            rd.filter_map(|e| e.ok().map(|e| e.path()))
+                .filter(|p| p.extension().map_or(false, |x| x.eq_ignore_ascii_case("wav")))
+                .collect()
+        })
+        .unwrap_or_default();
+    files.sort();
+    let mut total = 0u64;
+    let mut src = String::from("pub static THUNDER_EMBEDDED: &[(&str, &[u8])] = &[\n");
+    for f in &files {
+        println!("cargo:rerun-if-changed={}", f.display());
+        total += std::fs::metadata(f).map(|m| m.len()).unwrap_or(0);
+        let name = f.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
+        src.push_str(&format!("    ({:?}, include_bytes!({:?})),\n", name, f.to_string_lossy()));
+    }
+    src.push_str("];\n");
+    if total > 48 << 20 {
+        println!("cargo:warning=the thunder recordings in assets/sounds/thunder make {} MB of the executable", total >> 20);
+    }
+    let out = std::path::Path::new(&std::env::var("OUT_DIR").unwrap_or_default()).join("thunder_embedded.rs");
+    if let Err(e) = std::fs::write(&out, src) {
+        panic!("cannot write {}: {e}", out.display());
     }
 }

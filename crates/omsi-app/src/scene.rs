@@ -43,6 +43,8 @@ pub struct ObjectType {
     pub mesh_shadow: Vec<bool>,
     /// `[shadow]` per loaded mesh: the meshes OMSI casts (stencil) shadows from.
     pub mesh_casts: Vec<bool>,
+    /// Whether any loaded mesh carries a `[mouseevent]`.
+    pub has_mouse_events: bool,
     /// Compiled scripts when the object is scripted or animated.
     pub program: Option<Arc<omsi_script::Program>>,
     /// Further `[LOD]` levels: (min screen size, meshes), in model order after LOD 0.
@@ -343,6 +345,19 @@ pub struct PageHit {
     /// 0..1 across the page, `v` down from the top.
     pub u: f32,
     pub v: f32,
+}
+
+/// Where a ray lands on a mesh of a scenery object with a `[mouseevent]`: see
+/// [`World::scenery_object_hit`].
+#[derive(Clone, Debug)]
+pub struct SceneryHit {
+    /// Distance (m) along the ray.
+    pub t: f32,
+    pub map_id: i64,
+    #[allow(dead_code)]
+    pub mesh_index: usize,
+    /// The event name from the mesh's `[mouseevent]`.
+    pub event: String,
 }
 
 /// What the timetable tells the scenery: the time of day, and the buses due at the stops
@@ -3133,27 +3148,10 @@ impl World {
                 }
             }
             let paint_scheme_count = paint_schemes.len();
-            // scripts (or an empty program) for objects that are scripted or animated
-            let animated = mesh_def_index.iter().any(|d| {
-                !model.meshes[*d].animations.is_empty() || model.meshes[*d].visible.is_some()
+            let has_mouse_events = mesh_def_index.iter().any(|d| {
+                model.meshes.get(*d).and_then(|m| m.mouse_event.as_ref()).is_some()
             });
-            let has_freetex = mesh_def_index.iter().any(|d| {
-                model.meshes[*d].materials.iter().any(|o| !o.item && o.freetex.is_some())
-            });
-            let program = if !sco.scripts.scripts.is_empty()
-                || !sco.scripts.stringvarlists.is_empty()
-                || !sco.scripts.varlists.is_empty()
-                || has_freetex
-                || animated
-                || sco.sound.is_some()
-            {
-                Some(Arc::new(omsi_sim::scenery::compile_scenery(
-                    &self.root,
-                    &sco.scripts,
-                )))
-            } else {
-                None
-            };
+            let program = object_program(&self.root, &sco, &model, &mesh_def_index, has_mouse_events);
             let mesh_shadow = mesh_def_index
                 .iter()
                 .map(|d| model.meshes[*d].is_shadow)
@@ -3240,6 +3238,7 @@ impl World {
                 mesh_pivots,
                 mesh_shadow,
                 mesh_casts,
+                has_mouse_events,
                 program,
                 lower_lods,
                 lod0_min,
@@ -6275,6 +6274,28 @@ impl World {
                 let mut extra = material_extra(&slot_ov, env_mask, bump, specular);
                 extra.ambient = Some(ambient);
                 extra.no_map_lights = ot.sco.no_map_lighting;
+                // [ROLLBACK blendmask-1] a solid body blended for its few see-through texels (a
+                // wall with windows, `[matl_alpha] 2`) is drawn before the thin layers around it
+                // (see `MaterialExtra::solid_blend`). (OMSI_NO_SOLID_FIRST=1: as before.)
+                if alpha == AlphaMode::Blend
+                    && !surface_phase
+                    && !faded
+                    && transmap.is_none()
+                    && !extra.no_z_write
+                    && !extra.no_z_check
+                    && tex.is_some()
+                    && omsi_cfg::env::var_os("OMSI_NO_SOLID_FIRST").is_none()
+                {
+                    let dirs_ref: Vec<&Path> = dirs.iter().map(|p| p.as_path()).collect();
+                    extra.solid_blend = match omsi_texture::find_texture(&m.texture, &dirs_ref) {
+                        Some(path) => match gpu.textures.get(&path) {
+                            Some(e) if !e.alpha => true,
+                            Some(_) => alpha_mask(&path).is_some_and(|mask| slot_is_solid(mesh, slot, &mask)),
+                            None => false,
+                        },
+                        None => false,
+                    };
+                }
                 if tex.is_some() {
                     let dirs_ref: Vec<&Path> = dirs.iter().map(|p| p.as_path()).collect();
                     let c = self.textures.cfg(&m.texture, &dirs_ref);
@@ -7776,6 +7797,7 @@ impl World {
                             || !script_texts.is_empty()
                             || !html_pages.is_empty()
                             || !ot.dynamic_textures.is_empty()
+                            || ot.has_mouse_events
                         {
                             let arrivals = inst.wants_arrivals();
                             // (a scripted object with [terrainmapping] slots had more instances
@@ -8651,6 +8673,19 @@ impl World {
         self.texture_limit.load(std::sync::atomic::Ordering::Relaxed)
     }
 
+    /// Bytes the vehicle sets' textures (AI traffic, the timetable's buses) take on the GPU. They
+    /// count against the budget but are never shrunk, so what they hold, the scenery lacks.
+    pub fn vehicle_texture_bytes(&self, scene: &Scene) -> u64 {
+        self.vehicle_textures.lock().values().map(|(t, _)| scene.texture_bytes_of(*t)).sum()
+    }
+
+    /// Whether the vehicles' textures take more than `share` (0..1) of the textures' budget
+    /// (never where there is no budget).
+    pub fn vehicle_pressure(&self, scene: &Scene, share: f64) -> bool {
+        let limit = self.texture_budget_bytes();
+        limit > 0 && self.vehicle_texture_bytes(scene) as f64 > limit as f64 * share
+    }
+
     /// Keep the textures within their budget, once a second (`force`: now): while they take
     /// more, the scenery textures only far tiles use lose their finest mip level, the
     /// farthest first, down to 64 texels a side and never within 150 m of `centers` (the
@@ -8666,6 +8701,7 @@ impl World {
         force: bool,
     ) -> usize {
         const NEAR: f64 = 150.0;
+        const SHRINK_MARGIN: f64 = 60.0;
         const RESTORE: f64 = 400.0;
         const MIN_SIDE: u32 = 64;
         let limit = self
@@ -8775,10 +8811,14 @@ impl World {
         if usage > limit {
             entries.sort_by(|a, b| b.0.total_cmp(&a.0));
             let mut over = usage - limit;
+            // (all the copies of this second in one submission)
+            let mut drops = renderer.begin_level_drops();
             for (d, p) in &entries {
                 // (96 a second: at 16 a map's first tiles stayed over a small card's budget
                 // for a minute and a half)
-                if over == 0 || shrunk.len() >= 96 || *d < NEAR {
+                // (beyond NEAR plus a margin, so that a texture at the edge of the near ring is not
+                // shrunk the second after it was brought back whole)
+                if over == 0 || shrunk.len() >= 96 || *d < NEAR + SHRINK_MARGIN {
                     break;
                 }
                 if spline_textures.contains(p) {
@@ -8796,13 +8836,14 @@ impl World {
                 let before = e.bytes;
                 // far away and big: two levels at once
                 let n = if *d > 700.0 && w.min(h) / 4 >= MIN_SIDE.max(256) && levels > 2 { 2 } else { 1 };
-                if renderer.drop_top_levels(scene, e.id, n) {
+                if renderer.drop_top_levels_with(scene, e.id, n, &mut drops) {
                     e.bytes = scene.texture_bytes_of(e.id);
                     e.dropped += n;
                     over = over.saturating_sub(before - e.bytes);
                     shrunk.push(e.id);
                 }
             }
+            renderer.finish_level_drops(drops);
         } else {
             // room for the near ones to come back (with a tenth kept free)
             entries.sort_by(|a, b| a.0.total_cmp(&b.0));
@@ -8830,7 +8871,7 @@ impl World {
         drop(gpu);
         let rebound = renderer.rebind_textures(scene, &shrunk);
         if (!shrunk.is_empty() || restoring > 0) && omsi_cfg::env::var_os("OMSI_PROFILE").is_some() {
-            log::info!("texture budget: {:.0} of {:.0} MB in use, {} textures lost a level ({} materials rebound), {} coming back, in {:.1} ms", usage as f64 / 1e6, limit as f64 / 1e6, shrunk.len(), rebound, restoring, t0.elapsed().as_secs_f64() * 1000.0);
+            log::info!("texture budget: {:.0} of {:.0} MB in use ({:.0} MB of them vehicles), {} textures lost a level ({} materials rebound), {} coming back, in {:.1} ms", usage as f64 / 1e6, limit as f64 / 1e6, vehicle_bytes as f64 / 1e6, shrunk.len(), rebound, restoring, t0.elapsed().as_secs_f64() * 1000.0);
         }
         shrunk.len() + restoring
     }
@@ -9360,6 +9401,109 @@ impl World {
             Some(o) => o.inst.html_pointer(page, u, v, kind),
             None => false,
         }
+    }
+
+    /// Finds the closest scenery object mesh carrying a `[mouseevent]` under a ray.
+    pub fn scenery_object_hit(&self, origin: DVec3, dir: glam::Vec3, reach: f32, spread: f32) -> Option<SceneryHit> {
+        let scripted = self.scripted.lock();
+        let mut best: Option<SceneryHit> = None;
+        let right = glam::Vec3::new(-dir.y, dir.x, 0.0).normalize_or_zero();
+        let up = dir.cross(right).normalize_or_zero();
+        let dirs = if spread > 0.0 {
+            vec![
+                dir,
+                (dir + right * spread).normalize(),
+                (dir - right * spread).normalize(),
+                (dir + up * spread).normalize(),
+                (dir - up * spread).normalize(),
+            ]
+        } else {
+            vec![dir]
+        };
+        for o in scripted.iter().filter(|o| o.ty.has_mouse_events) {
+            if (o.pos - origin).length() > reach as f64 + 60.0 {
+                continue;
+            }
+            let local = (origin - o.pos).as_vec3();
+            for mi in 0..o.ty.meshes.len() {
+                let Some((data, _, _)) = o.ty.meshes.get(mi) else { continue };
+                if !o.inst.mesh_visible.get(mi).copied().unwrap_or(true) {
+                    continue;
+                }
+                let Some(&def_idx) = o.ty.mesh_def_index.get(mi) else { continue };
+                let Some(event) = o.ty.model.meshes.get(def_idx).and_then(|m| m.mouse_event.as_ref()) else { continue };
+                let xf = o.xf * o.inst.mesh_transforms.get(mi).copied().unwrap_or(Mat4::IDENTITY);
+                for d in &dirs {
+                    if let Some(t) = omsi_geometry::ray_mesh(local, *d, data, &xf) {
+                        if t <= reach && best.as_ref().map_or(true, |b| t < b.t) {
+                            best = Some(SceneryHit {
+                                map_id: o.map_id,
+                                mesh_index: mi,
+                                event: event.clone(),
+                                t,
+                            });
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        best
+    }
+
+    /// Click down on a scenery object's `[mouseevent]` switch or button.
+    pub fn scenery_object_click(&self, map_id: i64, event: &str) -> bool {
+        let mut scripted = self.scripted.lock();
+        let Some(o) = scripted.iter_mut().find(|o| o.map_id == map_id) else {
+            return false;
+        };
+        log::info!("scenery mouse event {event} on object {map_id}");
+        let ok = o.inst.trigger(event);
+        let drag = format!("{event}_drag");
+        let low = event.to_ascii_lowercase();
+        if (low.contains("taste") || low.contains("button") || low.contains("click"))
+            && o.inst.program.trigger(&drag).is_some()
+        {
+            o.inst.host.mouse = (0.0, 0.0);
+            o.inst.trigger(&drag);
+            o.inst.host.mouse = (0.0, 0.0);
+        }
+        ok
+    }
+
+    /// Mouse dragged while holding down a scenery object switch.
+    pub fn scenery_object_drag(&self, map_id: i64, event: &str, dx: f32, dy: f32) -> bool {
+        let mut scripted = self.scripted.lock();
+        let Some(o) = scripted.iter_mut().find(|o| o.map_id == map_id) else {
+            return false;
+        };
+        let drag = format!("{event}_drag");
+        o.inst.host.mouse = (dx, dy);
+        let ok = o.inst.trigger(&drag);
+        o.inst.host.mouse = (0.0, 0.0);
+        ok
+    }
+
+    /// Mouse button released from a scenery object switch (`<event>_off`).
+    pub fn scenery_object_release(&self, map_id: i64, event: &str) -> bool {
+        let mut scripted = self.scripted.lock();
+        let Some(o) = scripted.iter_mut().find(|o| o.map_id == map_id) else {
+            return false;
+        };
+        let off = format!("{event}_off");
+        o.inst.trigger(&off)
+    }
+
+    /// Mouse wheel notch over a scenery object switch.
+    pub fn scenery_object_wheel(&self, map_id: i64, event: &str, amount: f32) -> bool {
+        let mut scripted = self.scripted.lock();
+        let Some(o) = scripted.iter_mut().find(|o| o.map_id == map_id) else {
+            return false;
+        };
+        o.inst.host.mouse = (0.0, amount);
+        let _ = o.inst.trigger(&format!("{event}_drag"));
+        o.inst.host.mouse = (0.0, 0.0);
+        o.inst.trigger(&format!("{event}_off"))
     }
 
     /// The colour the tile's night light map (its own part, see [`own_tile_of_light_map`])
@@ -9995,6 +10139,41 @@ fn find_vehicle_freetex(name: &str, dirs: &[&Path]) -> Option<PathBuf> {
     omsi_texture::find_texture(&rel, dirs)
 }
 
+/// The row of the depot file a roller blind's picture is listed under (by its name among the
+/// destination's strings), if any: a text typed by hand in the destination menu has no picture,
+/// and a file the depot file does not list is nobody's.
+fn blind_row_by_name(vehicle: &omsi_sim::VehicleInstance, name: &str) -> Option<usize> {
+    let hof = vehicle.host.hof.as_deref()?;
+    let lists: Vec<Vec<String>> = hof.termini.iter().map(|t| t.strings.clone()).collect();
+    omsi_sim::blindtex::match_terminus(&lists, name)
+}
+
+/// The row of the depot file whose texts a picture that is not there is drawn from: the one
+/// that lists the picture's name (`by_name`), else the destination the vehicle shows now
+/// (a text typed in the destination menu, the blind's turned-to row, the IBIS's). None
+/// without a depot file.
+fn blind_row(vehicle: &omsi_sim::VehicleInstance, by_name: Option<usize>) -> Option<usize> {
+    by_name.or_else(|| vehicle.host.hof.as_deref().and_then(|h| crate::schedule::shown_destination(vehicle, h, None)))
+}
+
+/// The texts of a roller blind's picture that is not there: the destination `row` of the
+/// vehicle's depot file, as the depot file holds it (see `omsi_sim::blindtex::pick_lines`), and
+/// the line it shows. Without a row, the picture's own file name is the text.
+fn blind_lines(vehicle: &omsi_sim::VehicleInstance, name: &str, row: Option<usize>) -> omsi_sim::blindtex::Lines {
+    use omsi_sim::blindtex as bt;
+    let hof = vehicle.host.hof.as_deref();
+    let (mut big, mut small) = match (hof, row) {
+        (Some(h), Some(i)) => h.termini.get(i).map(|t| bt::pick_lines(&t.strings)).unwrap_or_default(),
+        _ => Default::default(),
+    };
+    if big.is_empty() {
+        big = bt::text_of_name(name);
+        small.clear();
+    }
+    let line = crate::game_lists::line_shown(vehicle).unwrap_or_default();
+    bt::Lines { line, big, small }
+}
+
 fn sync_materials(
     renderer: &Renderer,
     scene: &mut Scene,
@@ -10006,7 +10185,38 @@ fn sync_materials(
         for f in &mut v.free {
             let name = vehicle.str_var(&f.var);
             let name = name.trim().to_string();
-            let key = name.to_ascii_lowercase();
+            // a roller blind's or plug-in sign's picture: the style it would be drawn in when
+            // the file is not there, and for one that carries the line number, the line is
+            // part of what is shown (the same destination under another line is another picture)
+            if f.blind_name != name {
+                f.blind = if name.is_empty() { None } else { omsi_sim::blindtex::style_of(&name) };
+                f.blind_name = name.clone();
+                // (whether the file is there, and which destination lists it, once for a name)
+                f.blind_missing = false;
+                f.blind_row = None;
+                if f.blind.is_some() {
+                    let dirs: Vec<&Path> = f.dirs.iter().map(|p| p.as_path()).collect();
+                    f.blind_missing = find_vehicle_freetex(&name, &dirs).is_none();
+                    if f.blind_missing {
+                        f.blind_row = blind_row_by_name(vehicle, &name);
+                    }
+                }
+            }
+            let mut key = name.to_ascii_lowercase();
+            // A picture drawn in place of a file is what the destination shown makes of it, and
+            // that is not always in its name: a text typed in the destination menu has no
+            // picture, so the bus asks for the same name whatever the text is (and the two
+            // places the menu alternates between share it). The row (and the line, for a
+            // picture that carries it) is part of the key, so another destination is another
+            // picture.
+            let mut shown_row = None;
+            if f.blind.is_some() && f.blind_missing {
+                shown_row = blind_row(vehicle, f.blind_row);
+                key = format!("{key}|r{}", shown_row.map_or(-1, |r| r as i64));
+                if f.blind.is_some_and(|s| s.wants_line()) {
+                    key = format!("{key}|{}", crate::game_lists::line_shown(vehicle).unwrap_or_default());
+                }
+            }
             if f.current.as_deref() != Some(key.as_str()) {
                 f.current = Some(key.clone());
                 let pair = match f.cache.get(&key) {
@@ -10018,13 +10228,40 @@ fn sync_materials(
                         } else {
                             let resolved = find_vehicle_freetex(&name, &dirs);
                             if resolved.is_none() {
-                                log::warn!(
-                                    "vehicle [matl_freetex] '{}' = {:?}: texture not found",
-                                    f.var,
-                                    name
-                                );
-                            }
-                            resolved.and_then(|path| {
+                                // a blind's picture the map does not have: drawn from the texts of
+                                // the destination in the depot file, in the blind's own look
+                                if let Some(style) = f.blind {
+                                    let lines = blind_lines(vehicle, &name, shown_row);
+                                    log::info!(
+                                        "vehicle [matl_freetex] '{}' = {:?}: no picture, drawn as {:?} ({:?})",
+                                        f.var,
+                                        name,
+                                        style,
+                                        lines
+                                    );
+                                    let fake = PathBuf::from(format!("<blind>/{key}"));
+                                    let mut shared = f.shared.lock();
+                                    if let Some(e) = shared.get_mut(&fake) {
+                                        e.1 += 1;
+                                        f.held.push(fake);
+                                        Some(e.0)
+                                    } else {
+                                        let img = omsi_sim::blindtex::render(style, &lines);
+                                        let id = renderer.add_texture(scene, &img, true);
+                                        shared.insert(fake.clone(), (id, 1));
+                                        f.held.push(fake);
+                                        Some(id)
+                                    }
+                                } else {
+                                    log::warn!(
+                                        "vehicle [matl_freetex] '{}' = {:?}: texture not found",
+                                        f.var,
+                                        name
+                                    );
+                                    None
+                                }
+                            } else {
+                              resolved.and_then(|path| {
                                 let mut shared = f.shared.lock();
                                 if let Some(e) = shared.get_mut(&path) {
                                     e.1 += 1;
@@ -10040,7 +10277,8 @@ fn sync_materials(
                                 shared.insert(path.clone(), (id, 1));
                                 f.held.push(path);
                                 Some(id)
-                            })
+                              })
+                            }
                         };
                         // An empty string or a file not found leaves the slot its own
                         // texture from the mesh (with its addressing): a roller blind's idle
@@ -10449,6 +10687,7 @@ fn material_extra(
             .filter(|o| o.tex_address == omsi_model::TexAddress::Border)
             .map(|o| o.border_color.map(|c| (c / 255.0).clamp(0.0, 1.0))),
         metal_ok: false,
+        solid_blend: false,
     }
 }
 
@@ -10781,6 +11020,30 @@ fn slot_is_see_through(mesh: &MeshData, slot: usize, mask: &[u8]) -> bool {
     all > 0 && clear * 10 >= all * 9
 }
 
+/// [ROLLBACK blendmask-1] Whether a slot of scenery is a solid body for all its `[matl_alpha] 2`:
+/// three in four of its triangles have an alpha of 230 or more at their middle (`mask`, see
+/// [`alpha_mask`]). A wall with windows is; a shadow, a sticker or a text plane is not.
+fn slot_is_solid(mesh: &MeshData, slot: usize, mask: &[u8]) -> bool {
+    let (mut clear, mut all) = (0usize, 0usize);
+    for &(first, count, material) in &mesh.ranges {
+        if material as usize != slot {
+            continue;
+        }
+        let start = first as usize;
+        let end = start.saturating_add(count as usize).min(mesh.indices.len());
+        for tri in mesh.indices.get(start..end).unwrap_or_default().chunks_exact(3) {
+            let Some(uv) = tri.iter().map(|&i| mesh.uvs.get(i as usize).copied()).sum::<Option<glam::Vec2>>() else { continue };
+            let uv = uv / 3.0;
+            let at = |t: f32| ((t.rem_euclid(1.0) * ALPHA_MASK as f32) as usize).min(ALPHA_MASK - 1);
+            all += 1;
+            if mask[at(uv.y) * ALPHA_MASK + at(uv.x)] < 230 {
+                clear += 1;
+            }
+        }
+    }
+    all > 0 && clear * 4 <= all
+}
+
 /// Return whether the triangles of one material occupy a volumetric part of the vehicle.
 /// Windows and rain films are normally very thin sheets; this lets unnamed/modded body
 /// meshes be repaired without maintaining a language-specific list of mesh names.
@@ -11041,6 +11304,14 @@ pub struct FreeTex {
     pub cache: HashMap<String, (MaterialId, MaterialId)>,
     /// The name currently applied.
     pub current: Option<String>,
+    /// The name `blind` was worked out for, and the stand-in picture's style a roller blind's
+    /// or plug-in sign's file of that name has (`omsi_sim::blindtex`), if it has one.
+    pub blind_name: String,
+    pub blind: Option<omsi_sim::blindtex::Style>,
+    /// Whether the file `blind_name` names is missing (so its picture is drawn), and the row of
+    /// the depot file that lists that name.
+    pub blind_missing: bool,
+    pub blind_row: Option<usize>,
     /// The world's shared vehicle textures (a picture is one texture for every vehicle
     /// showing it; every bus had its own copy, half a gigabyte of destination pictures on
     /// Ahlheim), the pictures this vehicle holds, and where pictures uploaded as RGBA are
@@ -12490,10 +12761,14 @@ impl World {
                     let mesh_name = def.file.to_ascii_lowercase();
                     let transparent_layer_name = ["regen", "dreck", "dirt", "folie"];
                     let material_name = format!("{} {}", mesh_name, m.texture).to_ascii_lowercase();
-                    let named_pane = GLASS_WORDS
-                        .iter()
-                        .chain(transparent_layer_name.iter())
-                        .any(|part| material_name.contains(part));
+                    // (a launcher decal takes its host mesh's file name - "okna.o3d" - but is
+                    // a sticker, never a pane: drawn as glass it was tinted away to nothing)
+                    let is_decal = vm.overlay || m.texture.starts_with("openomsi_decal_");
+                    let named_pane = !is_decal
+                        && GLASS_WORDS
+                            .iter()
+                            .chain(transparent_layer_name.iter())
+                            .any(|part| material_name.contains(part));
                     // A pane whose name says nothing: its faces lie on a see-through part of
                     // its texture. No list of words finds the SOR NB12's `celokint.o3d` (its
                     // windscreen), `okridic.o3d` (the driver's window) or `vyklopnel1.o3d`
@@ -12779,6 +13054,10 @@ impl World {
                         textures: self.textures.clone(),
                         cache: HashMap::new(),
                         current: None,
+                        blind_name: String::new(),
+                        blind: None,
+                        blind_missing: false,
+                        blind_row: None,
                         shared: self.vehicle_textures.clone(),
                         held: Vec::new(),
                         wants_upgrade: self.freetex_upgrades.clone(),
@@ -13322,6 +13601,36 @@ mod tests {
         assert!(is_snow_picture(Path::new("/omsi/Sceneryobjects/Buildings_RW1HH/texture/Wintersnow/wall.jpg")));
         assert!(!is_snow_picture(Path::new("/omsi/Texture/Winter/gras.bmp")));
         assert!(!is_snow_picture(Path::new("/omsi/Texture/WinterSnow_gras.bmp")));
+    }
+
+    /// [ROLLBACK blendmask-1] A quad of slot 0 over the texture region `uv` (min, max).
+    fn quad_over(lo: [f32; 2], hi: [f32; 2]) -> MeshData {
+        MeshData {
+            positions: vec![glam::Vec3::ZERO, glam::Vec3::X, glam::Vec3::new(1.0, 0.0, 1.0), glam::Vec3::Z],
+            normals: vec![glam::Vec3::Y; 4],
+            uvs: vec![glam::Vec2::new(lo[0], lo[1]), glam::Vec2::new(hi[0], lo[1]), glam::Vec2::new(hi[0], hi[1]), glam::Vec2::new(lo[0], hi[1])],
+            indices: vec![0, 1, 2, 0, 2, 3],
+            ranges: vec![(0, 6, 0)],
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn a_wall_with_windows_is_solid_a_shadow_is_not() {
+        // opaque but for a window band on the right
+        let mut wall = vec![255u8; ALPHA_MASK * ALPHA_MASK];
+        for y in 0..ALPHA_MASK {
+            for x in 200..ALPHA_MASK {
+                wall[y * ALPHA_MASK + x] = 60;
+            }
+        }
+        // a quad on the wall part
+        assert!(slot_is_solid(&quad_over([0.0, 0.0], [0.5, 1.0]), 0, &wall));
+        // a soft shadow: alpha 90 over most of the picture
+        let shadow = vec![90u8; ALPHA_MASK * ALPHA_MASK];
+        assert!(!slot_is_solid(&quad_over([0.0, 0.0], [1.0, 1.0]), 0, &shadow));
+        // a quad on the window band
+        assert!(!slot_is_solid(&quad_over([0.85, 0.0], [1.0, 1.0]), 0, &wall));
     }
 
     #[test]
@@ -13903,6 +14212,136 @@ mod tests {
         assert_eq!(standard_traffic_lamp("custom_channel", true, true, true, false), None);
     }
 
+    #[test]
+    fn scenery_mouseevent_hit_and_trigger() {
+        let dir = std::env::temp_dir().join(format!("openomsi-scenery-mouseevent-{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("global.cfg"), "[map]\n0\n0\n0\n").unwrap();
+        let world = World::open(&dir, &dir.join("global.cfg"), 20261001).unwrap();
+
+        let mut mesh_data = omsi_geometry::MeshData::default();
+        mesh_data.positions = vec![
+            glam::Vec3::new(-1.0, 5.0, -1.0),
+            glam::Vec3::new(1.0, 5.0, -1.0),
+            glam::Vec3::new(1.0, 5.0, 1.0),
+            glam::Vec3::new(-1.0, 5.0, 1.0),
+        ];
+        mesh_data.indices = vec![0, 1, 2, 0, 2, 3];
+
+        let mut model = omsi_model::Model::default();
+        let mut mdef = omsi_model::MeshDef::default();
+        mdef.mouse_event = Some("toggle_switch".to_string());
+        model.meshes.push(mdef);
+
+        let mut prog = omsi_script::Program::default();
+        let var_id = prog.declare_var("Switch");
+        prog.blocks.push(omsi_script::compile::Block {
+            name: "toggle_switch".into(),
+            ops: vec![
+                omsi_script::Op::Load(var_id),
+                omsi_script::Op::Not,
+                omsi_script::Op::Store(var_id),
+            ],
+            ..Default::default()
+        });
+        prog.triggers.insert("toggle_switch".into(), 0);
+        prog.blocks.push(omsi_script::compile::Block {
+            name: "toggle_switch_drag".into(),
+            ops: vec![
+                omsi_script::Op::LoadSys(omsi_script::SysVar::MouseX),
+                omsi_script::Op::Store(var_id),
+            ],
+            ..Default::default()
+        });
+        prog.triggers.insert("toggle_switch_drag".into(), 1);
+        prog.blocks.push(omsi_script::compile::Block {
+            name: "toggle_switch_off".into(),
+            ops: vec![
+                omsi_script::Op::Push(0.0),
+                omsi_script::Op::Store(var_id),
+            ],
+            ..Default::default()
+        });
+        prog.triggers.insert("toggle_switch_off".into(), 2);
+
+        let inst = omsi_sim::scenery::SceneryInstance::new(
+            Arc::new(prog),
+            &[],
+            omsi_sim::SimClock::default(),
+            &[],
+        );
+
+        let ot = Arc::new(ObjectType {
+            sco: omsi_scenery::sco::SceneryObject::default(),
+            sound_path: Default::default(),
+            model,
+            model_dir: dir.clone(),
+            meshes: vec![(mesh_data, Vec::new(), Vec::new())],
+            mesh_visible: vec![None],
+            mesh_def_index: vec![0],
+            mesh_pivots: vec![glam::Mat4::IDENTITY],
+            mesh_shadow: vec![false],
+            mesh_casts: vec![false],
+            has_mouse_events: true,
+            program: None,
+            lower_lods: Vec::new(),
+            lod0_min: 0.0,
+            paint_scheme_count: 0,
+            dynamic_textures: Vec::new(),
+            holes: Vec::new(),
+            deform: None,
+            collision: None,
+            paint: false,
+            camera: Default::default(),
+            collision_shape: Default::default(),
+        });
+
+        world.scripted.lock().push(ScriptedObject {
+            ty: ot,
+            pos: DVec3::ZERO,
+            xf: glam::Mat4::IDENTITY,
+            instances: vec![0],
+            inst,
+            controller: None,
+            light_index: 0,
+            light_parent: None,
+            map_id: 42,
+            variants: Vec::new(),
+            sounds: None,
+            tile: (0, 0),
+            var_parent: None,
+            texts: Vec::new(),
+            arrivals: false,
+            htmls: Vec::new(),
+        });
+
+        // 1. Raycast towards (0, 1, 0) should hit the quad at (0, 5, 0)
+        let hit = world.scenery_object_hit(DVec3::ZERO, glam::Vec3::Y, 50.0, 0.0);
+        assert!(hit.is_some(), "scenery object hit should find the switch");
+        let h = hit.unwrap();
+        assert_eq!(h.map_id, 42);
+        assert_eq!(h.event, "toggle_switch");
+        assert!((h.t - 5.0).abs() < 1e-3);
+
+        // 2. Raycast in opposite direction should miss
+        let miss = world.scenery_object_hit(DVec3::ZERO, -glam::Vec3::Y, 50.0, 0.0);
+        assert!(miss.is_none());
+
+        // 3. Test click triggers toggle_switch: Switch was 0, becomes 1
+        assert_eq!(world.scripted.lock()[0].inst.var("Switch"), Some(0.0));
+        assert!(world.scenery_object_click(42, "toggle_switch"));
+        assert_eq!(world.scripted.lock()[0].inst.var("Switch"), Some(1.0));
+
+        // 4. Test drag triggers toggle_switch_drag with mouse_x
+        assert!(world.scenery_object_drag(42, "toggle_switch", 0.75, 0.0));
+        assert_eq!(world.scripted.lock()[0].inst.var("Switch"), Some(0.75));
+
+        // 5. Test release triggers toggle_switch_off
+        assert!(world.scenery_object_release(42, "toggle_switch"));
+        assert_eq!(world.scripted.lock()[0].inst.var("Switch"), Some(0.0));
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }
 
 #[cfg(test)]
@@ -14327,6 +14766,38 @@ fn is_street_sign(file: &str) -> bool {
     let f = file.to_ascii_lowercase().replace(['\\', '_', ' ', '-'], "");
     let name = f.rsplit('/').next().unwrap_or(&f);
     ["streetsign", "streetname", "strschild", "strassenschild", "straßenschild", "strassenname", "roadsignname", "roadname"].iter().any(|k| name.contains(k))
+}
+
+/// The scripts (or an empty program) of a scenery object: compiled when it is scripted or
+/// animated, or when one of its meshes carries a `[mouseevent]` the player may click.
+fn object_program(
+    root: &Path,
+    sco: &SceneryObject,
+    model: &Model,
+    mesh_def_index: &[usize],
+    has_mouse_events: bool,
+) -> Option<Arc<omsi_script::Program>> {
+    let animated = mesh_def_index.iter().any(|d| {
+        !model.meshes[*d].animations.is_empty() || model.meshes[*d].visible.is_some()
+    });
+    let has_freetex = mesh_def_index.iter().any(|d| {
+        model.meshes[*d].materials.iter().any(|o| !o.item && o.freetex.is_some())
+    });
+    if !sco.scripts.scripts.is_empty()
+        || !sco.scripts.stringvarlists.is_empty()
+        || !sco.scripts.varlists.is_empty()
+        || has_freetex
+        || animated
+        || has_mouse_events
+        || sco.sound.is_some()
+    {
+        Some(Arc::new(omsi_sim::scenery::compile_scenery(
+            root,
+            &sco.scripts,
+        )))
+    } else {
+        None
+    }
 }
 
 /// The height of a `[crossing_heightdeformation]` field at (x, y) of its object's frame.

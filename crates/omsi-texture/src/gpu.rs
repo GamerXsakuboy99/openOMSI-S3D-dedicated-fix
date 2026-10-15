@@ -147,7 +147,9 @@ pub struct Prepared {
 fn encode_levels(mut rgba: Vec<u8>, mut w: u32, mut h: u32, format: PixelFormat, punch: bool, out: &mut Vec<Vec<u8>>) {
     let full = mip_count(w, h);
     for _ in 1..full {
-        let (next, nw, nh) = bc::downsample(&rgba, w, h);
+        // [ROLLBACK alphamip-1] weighted by alpha: opaque pictures come out as before, glass
+        // and decals keep their visible colour down the chain (was bc::downsample)
+        let (next, nw, nh) = bc::downsample_alpha_weighted(&rgba, w, h);
         let (blocks, _, _) = bc::encode(&next, nw, nh, format.bc(punch));
         out.push(blocks);
         rgba = next;
@@ -345,7 +347,8 @@ pub fn halved_for_now(t: TextureData) -> TextureData {
     if t.format != PixelFormat::Rgba8 || t.levels.len() != 1 || t.width < 256 || t.height < 256 {
         return t;
     }
-    let (rgba, w, h) = bc::downsample(&t.levels[0], t.width, t.height);
+    // [ROLLBACK alphamip-1] alpha-weighted, so a half-size glass or decal keeps its colour
+    let (rgba, w, h) = bc::downsample_alpha_weighted(&t.levels[0], t.width, t.height);
     TextureData { width: w, height: h, levels: vec![rgba], ..t }
 }
 
@@ -465,6 +468,52 @@ mod tests {
         // its made levels keep the holes
         let back = bc::decode(&t.levels[1], 4, 4, Bc::Bc1 { punch: true });
         assert!(back.chunks_exact(4).all(|p| p[3] == 0));
+    }
+
+    /// A checker of a visible colour at alpha 128 and clear black texels: what a window
+    /// picture or a decal looks like at its edges and in its fine print.
+    fn checker_glass(w: u32, h: u32) -> Vec<u8> {
+        (0..w * h)
+            .flat_map(|i| if (i % w + i / w) % 2 == 0 { [198u8, 130, 66, 128] } else { [0u8, 0, 0, 0] })
+            .collect()
+    }
+
+    #[test]
+    fn made_mips_of_a_see_through_picture_keep_their_colour() {
+        // [ROLLBACK alphamip-1] colour stays within 3, alpha is the coverage (128 / 2 = 64)
+        let (w, h) = (128u32, 128u32);
+        let mut levels = Vec::new();
+        encode_levels(checker_glass(w, h), w, h, PixelFormat::Bc3, false, &mut levels);
+        assert_eq!(levels.len(), 7);
+        let back = bc::decode(&levels[0], 64, 64, Bc::Bc3);
+        for p in back.chunks_exact(4) {
+            for (got, want) in p[..3].iter().zip([198i32, 130, 66]) {
+                assert!((*got as i32 - want).abs() <= 3, "{p:?}");
+            }
+            assert!((p[3] as i32 - 64).abs() <= 1, "{p:?}");
+        }
+        // and further down the chain: 8x8
+        let back = bc::decode(&levels[3], 8, 8, Bc::Bc3);
+        assert!(back.chunks_exact(4).all(|p| (p[0] as i32 - 198).abs() <= 3 && (p[3] as i32 - 64).abs() <= 1), "{:?}", &back[..4]);
+    }
+
+    #[test]
+    fn the_halved_stand_in_keeps_the_colour_of_a_see_through_picture() {
+        let (w, h) = (256u32, 256u32);
+        let t = TextureData { width: w, height: h, format: PixelFormat::Rgba8, levels: vec![checker_glass(w, h)], has_alpha: true, gpu_mips: true };
+        let half = halved_for_now(t);
+        assert_eq!((half.width, half.height), (128, 128));
+        for p in half.levels[0].chunks_exact(4) {
+            for (got, want) in p[..3].iter().zip([198i32, 130, 66]) {
+                assert!((*got as i32 - want).abs() <= 1, "{p:?}");
+            }
+            assert_eq!(p[3], 64);
+        }
+        // entirely clear: the colour under the hole is kept (masks and lookups rely on it)
+        let clear: Vec<u8> = (0..w * h).flat_map(|_| [198u8, 130, 66, 0]).collect();
+        let t = TextureData { width: w, height: h, format: PixelFormat::Rgba8, levels: vec![clear], has_alpha: true, gpu_mips: true };
+        let half = halved_for_now(t);
+        assert!(half.levels[0].chunks_exact(4).all(|p| (p[0] as i32 - 198).abs() <= 1 && p[3] == 0));
     }
 
     #[test]

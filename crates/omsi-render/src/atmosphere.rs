@@ -82,7 +82,7 @@ const SHADE_ADAPTATION: f32 = 0.55;
 /// How far the camera's white balance follows the light of the moment from daylight.
 const AUTO_WHITE: f32 = 0.32;
 /// Irradiance of a sunlit and sky-lit horizontal surface at noon, the exposure reference.
-const DAY_REFERENCE: f32 = 11.0;
+pub const DAY_REFERENCE: f32 = 11.0;
 
 /// What the sky is made of at a moment.
 #[derive(Debug, Clone, Copy, PartialEq)]

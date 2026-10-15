@@ -75,15 +75,41 @@ pub(crate) fn texture_budget(settings: &settings::Settings) -> u64 {
     }
     // automatic: an eighth of the system's memory, but no more than the graphics adapter
     // is taken to hold (a PC with 32 GB and a 4 GB card let the textures grow to 4 GB and
-    // the card ran out of memory)
-    // (and no more than 2.5 GB: since Windows reads its memory as well - 0.1.237 - a PC
-    // with 32 or 64 GB let the textures grow to 4-8 GB, the game took 9 GB at the start and
-    // ran at single-digit frame rates, #277; the setting still gives more when asked)
-    let ram = physical_memory().map(|m| m / 8).unwrap_or(2_000_000_000).min(2_500_000_000);
-    match omsi_render::ADAPTER_TEXTURE_MB.load(std::sync::atomic::Ordering::Relaxed) {
-        0 => ram.min(1_600_000_000),
-        g => ram.min(g * 1_000_000),
+    // the card ran out of memory); see `auto_texture_mb` for the rest
+    let ram_mb = physical_memory().map(|m| m / 8 / 1_000_000).unwrap_or(2000);
+    let card_mb = omsi_render::ADAPTER_TEXTURE_MB.load(std::sync::atomic::Ordering::Relaxed);
+    auto_texture_mb(ram_mb, card_mb) * 1_000_000
+}
+
+/// [ROLLBACK vram-129] The automatic texture budget in MB, from an eighth of the machine's
+/// memory and what the graphics adapter is taken to hold (0: unknown).
+/// (No more than 2.5 GB: since Windows reads its memory as well - 0.1.237 - a PC with 32 or
+/// 64 GB let the textures grow to 4-8 GB, the game took 9 GB at the start and ran at
+/// single-digit frame rates, #277. A card that holds 10 GB or more - its budget is 3 GB and
+/// up - gets 4 GB: a 24 GB card was left with the same 2.5 GB as a 6 GB one.)
+pub(crate) fn auto_texture_mb(ram_eighth_mb: u64, card_mb: u64) -> u64 {
+    let cap = if card_mb >= 3000 { 4000 } else { 2500 };
+    // (a card that is known to hold 1.6 GB gets that much whatever the system's memory: an eighth
+    // of 8 GB left a 6 GB card 1 GB for the textures of a big map and its traffic)
+    let ram = ram_eighth_mb.max(card_mb.min(1600)).min(cap);
+    match card_mb {
+        0 => ram.min(1600),
+        g => ram.min(g),
     }
+}
+
+/// [ROLLBACK vram-129] The settings' texture memory choices above 6 GB that the graphics
+/// card can hold (the budget is taken down to what it holds, see `texture_budget`: half of
+/// its memory, a quarter more when it is set).
+pub(crate) fn texture_memory_extras() -> Vec<(&'static str, &'static str)> {
+    let vram = omsi_render::ADAPTER_VRAM_MB.load(std::sync::atomic::Ordering::Relaxed);
+    let card = omsi_render::ADAPTER_TEXTURE_MB.load(std::sync::atomic::Ordering::Relaxed);
+    let held = card.max(if vram > 2560 { vram / 2 } else { 0 });
+    let limit = held * 5 / 4;
+    let all = [(8000, "8 GB"), (12000, "12 GB"), (16000, "16 GB"), (24000, "24 GB")];
+    let mbs = ["8000", "12000", "16000", "24000"];
+    let pick = |i: usize| (all[i].0 <= limit).then_some((mbs[i], all[i].1));
+    (0..4).filter_map(pick).collect()
 }
 
 /// Give the heap's free pages back to the system, on a thread of its own (the allocator
@@ -108,5 +134,27 @@ pub fn release_free_memory() {
                     );
                 }
             });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::auto_texture_mb;
+
+    #[test]
+    fn automatic_texture_budget_follows_the_card() {
+        // [ROLLBACK vram-129] a small card and a big PC: as before
+        assert_eq!(auto_texture_mb(4000, 1600), 1600);
+        assert_eq!(auto_texture_mb(8000, 2457), 2457);
+        // a card with 12 GB or more may have 4 GB, a PC with less memory fewer
+        assert_eq!(auto_texture_mb(8000, 7372), 4000);
+        assert_eq!(auto_texture_mb(2000, 7372), 2000);
+        // a small system memory does not take a known card below 1.6 GB, an unknown card stays as it was
+        assert_eq!(auto_texture_mb(1000, 2457), 1600);
+        assert_eq!(auto_texture_mb(1000, 7372), 1600);
+        assert_eq!(auto_texture_mb(1000, 0), 1000);
+        assert_eq!(auto_texture_mb(1000, 1000), 1000);
+        // card unknown: the old 1.6 GB
+        assert_eq!(auto_texture_mb(4000, 0), 1600);
     }
 }

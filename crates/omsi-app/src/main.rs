@@ -18,6 +18,14 @@ pub static NvOptimusEnablement: u32 = 1;
 #[used]
 pub static AmdPowerXpressRequestHighPerformance: u32 = 1;
 
+/// [ROLLBACK alloc-1] The desktop builds allocate through mimalloc: the game makes and frees
+/// a great many small blocks every frame (draw lists, script values, streamed tiles), and
+/// this allocator serves them from per-thread pages with less contention between the render,
+/// simulation and loader threads than the system's. A phone keeps its own allocator.
+#[cfg(not(target_os = "android"))]
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 fn main() -> anyhow::Result<()> {
     openomsi_game::run()
 }

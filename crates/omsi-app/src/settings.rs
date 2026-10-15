@@ -5,7 +5,8 @@
 use std::path::PathBuf;
 
 /// Version of the settings file (`version=`); files without it are version 1.
-pub const SETTINGS_VERSION: u32 = 2;
+/// (3: V-sync is off by default - older files are taken to have it off once.)
+pub const SETTINGS_VERSION: u32 = 3;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Settings {
@@ -241,6 +242,9 @@ pub struct Settings {
     pub rt_reflections: String,
     /// Ray-traced sun shadows and ambient occlusion (Enhanced; needs a ray-tracing GPU).
     pub rt_shadows: bool,
+    /// Ray tracing is switched on for this installation (launcher: Ctrl+Alt+R). Without it every
+    /// ray-traced option reads as off, whatever the file or the command line says. [ROLLBACK rtlock-1]
+    pub rt_unlocked: bool,
     /// Enhanced: the lamps' light fills in the sides that face away from them (`RenderOptions::lamp_fill`).
     pub lamp_fill: bool,
     /// How bright an LED panel's dots burn (`Lighting::led_glow`): 0 (off) .. 15, 16 levels.
@@ -251,6 +255,20 @@ pub struct Settings {
     /// worst shimmer); 1.3 (the default) leaves a matrix's dots a couple of pixels across
     /// when the panel is small; 4 is near the calm of the full chain.
     pub led_mips: f32,
+    /// [ROLLBACK nightsky-1] The night sky (`Lighting::night_sky`): 0 (off) .. 2, 1 as designed.
+    /// Stars, the Milky Way and the moon with its phases in the sky, and (Vanilla) the
+    /// brightness of the night following the moon: a full moon high up lights it, a night
+    /// without one is darker.
+    pub night_sky: f32,
+    /// [ROLLBACK sunglare-1] The glare round the sun (and the moon): 0 (off) .. 2, 1 as designed.
+    pub sun_glare: f32,
+    /// [ROLLBACK aurora-1] How often the night sky has an aurora of its own accord (the map's
+    /// place and the day decide, see `omsi_sim::aurora`): 0 (never) .. 2, 1 as the sky would
+    /// have it. The weather window's manual aurora does not depend on it.
+    pub aurora: f32,
+    /// [ROLLBACK newsky-1] The Vanilla and Vanilla+ pictures draw the Enhanced sky (its clouds,
+    /// sun, moon, stars and aurora); off, the old sky of the envir textures. Enhanced always.
+    pub new_sky: bool,
     /// Optional bus radio effects, each 0 (off, the default) .. 1: a cheap speaker, FM hiss and
     /// crackle, random loss of reception (`omsi_audio::fx::RadioFx`).
     pub radio_fx_speaker: f32,
@@ -391,7 +409,7 @@ impl Settings {
     }
     /// The defaults of a computer.
     fn desktop() -> Self {
-        Self { msaa: 4, anisotropy: 8, ssao: true, shadows: true, shadow_size: 2048, shadow_blobs: true, navigator: true, ui_opacity: 0.85, notes: true, ui_scale: 1.0, ui_scale_window: true, navigator_corner: "bottom-left".into(), boarding: "auto".into(), detail_textures: true, exact_fare: true, trip_summary: true, enhanced: false, graphics: "vanilla_plus".into(), triple: Default::default(), triple_span: true, triple_hud_center: true, vr: false, vr_scale: 0.65, vr_head_smoothing_ms: 0.0, vr_mirror_rate: 16.0, vr_desktop_mirror: true, fullscreen: false, vsync: true, volume: 0.6, drive_keys: "simple".into(), post_aa: "fxaa".into(), render_scale: 0.0, language: "ENG".into(), pax_voices: "all".into(), pax_greet: true, pax_ticket: true, pax_complain: false, nav_arrows: false, nav_arrows_auto: false, skip_petrol_check: false, nav_ai: true, get_up: false, texture_compression: true, texture_memory: 0, auto_clutch: true, momentary_gears: false, auto_shift: false, min_obj_size: 0.013, max_obj_dist: -1.0, max_fps: 0, chat: true, chat_size: 1.0, tooltips: true, name_tags: true, show_fps: false, clouds: true, pax_density: 1.0, pax_sit: 1.0, vol_ai: 1.0, vol_scenery: 1.0, mirror_size: 256, mirror_hud: 0, mirror_refresh: "full".into(), doppler: true, driver: true, maintenance: 0, ai_unsched_factor: 1.0, ai_max_scheduled: 0, ai_max_parked: 0, ai_parked_pct: 75, ai_max_humans: 200, collision_vehicles: true, collision_objects: true, collision_pedestrians: true, head_movement: true, driverview_smooth: true, hands_in_cab: false, alt_view: true, precision_zoom: false, time_speed: 1.0, time_sync: false, metar_sync: false, metar_station: String::new(), machine_translation: false, shadow_casters: "all".into(), ctrl_deadzone: 0.0, right_stick_look: true, ctrl_off: String::new(), steering_linear: false, old_steering: false, red_steer_spd: false, reflections: true, rt_reflections: "off".into(), rt_shadows: false, lamp_fill: true, led_glow: 6, led_mips: 1.3, radio_fx_speaker: 0.0, radio_fx_noise: 0.0, radio_fx_dropouts: 0.0, developer_tools: false, mouse_sens: 1.0, graphics_api: "auto".into(), ff_invert: false, ff_enabled: true, ff_road_vib: 1.0, ff_engine_vib: 1.0, ff_fade: 0.28, brake_hold: true, mouse_steering: false, mouse_right_off: false, mouse_smooth: true, look_sens: 1.0, look_smoothing_ms: 0.0, blinker_cancel: true, wheel_range: 900.0, wheel_lock: 0.0, fov: 0.0, camera_collision: true, steer_look: false, steer_look_angle: 30.0, steer_look_response: 0.25, head_idle: 0.0, head_idle_pace: 1.0, pedal_throttle: 1.0, pedal_brake: 1.0, seat: [0.0; 3], seat_pitch_deg: 0.0, head_tracking: false, head_tracking_port: 4242, head_tracking_invert: String::new(), discord_status: true, discord_app_id: String::new(), voice_chat: true, info_bar: false, imperial: false }
+        Self { msaa: 4, anisotropy: 8, ssao: true, shadows: true, shadow_size: 2048, shadow_blobs: true, navigator: true, ui_opacity: 0.85, notes: true, ui_scale: 1.0, ui_scale_window: true, navigator_corner: "bottom-left".into(), boarding: "auto".into(), detail_textures: true, exact_fare: true, trip_summary: true, enhanced: false, graphics: "vanilla_plus".into(), triple: Default::default(), triple_span: true, triple_hud_center: true, vr: false, vr_scale: 0.65, vr_head_smoothing_ms: 0.0, vr_mirror_rate: 16.0, vr_desktop_mirror: true, fullscreen: false, vsync: false, volume: 0.6, drive_keys: "simple".into(), post_aa: "fxaa".into(), render_scale: 0.0, language: "ENG".into(), pax_voices: "all".into(), pax_greet: true, pax_ticket: true, pax_complain: false, nav_arrows: false, nav_arrows_auto: false, skip_petrol_check: false, nav_ai: true, get_up: false, texture_compression: true, texture_memory: 0, auto_clutch: true, momentary_gears: false, auto_shift: false, min_obj_size: 0.013, max_obj_dist: -1.0, max_fps: 0, chat: true, chat_size: 1.0, tooltips: true, name_tags: true, show_fps: false, clouds: true, pax_density: 1.0, pax_sit: 1.0, vol_ai: 1.0, vol_scenery: 1.0, mirror_size: 256, mirror_hud: 0, mirror_refresh: "full".into(), doppler: true, driver: true, maintenance: 0, ai_unsched_factor: 1.0, ai_max_scheduled: 0, ai_max_parked: 0, ai_parked_pct: 75, ai_max_humans: 200, collision_vehicles: true, collision_objects: true, collision_pedestrians: true, head_movement: true, driverview_smooth: true, hands_in_cab: false, alt_view: true, precision_zoom: false, time_speed: 1.0, time_sync: false, metar_sync: false, metar_station: String::new(), machine_translation: false, shadow_casters: "all".into(), ctrl_deadzone: 0.0, right_stick_look: true, ctrl_off: String::new(), steering_linear: false, old_steering: false, red_steer_spd: false, reflections: true, rt_reflections: "off".into(), rt_shadows: false, rt_unlocked: false, lamp_fill: true, led_glow: 6, led_mips: 1.3, night_sky: 1.0, sun_glare: 1.0, aurora: 1.0, new_sky: true, radio_fx_speaker: 0.0, radio_fx_noise: 0.0, radio_fx_dropouts: 0.0, developer_tools: false, mouse_sens: 1.0, graphics_api: "auto".into(), ff_invert: false, ff_enabled: true, ff_road_vib: 1.0, ff_engine_vib: 1.0, ff_fade: 0.28, brake_hold: true, mouse_steering: false, mouse_right_off: false, mouse_smooth: true, look_sens: 1.0, look_smoothing_ms: 0.0, blinker_cancel: true, wheel_range: 900.0, wheel_lock: 0.0, fov: 0.0, camera_collision: true, steer_look: false, steer_look_angle: 30.0, steer_look_response: 0.25, head_idle: 0.0, head_idle_pace: 1.0, pedal_throttle: 1.0, pedal_brake: 1.0, seat: [0.0; 3], seat_pitch_deg: 0.0, head_tracking: false, head_tracking_port: 4242, head_tracking_invert: String::new(), discord_status: true, discord_app_id: String::new(), voice_chat: true, info_bar: false, imperial: false }
     }
 }
 
@@ -622,6 +640,7 @@ impl Settings {
                     .to_string())
                 }
                 "rt_shadows" => rt_shadows = Some(b(v)),
+                "rt_unlocked" => s.rt_unlocked = b(v),
                 // [ROLLBACK lampfill-47] the key is still read, but the setting is always on (see below)
                 "lamp_fill" => s.lamp_fill = b(v),
                 "led_glow" => s.led_glow = v.trim().parse::<i32>().map(|x| x.clamp(0, 15) as u8).unwrap_or(s.led_glow),
@@ -630,6 +649,10 @@ impl Settings {
                 "developer_tools" => s.developer_tools = b(v),
                 "radio_fx_dropouts" => s.radio_fx_dropouts = v.trim().parse::<f32>().ok().filter(|x| x.is_finite()).map(|x| x.clamp(0.0, 1.0)).unwrap_or(s.radio_fx_dropouts),
                 "led_mips" => s.led_mips = v.trim().parse::<f32>().ok().filter(|x| x.is_finite()).map(|x| x.clamp(0.0, 4.0)).unwrap_or(s.led_mips),
+                "night_sky" => s.night_sky = v.trim().parse::<f32>().ok().filter(|x| x.is_finite()).map(|x| x.clamp(0.0, 2.0)).unwrap_or(s.night_sky),
+                "aurora" => s.aurora = v.trim().parse::<f32>().ok().filter(|x| x.is_finite()).map(|x| x.clamp(0.0, 2.0)).unwrap_or(s.aurora),
+                "new_sky" => s.new_sky = b(v),
+                "sun_glare" => s.sun_glare = v.trim().parse::<f32>().ok().filter(|x| x.is_finite()).map(|x| x.clamp(0.0, 2.0)).unwrap_or(s.sun_glare),
                 "graphics_api" => s.graphics_api = v.trim().to_ascii_lowercase(),
                 "ctrl_off" => s.ctrl_off = v.trim().to_string(),
                 "steering_linear" => s.steering_linear = b(v),
@@ -696,7 +719,8 @@ impl Settings {
         s.enhanced = s.graphics == "enhanced";
         s.rt_shadows = rt_shadows.unwrap_or(legacy_plus);
         s.rt_reflections = rt_refl.unwrap_or_else(|| if legacy_plus { "full" } else { "off" }.to_string());
-        if !s.enhanced {
+        // [ROLLBACK rtlock-1] ray tracing is locked until the launcher's Ctrl+Alt+R unlocks it
+        if !s.enhanced || !s.rt_unlocked {
             s.rt_shadows = false;
             s.rt_reflections = "off".into();
         }
@@ -717,9 +741,16 @@ impl Settings {
         // Files older than version 2 say `boarding=pay` because that was the launcher's
         // default, not because anybody chose it: passengers then stood at the cash desk
         // waiting for a driver who did not know he had to sell them a ticket.
-        if version < SETTINGS_VERSION && s.boarding == "pay" {
+        if version < 2 && s.boarding == "pay" {
             log::info!("settings: boarding=pay from an old settings file taken as auto (choose pay again in the launcher to keep it)");
             s.boarding = "auto".into();
+        }
+        // [ROLLBACK vsync-129] V-sync was on by default and made many players wait for the
+        // screen at half or a third of its rate: files older than version 3 get it off, once
+        // (the next save writes version 3, and a V-sync chosen after that stays)
+        if version < 3 && s.vsync {
+            log::info!("settings: V-sync from an older settings file is switched off once (turn it on again in Options > Graphics)");
+            s.vsync = false;
         }
         s
     }
@@ -734,8 +765,8 @@ impl Settings {
             SETTINGS_VERSION, self.msaa, self.anisotropy, self.ssao as u8, self.shadows as u8, self.shadow_size, self.shadow_blobs as u8, self.navigator as u8, self.ui_opacity, self.navigator_corner, self.boarding, self.detail_textures as u8, self.exact_fare as u8, self.trip_summary as u8, self.enhanced as u8, self.graphics, self.vr as u8, self.vr_scale, self.fullscreen as u8, self.vsync as u8, self.volume, self.drive_keys, self.post_aa, self.render_scale_text(), self.language, self.texture_compression as u8, self.texture_memory, self.auto_clutch as u8, self.momentary_gears as u8, self.min_obj_size, if self.max_obj_dist < 0.0 { "auto".to_string() } else { self.max_obj_dist.to_string() }, self.max_fps, self.chat as u8, self.tooltips as u8, self.name_tags as u8, self.show_fps as u8, self.clouds as u8, self.pax_density, self.pax_sit, self.vol_ai, self.vol_scenery, self.mirror_size, self.mirror_hud, self.mirror_refresh, self.doppler as u8, self.driver as u8, self.driverview_smooth as u8
         );
         text.push_str(&format!(
-            "vr_head_smoothing_ms={}\nvr_mirror_rate={}\nvr_desktop_mirror={}\nled_glow={}\nled_mips={}\nradio_fx_speaker={}\nradio_fx_noise={}\nradio_fx_dropouts={}\nui_scale={}\nui_scale_window={}\nchat_size={}\nnotes={}\nff_road_vib={}\nff_engine_vib={}\nff_fade={}\n",
-            self.vr_head_smoothing_ms, self.vr_mirror_rate, self.vr_desktop_mirror as u8, self.led_glow, self.led_mips, self.radio_fx_speaker, self.radio_fx_noise, self.radio_fx_dropouts, self.ui_scale, self.ui_scale_window as u8, self.chat_size, self.notes as u8, self.ff_road_vib, self.ff_engine_vib, self.ff_fade,
+            "vr_head_smoothing_ms={}\nvr_mirror_rate={}\nvr_desktop_mirror={}\nled_glow={}\nled_mips={}\nnight_sky={}\nsun_glare={}\naurora={}\nnew_sky={}\nradio_fx_speaker={}\nradio_fx_noise={}\nradio_fx_dropouts={}\nui_scale={}\nui_scale_window={}\nchat_size={}\nnotes={}\nff_road_vib={}\nff_engine_vib={}\nff_fade={}\n",
+            self.vr_head_smoothing_ms, self.vr_mirror_rate, self.vr_desktop_mirror as u8, self.led_glow, self.led_mips, self.night_sky, self.sun_glare, self.aurora, self.new_sky as u8, self.radio_fx_speaker, self.radio_fx_noise, self.radio_fx_dropouts, self.ui_scale, self.ui_scale_window as u8, self.chat_size, self.notes as u8, self.ff_road_vib, self.ff_engine_vib, self.ff_fade,
         ));
         text.push_str(&format!(
             "triple_hud_center={}\ntriple_fov_deg={}\nfov={}\n",
@@ -749,6 +780,7 @@ impl Settings {
         text.push_str(&format!("right_stick_look={}\n", self.right_stick_look as u8));
         text.push_str(&format!("voice_chat={}\n", self.voice_chat as u8));
         text.push_str(&format!("developer_tools={}\n", self.developer_tools as u8));
+        text.push_str(&format!("rt_unlocked={}\n", self.rt_unlocked as u8));
         text.push_str(&format!("rt_shadows={}\nrt_reflections={}\nlamp_fill={}\nnav_arrows_auto={}\nskip_petrol_check={}\n", self.rt_shadows as u8, self.rt_reflections, self.lamp_fill as u8, self.nav_arrows_auto as u8, self.skip_petrol_check as u8));
         text
     }
@@ -800,7 +832,7 @@ impl Settings {
     }
 
     pub fn render_options(&self) -> omsi_render::RenderOptions {
-        omsi_render::RenderOptions { msaa: self.msaa, anisotropy: self.anisotropy, shadow_size: self.shadow_size, ssao: self.ssao, render_scale: self.render_scale, compress_textures: self.texture_compression, fxaa: self.post_aa != "off", min_obj_size: self.min_obj_size, max_obj_dist: self.object_distance(), omsi_shadow_casters: self.shadow_casters == "omsi", shadow_blobs: self.shadow_blobs, reflections: self.reflections, no_enhanced: !matches!(graphics_mode(&self.graphics), "enhanced" | "enhanced_plus"), ray_tracing: self.ray_tracing() || crate::ENHANCED_PLUS.load(std::sync::atomic::Ordering::Relaxed), lamp_fill: self.lamp_fill, rt_shadows: self.rt_shadows || crate::ENHANCED_PLUS.load(std::sync::atomic::Ordering::Relaxed), rt_reflections: if crate::ENHANCED_PLUS.load(std::sync::atomic::Ordering::Relaxed) { 2 } else { match self.rt_reflections.as_str() { "full" => 2, "player" => 1, _ => 0 } } }
+        omsi_render::RenderOptions { msaa: self.msaa, anisotropy: self.anisotropy, shadow_size: self.shadow_size, ssao: self.ssao, render_scale: self.render_scale, compress_textures: self.texture_compression, fxaa: self.post_aa != "off", min_obj_size: self.min_obj_size, max_obj_dist: self.object_distance(), omsi_shadow_casters: self.shadow_casters == "omsi", shadow_blobs: self.shadow_blobs, reflections: self.reflections, no_enhanced: !matches!(graphics_mode(&self.graphics), "enhanced" | "enhanced_plus"), ray_tracing: self.ray_tracing() || (self.rt_unlocked && crate::ENHANCED_PLUS.load(std::sync::atomic::Ordering::Relaxed)), lamp_fill: self.lamp_fill, rt_shadows: self.rt_shadows || (self.rt_unlocked && crate::ENHANCED_PLUS.load(std::sync::atomic::Ordering::Relaxed)), rt_reflections: if self.rt_unlocked && crate::ENHANCED_PLUS.load(std::sync::atomic::Ordering::Relaxed) { 2 } else { match self.rt_reflections.as_str() { "full" => 2, "player" => 1, _ => 0 } } }
     }
 }
 
@@ -872,6 +904,16 @@ mod tests {
     use super::*;
 
     #[test]
+    fn vsync_is_off_by_default_and_once_for_old_files() {
+        // [ROLLBACK vsync-129]
+        assert!(!Settings::default().vsync);
+        assert!(!Settings::from_text("version=2\nvsync=1\n").vsync);
+        assert!(!Settings::from_text("vsync=1\n").vsync);
+        // chosen after the migration, it stays
+        assert!(Settings::from_text("version=3\nvsync=1\n").vsync);
+    }
+
+    #[test]
     fn old_files_board_automatically() {
         // the launcher's old default, written without a version
         assert_eq!(Settings::from_text("msaa=1\nboarding=pay\n").boarding, "auto");
@@ -897,9 +939,11 @@ mod tests {
         assert_eq!(graphics_mode("Vanilla+"), "vanilla_plus");
         assert_eq!(graphics_mode("OMSI 2"), "vanilla");
         assert_eq!(graphics_mode("Enhanced+"), "enhanced_plus");
-        let rt = Settings::from_text("graphics=enhanced_plus\nshadows=0\nssao=0\nreflections=0\n");
+        let locked = Settings::from_text("graphics=enhanced_plus\nrt_shadows=1\nrt_reflections=full\n");
+        assert!(locked.enhanced && !locked.ray_tracing() && !locked.rt_shadows && locked.rt_reflections == "off" && !locked.render_options().ray_tracing);
+        let rt = Settings::from_text("rt_unlocked=1\ngraphics=enhanced_plus\nshadows=0\nssao=0\nreflections=0\n");
         assert!(rt.enhanced && rt.graphics == "enhanced" && rt.ray_tracing() && rt.shadows && rt.ssao && rt.reflections && rt.rt_shadows && rt.rt_reflections == "full");
-        let part = Settings::from_text("graphics=enhanced\nrt_reflections=player\nrt_shadows=0\n");
+        let part = Settings::from_text("rt_unlocked=1\ngraphics=enhanced\nrt_reflections=player\nrt_shadows=0\n");
         assert!(part.ray_tracing() && !part.rt_shadows && part.render_options().rt_reflections == 1 && !part.render_options().rt_shadows);
         assert!(rt.render_options().ray_tracing && !rt.render_options().no_enhanced);
         let s = Settings { graphics: "enhanced".into(), enhanced: true, ..Default::default() };

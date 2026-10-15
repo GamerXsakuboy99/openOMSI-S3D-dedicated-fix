@@ -230,11 +230,22 @@ fn vs_main(in: CoronaIn) -> CoronaOut {
     // diameter its `size` names. (Streaks keep their size: they are rain, not a light.)
     let size = select(select(max(in.size * grow, dist * 0.002) * 0.9, max(in.size, dist * 0.0012), flake), in.size, streak);
     let stretch = select(vec2<f32>(1.0, 1.0), vec2<f32>(0.06, 4.0), streak);
-    let upv = select(up, vec3<f32>(0.0, 0.0, 1.0), streak);
+    // [ROLLBACK rainwind-1] a streak lies along the drop's path: the sender puts the unit vector
+    // of the drop's velocity in `dir.xyz` (a drop in a wind falls aslant), and the streak is
+    // turned about that axis to face the eye; none given, it is upright as before
+    var upv = select(up, vec3<f32>(0.0, 0.0, 1.0), streak);
+    var rightv = right;
+    if (streak && length(in.dir.xyz) > 0.5) {
+        upv = normalize(in.dir.xyz);
+        let rs = cross(upv, view_dir);
+        if (length(rs) > 0.001) {
+            rightv = normalize(rs);
+        }
+    }
     // the spot moved towards the viewer by its z offset, so that a lamp inside its housing
     // shows (without one: half its size, at most half a metre)
     let pull = select(min(size * 0.5, 0.5), in.extra.y, in.extra.y >= 0.0);
-    let wp = in.pos + (right * c.x * stretch.x + upv * c.y * stretch.y) * size + select(view_dir * min(pull, dist * 0.9), vec3<f32>(0.0), streak || flake);
+    let wp = in.pos + (rightv * c.x * stretch.x + upv * c.y * stretch.y) * size + select(view_dir * min(pull, dist * 0.9), vec3<f32>(0.0), streak || flake);
     out.clip = camera.view_proj * vec4<f32>(wp, 1.0);
     // (a flake's picture is turned by its own angle, the cosine and sine of which are in up.xy)
     let cu = select(c, vec2<f32>(c.x * in.up.x - c.y * in.up.y, c.x * in.up.y + c.y * in.up.x), flake);

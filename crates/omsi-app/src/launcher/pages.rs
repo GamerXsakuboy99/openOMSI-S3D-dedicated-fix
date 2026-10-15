@@ -336,6 +336,11 @@ pub fn settings(l: &mut Launcher, area: Rect) {
     if l.ui.segmented("settings-tab", bar, &mut tab, &SETTINGS_TABS) {
         l.pages.settings_tab = tab;
     }
+    // the bus catalogue's editor (how the buses are named and sorted)
+    if body.w >= bar.w + 230.0 && l.ui.button("settings-catalogue", Rect::new(body.right() - 210.0, bar.y, 210.0, bar.h), "Bus catalogue", Some("directions_bus"), ButtonKind::Normal) {
+        l.go(Page::Catalog);
+        return;
+    }
     let body = Rect::new(body.x, bar.bottom() + 18.0, body.w, (body.bottom() - bar.bottom() - 18.0).max(0.0));
     let s = &mut l.state.settings;
     let dirty = &mut l.state.settings_dirty;
@@ -566,7 +571,8 @@ fn graphics_tab(ui: &mut Ui, s: &mut Value, dirty: &mut f32, cols: [Rect; 2]) ->
     sel_setting(ui, s, dirty, "s-af", c.row(), "Anisotropic", "anisotropy", &[("1", "Off"), ("2", "2x"), ("4", "4x"), ("8", "8x"), ("16", "16x")]);
     if !classic {
         sel_setting(ui, s, dirty, "s-shadow", c.row(), "Shadow map", "shadow_size", &[("1024", "1024"), ("2048", "2048"), ("4096", "4096")]);
-        if enhanced {
+        // [ROLLBACK rtlock-1] the ray tracing options are hidden until Ctrl+Alt+R unlocks them
+        if enhanced && get(s, "rt_unlocked").as_bool().unwrap_or(false) {
             // (ray tracing needs a GPU with ray queries; the game falls back by itself without one)
             toggle_setting(ui, s, dirty, c.row(), "Ray traced shadows (and occlusion)", "rt_shadows");
             sel_setting(ui, s, dirty, "s-rtrefl", c.row(), "Ray traced reflections", "rt_reflections", &[("off", "Disabled"), ("player", "On player vehicle only"), ("full", "Full")]);
@@ -592,6 +598,36 @@ fn graphics_tab(ui: &mut Ui, s: &mut Value, dirty: &mut f32, cols: [Rect; 2]) ->
             s["led_mips"] = json!((mip / 0.05).round() * 0.05);
             *dirty = 0.3;
         }
+        // (the glare round the sun and the moon is made in the Enhanced picture's high range)
+        if enhanced {
+            let mut x = get(s, "sun_glare").as_f64().unwrap_or(1.0) as f32;
+            if ui.slider("s-sun-glare", c.row(), &mut x, 0.0, 2.0, 0.05, "Sun glare", &|v| if v < 0.005 { "Off".to_string() } else { format!("{v:.2}") }) {
+                s["sun_glare"] = json!((x / 0.05).round() * 0.05);
+                *dirty = 0.3;
+            }
+        }
+    }
+    // [ROLLBACK nightsky-1] the night sky (stars, the Milky Way, the moon's phases and the
+    // night's light following the moon) is in every picture: 0 off .. 2, 1 as designed
+    {
+        let mut x = get(s, "night_sky").as_f64().unwrap_or(1.0) as f32;
+        if ui.slider("s-night-sky", c.row(), &mut x, 0.0, 2.0, 0.05, "Night sky (stars, moon phases)", &|v| if v < 0.005 { "Off".to_string() } else { format!("{v:.2}") }) {
+            s["night_sky"] = json!((x / 0.05).round() * 0.05);
+            *dirty = 0.3;
+        }
+    }
+    // [ROLLBACK aurora-1] the aurora's frequency (the place and the day decide when; the game's
+    // weather window can call one up by hand): 0 never .. 2, 1 as the sky would have it
+    {
+        let mut x = get(s, "aurora").as_f64().unwrap_or(1.0) as f32;
+        if ui.slider("s-aurora", c.row(), &mut x, 0.0, 2.0, 0.05, "Aurora (northern lights)", &|v| if v < 0.005 { "Off".to_string() } else { format!("{v:.2}") }) {
+            s["aurora"] = json!((x / 0.05).round() * 0.05);
+            *dirty = 0.3;
+        }
+    }
+    // [ROLLBACK newsky-1] Vanilla and Vanilla+ can draw the Enhanced sky (clouds, sun, moon, stars)
+    if !enhanced {
+        toggle_setting(ui, s, dirty, c.row(), "Enhanced sky (clouds, sun, moon, stars)", "new_sky");
     }
     // (the models' `[isshadow]` blob is what OMSI draws under a vehicle in every graphics
     // mode, the vanilla one included, so its switch is not part of the extras above)
@@ -623,14 +659,14 @@ fn graphics_tab(ui: &mut Ui, s: &mut Value, dirty: &mut f32, cols: [Rect; 2]) ->
     sel_setting(ui, s, dirty, "s-mirror-refresh", c.row(), "Real-time reflections", "mirror_refresh", &[("off", "None (frozen picture)"), ("eco", "Economical"), ("full", "Full")]);
     // (the game takes the smaller of an eighth of the memory and what the graphics
     // adapter is taken to hold, see `memory::texture_budget`)
-    let adapter_mb = omsi_render::ADAPTER_TEXTURE_MB.load(std::sync::atomic::Ordering::Relaxed) as i64;
-    let auto_mb = match (get(s, "texture_memory_auto").as_i64().unwrap_or(0), adapter_mb) {
-        (m, 0) => m,
-        (0, a) => a,
-        (m, a) => m.min(a),
-    };
-    let auto_label = if auto_mb > 0 { format!("Automatic ({} here)", mb(auto_mb)) } else { "Automatic".to_string() };
-    let opts: Vec<(&str, &str)> = vec![("0", auto_label.as_str()), ("500", "500 MB"), ("1000", "1 GB"), ("1500", "1.5 GB"), ("2000", "2 GB"), ("3000", "3 GB"), ("4000", "4 GB"), ("6000", "6 GB")];
+    // [ROLLBACK vram-129] the same figure the game takes (`memory::auto_texture_mb`), and
+    // more than 6 GB where the graphics card holds it
+    let adapter_mb = omsi_render::ADAPTER_TEXTURE_MB.load(std::sync::atomic::Ordering::Relaxed);
+    let ram_mb = crate::memory::physical_memory().map(|m| m / 8 / 1_000_000).unwrap_or(2000);
+    let auto_mb = crate::memory::auto_texture_mb(ram_mb, adapter_mb) as i64;
+    let auto_label = format!("Automatic ({} here)", mb(auto_mb));
+    let mut opts: Vec<(&str, &str)> = vec![("0", auto_label.as_str()), ("500", "500 MB"), ("1000", "1 GB"), ("1500", "1.5 GB"), ("2000", "2 GB"), ("3000", "3 GB"), ("4000", "4 GB"), ("6000", "6 GB")];
+    opts.extend(crate::memory::texture_memory_extras());
     sel_setting(ui, s, dirty, "s-texmem", c.row(), "Texture memory", "texture_memory", &opts);
     toggle_setting(ui, s, dirty, c.row(), "Compress textures on loading", "texture_compression");
     c.section(ui, "Profiles");

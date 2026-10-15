@@ -49,6 +49,17 @@ impl Weather {
                 _ => {}
             }
         }
+        // [ROLLBACK cavok-1] The best weather (#CAVOK.owt, "Bestes Wetter") has no cloud at all in
+        // OMSI; here it is a sky of a few fair-weather cumulus: players start with it and never
+        // think of the clouds, and an empty sky was the first thing that looked wrong (the
+        // Clouds setting still turns them off, and Cloud type "None" in the weather window
+        // still picks a sky without any).
+        let none = w.clouds.0.trim().is_empty() || w.clouds.0.trim().starts_with("-1");
+        let stem = f.path.file_name().map(|n| n.to_string_lossy().to_ascii_lowercase()).unwrap_or_default();
+        let name = w.name.to_ascii_lowercase();
+        if none && (stem == "#cavok.owt" || name.contains("bestes wetter") || name.contains("cavok")) {
+            w.clouds = ("Cumulus 1".into(), 100.0);
+        }
         w
     }
 }
@@ -193,6 +204,26 @@ mod humidity_tests {
         let cfg = omsi_cfg::CfgFile::from_str("x.owt", "[temp]\r\n-6\r\n-7.96\r\n");
         let w = super::Weather::parse(&cfg);
         assert_eq!(w.temp, (-6.0, snow));
+    }
+}
+
+#[cfg(test)]
+mod cavok_tests {
+    use super::Weather;
+
+    #[test]
+    fn the_best_weather_has_a_few_clouds() {
+        let text = "[name]\r\nBestes Wetter\r\n[clouds]\r\n-1\r\n0\r\n[fog]\r\n50000\r\n1\r\n";
+        for file in ["Weather/#CAVOK.owt", "Weather/#cavok.OWT", "x/other.owt"] {
+            let w = Weather::parse(&omsi_cfg::CfgFile::from_str(file, text));
+            assert_eq!(w.clouds.0, "Cumulus 1", "{file}");
+        }
+        // under another name and file it stays as the file says
+        let clear = "[name]\r\nKlarer Himmel\r\n[clouds]\r\n-1\r\n0\r\n";
+        assert_eq!(Weather::parse(&omsi_cfg::CfgFile::from_str("Weather/clear.owt", clear)).clouds.0, "-1");
+        // the file's own clouds are kept
+        let broken = "[name]\r\nBestes Wetter\r\n[clouds]\r\nCumulus 3\r\n300\r\n";
+        assert_eq!(Weather::parse(&omsi_cfg::CfgFile::from_str("Weather/#CAVOK.owt", broken)).clouds.0, "Cumulus 3");
     }
 }
 

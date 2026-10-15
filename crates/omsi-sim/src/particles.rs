@@ -89,6 +89,9 @@ pub struct Emitter {
 pub struct ParticleSet {
     pub emitters: Vec<Emitter>,
     rng: u64,
+    /// [ROLLBACK parkedsmoke-139] No new particles (a parked AI vehicle with its engine off:
+    /// the exhaust stops; what is in the air fades out as it was).
+    pub muted: bool,
 }
 
 fn eval(v: &PsValue, value: &dyn Fn(&str) -> f32) -> f32 {
@@ -106,6 +109,7 @@ impl ParticleSet {
                 .map(|def| Emitter { def, particles: Vec::new(), carry: 0.0, burst_done: false, ended: Vec::new() })
                 .collect(),
             rng: seed | 1,
+            muted: false,
         }
     }
 
@@ -224,6 +228,9 @@ impl ParticleSet {
                     let count = self.draw(b, value).round().max(0.0) as usize;
                     spawn.extend(std::iter::repeat(*s).take(count));
                 }
+            }
+            if self.muted {
+                continue;
             }
             for (at, d, floor) in spawn {
                 if self.emitters[i].particles.len() >= MAX_PER_EMITTER {

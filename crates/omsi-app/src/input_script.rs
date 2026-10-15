@@ -17,6 +17,9 @@ pub(crate) fn is_game_action(name: &str) -> bool {
 /// How far (m) a click reaches a page (`[htmltexture]`) on a scenery object.
 const HTML_OBJECT_REACH: f32 = 4.0;
 
+/// How far (m) a click reaches a scenery object with a `[mouseevent]`.
+pub(crate) const SCENERY_OBJECT_REACH: f32 = 50.0;
+
 impl App {
     /// Save the personnel file and the session summary (once: every caller ends the game,
     /// and the frames the loop still runs before it stops count no more time).
@@ -31,6 +34,19 @@ impl App {
         // PluginFinalize, as OMSI calls it on the way out
         if let Some(mut p) = self.plugins.take() {
             p.finalize();
+        }
+        // (a Career Mode session: the whole session's distance and time for the launcher's books)
+        if let Some(cs) = self.career_session.as_mut() {
+            cs.finish(crate::career_session::End {
+                metres: self.career.metres,
+                seconds: self.career.seconds,
+                crashes: self.career.crashes[0],
+                tickets: self.career.tickets.0,
+                cash: self.career.tickets.1,
+                fuel_end: self.player.as_ref().and_then(|p| p.vehicle.var("engine_tank_content")),
+                fuel_burned: self.career.fuel_burned,
+                fuel_added: self.career.fuel_added,
+            });
         }
         if self.player.is_none() || self.career.seconds <= 0.0 {
             return;
@@ -241,6 +257,12 @@ impl App {
             }
             // the trip summary's keys (while it is up)
             if self.summary_key(code, pressed, repeat) {
+                // (Career Mode: G = back to the garage ends the session)
+                if self.summary_leave() {
+                    self.finish_vr_nav_edit();
+                    self.finish_session();
+                    crate::platform::exit(event_loop);
+                }
                 return;
             }
             // the quick menu: Alt tapped alone shows and hides it, Esc hides it
@@ -289,6 +311,14 @@ impl App {
                         p.door_key_off(fired);
                     }
                 }
+            }
+            // [ROLLBACK aispawn-137] Escape ends the AI car clicking
+            if self.game_menu.is_none() && self.ai_pick && code == KeyCode::Escape {
+                if pressed {
+                    self.ai_pick = false;
+                    self.service_msg = Some(("AI car: done".into(), 2.0));
+                }
+                return;
             }
             // placing a vehicle with the mouse: its keys first (Escape takes it away)
             if self.game_menu.is_none() && self.placing_key(code, pressed) {
@@ -423,6 +453,13 @@ impl App {
                     // [ROLLBACK guitoggle-65] Ctrl+Alt+H now: Ctrl+Shift+H hides the interface
                     KeyCode::KeyH if ctrl && alt && !shift_now && self.duty.is_some() && !self.chord_bound(code, shift_now, ctrl, alt) => {
                         self.skip_next_stop();
+                        return;
+                    }
+                    // [ROLLBACK glassfx-1] Ctrl+Shift+F: the glass effects (fog, frost, a cold
+                    // exhaust) shown whatever the weather, one preview after another
+                    KeyCode::KeyF if ctrl && shift_now && !alt && !self.chord_bound(code, shift_now, ctrl, alt) => {
+                        let line = crate::glass_fx::cycle_preview();
+                        self.service_msg = Some((line, 6.0));
                         return;
                     }
                     // the object editor (`crate::editor`)
@@ -1337,6 +1374,14 @@ impl App {
                 }
             }
         }
+        // [ROLLBACK f4click-142] a scenery object's `[mouseevent]` under the cursor is clicked
+        // first: the click is not the ground's
+        if self.view == "free"
+            && self.game_menu.is_none()
+            && self.scenery_object_click_event(pressed)
+        {
+            return;
+        }
         // the map camera (F4): a click on the ground asks "move the vehicle here?" and puts
         // it there on yes, anywhere (OMSI's map view moves the vehicle to a place clicked
         // the same way; #1039). A rail vehicle stays on its track.
@@ -1371,6 +1416,9 @@ impl App {
         }
         // a page (`[htmltexture]`) on a scenery object: pressed and released like the bus's own
         if self.html_object_click(pressed) {
+            return;
+        }
+        if self.scenery_object_click_event(pressed) {
             return;
         }
         // on foot: the own bus's switches, doors and flaps from inside it or standing by it
@@ -1458,8 +1506,44 @@ impl App {
         true
     }
 
+    /// A left click (or let go) over a scenery object carrying a `[mouseevent]`.
+    fn scenery_object_click_event(&mut self, pressed: bool) -> bool {
+        let Some(w) = self.world.as_ref() else { return false };
+        if !pressed {
+            if let Some((map_id, ev)) = self.pressed_scenery_object.take() {
+                w.scenery_object_release(map_id, &ev);
+                self.dragging = false;
+                return true;
+            }
+            return false;
+        }
+        let Some((o, d, spread)) = self.cursor_ray_now() else { return false };
+        let veh_has_control = if self.view == "foot" && !self.foot_reaches_bus() {
+            false
+        } else {
+            self.player.as_ref().is_some_and(|p| {
+                p.pick(o, d, spread).is_some() || p.pick_trailer(o, d, spread).is_some()
+            })
+        };
+        if veh_has_control {
+            return false;
+        }
+        let Some(hit) = w.scenery_object_hit(o, d, crate::input_script::SCENERY_OBJECT_REACH, spread) else { return false };
+        if self.player.as_ref().and_then(|p| p.opaque_body_hit(o, d)).is_some_and(|t| t < hit.t) {
+            return false;
+        }
+        if let Some(p) = self.player.as_mut() {
+            p.release();
+        }
+        self.drag_delta = (0.0, 0.0);
+        w.scenery_object_click(hit.map_id, &hit.event);
+        self.pressed_scenery_object = Some((hit.map_id, hit.event));
+        self.dragging = true;
+        true
+    }
+
     /// The ray under the cursor now (see [`Self::cockpit_cursor_ray`]).
-    fn cursor_ray_now(&self) -> Option<(glam::DVec3, glam::Vec3, f32)> {
+    pub(crate) fn cursor_ray_now(&self) -> Option<(glam::DVec3, glam::Vec3, f32)> {
         let (cam, s) = self.camera.as_ref().zip(self.surface.as_ref())?;
         Some(self.cockpit_cursor_ray(cam, (s.config.width, s.config.height)))
     }
@@ -1475,7 +1559,11 @@ impl App {
             return;
         }
         let (dx, dy) = std::mem::take(&mut self.drag_delta);
-        if let Some(p) = self.player.as_mut() {
+        if let Some((map_id, ref ev)) = self.pressed_scenery_object {
+            if let Some(w) = self.world.as_ref() {
+                w.scenery_object_drag(map_id, ev, dx, dy);
+            }
+        } else if let Some(p) = self.player.as_mut() {
             p.drag(dx, dy);
         }
     }
@@ -2120,6 +2208,144 @@ impl App {
         self.refresh_list();
     }
 
+    /// A key while a date is typed (`menu_edit` is "D" and the text): digits, and - . / between.
+    fn date_edit_key(&mut self, code: KeyCode) {
+        let c = match code {
+            KeyCode::Digit0 | KeyCode::Numpad0 => Some('0'),
+            KeyCode::Digit1 | KeyCode::Numpad1 => Some('1'),
+            KeyCode::Digit2 | KeyCode::Numpad2 => Some('2'),
+            KeyCode::Digit3 | KeyCode::Numpad3 => Some('3'),
+            KeyCode::Digit4 | KeyCode::Numpad4 => Some('4'),
+            KeyCode::Digit5 | KeyCode::Numpad5 => Some('5'),
+            KeyCode::Digit6 | KeyCode::Numpad6 => Some('6'),
+            KeyCode::Digit7 | KeyCode::Numpad7 => Some('7'),
+            KeyCode::Digit8 | KeyCode::Numpad8 => Some('8'),
+            KeyCode::Digit9 | KeyCode::Numpad9 => Some('9'),
+            KeyCode::Minus
+            | KeyCode::NumpadSubtract
+            | KeyCode::Period
+            | KeyCode::NumpadDecimal
+            | KeyCode::Slash
+            | KeyCode::NumpadDivide => Some('-'),
+            _ => None,
+        };
+        match code {
+            KeyCode::Escape => self.menu_edit = None,
+            KeyCode::Backspace | KeyCode::Delete => {
+                if let Some(d) = self.menu_edit.as_mut().filter(|d| d.len() > 1) {
+                    d.pop();
+                }
+            }
+            KeyCode::Enter | KeyCode::NumpadEnter => {
+                self.apply_date_edit();
+                return;
+            }
+            _ => {
+                if let (Some(c), Some(d)) = (c, self.menu_edit.as_mut()) {
+                    // (a separator only after a digit, not twice, at most two of them)
+                    if d.len() < 11
+                        && (c != '-'
+                            || (d.len() > 1 && !d.ends_with('-') && d.matches('-').count() < 2))
+                    {
+                        d.push(c);
+                    }
+                }
+            }
+        }
+        self.refresh_list();
+    }
+
+    /// Set the date typed: YYYY-MM-DD, DD-MM-YYYY (the separator - . or /), or YYYYMMDD.
+    pub(crate) fn apply_date_edit(&mut self) {
+        let Some(d) = self.menu_edit.take() else {
+            return;
+        };
+        let d = d.strip_prefix('D').unwrap_or(&d).to_string();
+        if !d.is_empty() {
+            let p: Vec<&str> = d.split('-').collect();
+            let num = |x: &str| x.parse::<i32>().unwrap_or(0);
+            let ymd = match p.len() {
+                1 if d.len() == 8 => Some((num(&d[0..4]), num(&d[4..6]), num(&d[6..8]))),
+                3 if p[0].len() == 4 => Some((num(p[0]), num(p[1]), num(p[2]))),
+                3 if p[2].len() == 4 => Some((num(p[2]), num(p[1]), num(p[0]))),
+                _ => None,
+            };
+            match ymd {
+                Some((y, m, day))
+                    if (1..=9999).contains(&y)
+                        && (1..=12).contains(&m)
+                        && day >= 1
+                        && day <= month_len(y, m) =>
+                {
+                    if !self.date_blocked() {
+                        self.clock.set_date(y, m, day);
+                        self.date_changed();
+                    }
+                }
+                _ => {
+                    self.service_msg = Some((
+                        format!("\"{d}\" is no date (type 2026-10-14 or 14.10.2026)"),
+                        3.0,
+                    ))
+                }
+            }
+        }
+        self.refresh_list();
+    }
+
+    /// The date moved by days, months and years (the day kept within the month it lands in).
+    pub(crate) fn shift_date(&mut self, days: i32, months: i32, years: i32) {
+        if self.date_blocked() {
+            return;
+        }
+        let (d, m) = self.clock.day_month();
+        let total = (self.clock.year + years).clamp(1, 9999) * 12 + (m - 1) + months;
+        let y = total.div_euclid(12).clamp(1, 9999);
+        let m = total.rem_euclid(12) + 1;
+        self.clock.set_date(y, m, d.min(month_len(y, m)));
+        for _ in 0..days.abs() {
+            let c = &mut self.clock;
+            if days > 0 {
+                if c.day_of_year >= omsi_sim::clock::days_in_year(c.year) {
+                    c.day_of_year = 1;
+                    c.year = (c.year + 1).min(9999);
+                } else {
+                    c.day_of_year += 1;
+                }
+            } else if c.day_of_year > 1 {
+                c.day_of_year -= 1;
+            } else if c.year > 1 {
+                c.year -= 1;
+                c.day_of_year = omsi_sim::clock::days_in_year(c.year);
+            }
+        }
+        self.date_changed();
+        self.refresh_list();
+    }
+
+    /// The date cannot be set now (a LAN client, or the real-time sync is on): says why.
+    pub(crate) fn date_blocked(&mut self) -> bool {
+        let client = self.lan.as_ref().map(|l| l.role == omsi_net::Role::Client);
+        let why = if client == Some(true) {
+            "In a LAN session the host sets the clock"
+        } else if self.real_time_locked() {
+            "The date cannot be changed while the real-time sync is on"
+        } else {
+            return false;
+        };
+        self.service_msg = Some((why.into(), 3.0));
+        true
+    }
+
+    /// The clock's date changed: the vehicle's copy follows, and the message says which.
+    fn date_changed(&mut self) {
+        if let Some(p) = self.player.as_mut() {
+            p.vehicle.host.clock = self.clock.clone();
+        }
+        let (d, m) = self.clock.day_month();
+        self.service_msg = Some((format!("Date: {:04}-{m:02}-{d:02}", self.clock.year), 3.0));
+    }
+
     /// Set the clock to the time typed (digits: hh, hhmm or hhmmss; what is missing is 0).
     pub(crate) fn apply_time_edit(&mut self) {
         let Some(d) = self.menu_edit.take() else {
@@ -2330,6 +2556,8 @@ impl App {
         if self.menu_edit.is_some() {
             if self.menu_edit_icao {
                 self.icao_edit_key(code);
+            } else if self.menu_edit.as_ref().is_some_and(|d| d.starts_with('D')) {
+                self.date_edit_key(code);
             } else if self.route_edit_list() {
                 self.route_edit_key(code);
             } else {
@@ -3212,6 +3440,8 @@ impl App {
             "metar_once" => self.load_metar_once(),
             "metar_refresh" => self.refresh_metar_now(),
             "weather_custom" => self.current_weather_as_custom(),
+            "aurora_toggle" => crate::aurora_fx::toggle(),
+            "storm_toggle" => crate::storm_fx::toggle(),
             // [ROLLBACK takeover-122] was: the next vehicle at once. A list of the vehicles standing in
             // the world to choose from
             "switch" => self.open_list(crate::game_lists::ListKind::Takeover),
@@ -4341,6 +4571,18 @@ impl App {
             _ => (None, false),
         };
         let (found, hand) = found;
+        let (found, hand) = if let (Some(found), true) = (found.as_ref(), hand) {
+            (Some(found.clone()), true)
+        } else if let (Some(w), Some((o, d, spread))) = (self.world.as_ref(), self.cursor_ray_now()) {
+            let blocked = self.player.as_ref().and_then(|p| p.opaque_body_hit(o, d));
+            if let Some(hit) = w.scenery_object_hit(o, d, crate::input_script::SCENERY_OBJECT_REACH, spread).filter(|h| blocked.map_or(true, |t| t >= h.t)) {
+                (Some((hit.event, true)), true)
+            } else {
+                (found, hand)
+            }
+        } else {
+            (found, hand)
+        };
         self.hover_hand = hand;
         match found {
             Some((name, true)) => {
@@ -4764,6 +5006,10 @@ impl crate::App {
             let before_quit = v.iter().position(|x| x.0 == "quit").unwrap_or(v.len()).max(at);
             v.insert(before_quit, ("admin", "Administration..."));
         }
+        // [ROLLBACK footmenu-139] walking about, in no vehicle: no vehicle options to set
+        if self.on_foot.is_some() {
+            v.retain(|x| x.0 != "vehicle");
+        }
         v
     }
 
@@ -5036,5 +5282,15 @@ mod dropdown_tests {
         assert_eq!(super::dropdown_top_at(900.0, track, 60.0, 40, 8), 32);
         // a list that fits never scrolls
         assert_eq!(super::dropdown_top_at(300.0, track, 60.0, 5, 8), 0);
+    }
+}
+
+/// [ROLLBACK date-147] Days in a month of a year.
+fn month_len(y: i32, m: i32) -> i32 {
+    match m {
+        2 if omsi_sim::clock::days_in_year(y) == 366 => 29,
+        2 => 28,
+        4 | 6 | 9 | 11 => 30,
+        _ => 31,
     }
 }

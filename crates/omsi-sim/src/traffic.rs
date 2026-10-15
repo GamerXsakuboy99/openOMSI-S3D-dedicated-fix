@@ -1807,7 +1807,9 @@ pub enum Aspect {
 /// time and for the steering to look beyond the junction.
 const PLAN_AHEAD: f32 = 90.0;
 /// At most this many lanes are planned ahead (junction pieces can be a few metres long).
-const PLAN_LANES: usize = 10;
+// [ROLLBACK lights-130] 20 lanes (was 10): on a road of short pieces ten lanes were not
+// ninety metres, and a light further ahead was not seen in time to stop
+const PLAN_LANES: usize = 20;
 /// Linked lanes may end up to 1.5 m apart; over this many metres on either side of a joint
 /// the way is bent so that it has no step (half the gap on each side).
 const JOINT_BLEND: f32 = 6.0;
@@ -2076,14 +2078,21 @@ impl AiState {
     /// no_cars, bus, trucks: `Lane::allows`) and lanes whose traffic density is zero are not driven
     /// into - filtering them only at spawn still let cars turn into a pedestrian street or a
     /// depot yard from next door. A car that has taken a turn lane takes the turn.
-    fn choose_after(&mut self, net: &Network, lane: usize) -> Option<usize> {
+    fn choose_after(
+        &mut self,
+        net: &Network,
+        lane: usize,
+        avoid: &dyn Fn(usize) -> bool,
+    ) -> Option<usize> {
         let l = &net.lanes[lane];
+        // [ROLLBACK cycle-135] the ways that lead back round a loop of short lanes are not
+        // among the choices (the others are: a street goes on where it has a way on)
+        let next: Vec<usize> = l.next.iter().copied().filter(|&n| !avoid(n)).collect();
         // (a car of a traffic pool - the trucks of a map that keeps them to its port roads -
         // takes the ways its pool may go, as it was put on one; where none of them does, the
         // ways open to cars, then any: it does not stand at the junction for ever)
         let open_to = |pooled: bool| -> Vec<usize> {
-            l.next
-                .iter()
+            next.iter()
                 .copied()
                 .filter(|&n| {
                     let nl = &net.lanes[n];
@@ -2098,7 +2107,7 @@ impl AiState {
         let pooled = self.traffic_pool.is_some().then(|| open_to(true)).filter(|o| !o.is_empty());
         let weighted = pooled.is_some();
         let open = pooled.unwrap_or_else(|| open_to(false));
-        let mut choices = if open.is_empty() { l.next.clone() } else { open };
+        let mut choices = if open.is_empty() { next.clone() } else { open };
         // and a way that goes on rather than into the end of the network, where there is
         // the choice (the map's edge is where OMSI takes its cars away; a village like
         // Grundorf had a queue of twenty growing at the end of its one outbound road)
@@ -2164,7 +2173,23 @@ impl AiState {
         let mut dist = rest + plan.iter().map(|&l| net.lanes[l].length()).sum::<f32>();
         while dist < PLAN_AHEAD && plan.len() <= PLAN_LANES {
             let last = plan.last().copied().unwrap_or(from);
-            match self.choose_after(net, last) {
+            // [ROLLBACK cycle-135] not round a loop of short lanes to fill the plan (two
+            // lanes of no length leading into each other made a plan of twenty), nor back
+            // onto the lane the car came from: those ways are left out of the choice, so the
+            // car still takes any other way on; where there is none, the plan ends and the
+            // car drives to the end of the paths and is gone (as in OMSI)
+            let (lane0, prev0) = (self.lane, self.prev_lane);
+            let len = |x: usize| net.lanes[x].length();
+            let avoid = |n: usize| -> bool {
+                if n == from {
+                    return len(from) + plan.iter().map(|&x| len(x)).sum::<f32>() < 20.0;
+                }
+                if let Some(q) = plan.iter().position(|&x| x == n) {
+                    return plan[q..].iter().map(|&x| len(x)).sum::<f32>() < 20.0;
+                }
+                plan.is_empty() && from == lane0 && prev0 == Some(n) && len(from) + len(n) < 20.0
+            };
+            match self.choose_after(net, last, &avoid) {
                 Some(n) => {
                     dist += net.lanes[n].length();
                     plan.push(n);
@@ -2432,7 +2457,9 @@ impl AiState {
             c.dir
         } else if self.signal != 0 && self.signal_time > 0.0 {
             self.signal
-        } else if (self.lateral_target - self.lateral).abs() > 0.3 {
+        } else if (self.lateral_target - self.lateral).abs() > 0.3 && self.speed > 1.0 {
+            // [ROLLBACK blinker-130] (not standing: a car held in a queue beside a parked car
+            // whose side kept changing flashed left and right in turns)
             if self.lateral_target > self.lateral { 2 } else { 1 }
         } else {
             let within = (self.speed * 4.0).clamp(25.0, 60.0);
@@ -3098,6 +3125,30 @@ mod tests {
         assert!(square.before <= 3.0 && square.after <= 3.0, "{square:?}");
         // at 20° the centre lines stay within 2.6 m for 2.6 / sin 20° ≈ 7.6 m either side
         assert!(shallow.before >= 7.0 && shallow.after >= 7.0, "{shallow:?}");
+    }
+
+    #[test]
+    fn a_car_does_not_turn_back_onto_a_short_lane_it_came_from() {
+        // [ROLLBACK cycle-134] two short lanes that lead into each other: the car drives on
+        // to the second and, with no way on, is gone at its end
+        let st = LaneKind::Street;
+        let mut a = LaneBuilder::arc(DVec3::ZERO, 0.0, 3.0, 0.0, 0.0, st, 3.0);
+        let mut b = LaneBuilder::arc(DVec3::new(0.0, 3.0, 0.0), 0.0, 3.0, 0.0, 0.0, st, 3.0);
+        a.next = vec![1];
+        b.next = vec![0];
+        let net = Network {
+            lanes: vec![a, b],
+            ..Default::default()
+        };
+        let mut car = AiState::new(0, 0.0, 1);
+        car.plan_next(&net);
+        assert_eq!(car.planned_next, Some(1));
+        car.lane = 1;
+        car.prev_lane = Some(0);
+        car.planned_next = None;
+        car.ahead.clear();
+        car.plan_next(&net);
+        assert_eq!(car.planned_next, None);
     }
 
     #[test]

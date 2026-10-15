@@ -741,6 +741,27 @@ impl Tools {
         if ui.button("dt-act-clear", r, "Remove made up passengers", None, normal) {
             out.push("act\tclear".to_string());
         }
+        // [ROLLBACK aispawn-137] an AI car where a street is clicked, to follow its way
+        y += 44.0;
+        ui.text(
+            "AI traffic",
+            Vec2::new(pad, y + 12.0),
+            15.0,
+            bold,
+            TEXT_SOFT,
+            Align::Left,
+        );
+        y += 22.0;
+        let r = Rect::new(pad, y, 330.0, 30.0);
+        if ui.button(
+            "dt-act-spawn-ai",
+            r,
+            "Put an AI car on a street (click it in the game)",
+            None,
+            normal,
+        ) {
+            out.push("act\tspawn_ai".to_string());
+        }
     }
 
     /// The first page: the variables of the vehicle.

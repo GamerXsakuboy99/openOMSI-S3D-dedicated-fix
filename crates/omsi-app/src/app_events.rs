@@ -295,6 +295,12 @@ impl ApplicationHandler for App {
                     let pressed = state == ElementState::Pressed;
                     // (a click in the trip summary is the window's)
                     if self.summary_click(pressed) {
+                        // (Career Mode: "Back to the garage" ends the session)
+                        if self.summary_leave() {
+                            self.finish_vr_nav_edit();
+                            self.finish_session();
+                            crate::platform::exit(event_loop);
+                        }
                         return;
                     }
                     // (a click on a tile of the quick menu is the menu's)
@@ -1535,6 +1541,10 @@ impl ApplicationHandler for App {
                 if let Some(t) = trip_ended {
                     self.trip_summary_open(t);
                 }
+                // (Career Mode: the tank starts at the level the company left the bus with)
+                if let (Some(cs), Some(p)) = (self.career_session.as_mut(), self.player.as_mut()) {
+                    cs.apply_fuel(&mut p.vehicle);
+                }
                 if let Some(p) = self.player.as_mut() {
                     let riders = self.humans.as_ref().map(|h| h.riding()).unwrap_or(0);
                     // the engine's own variables of the bus (see `update_engine_vars`)
@@ -2117,6 +2127,10 @@ impl ApplicationHandler for App {
                                 }
                             }
                             let inside = self.in_cab;
+                            // [ROLLBACK storm-1] the thunders that have reached us
+                            for th in crate::storm_fx::take_thunder() {
+                                amb.thunder(a, &th, inside);
+                            }
                             let __tm = Instant::now();
                             amb.update(
                                 a,
@@ -2391,6 +2405,15 @@ impl ApplicationHandler for App {
                     }
                     // [ROLLBACK payload-121] the Actions page: people on every standing place or seat, or none
                     for act in self.devtools.take_pax_actions() {
+                        // [ROLLBACK aispawn-137] clicks on streets put AI cars there
+                        if act == "spawn_ai" {
+                            self.ai_pick = true;
+                            let text =
+                                "AI car: click a street in the game (Esc ends it)".to_string();
+                            self.devtools.note(&text);
+                            self.service_msg = Some((text, 30.0));
+                            continue;
+                        }
                         let text = match (
                             act.as_str(),
                             self.humans.as_mut(),
@@ -2613,11 +2636,52 @@ impl ApplicationHandler for App {
                     .filter_map(|t| t.ty.def.bounding_box.map(|bb| (t.position, t.heading, bb))).take(3).collect();
                 lighting.detail = self.settings.detail_textures;
                 lighting.glass_wind = self.player.as_ref().map(|p| crate::lights::vehicle_velocity(&p.vehicle)).unwrap_or_default();
+                // [ROLLBACK glassfx-1] condensation and frost on the glass (and the cold exhaust's vapour,
+                // which `lights::particle_sprites_in` reads from the same place)
+                let glass_fx = crate::glass_fx::frame(dt, self.player.as_ref().map(glass_air));
+                lighting.glass_fog = glass_fx.fog;
+                lighting.glass_frost = glass_fx.frost;
                 // an LED panel's dots burn this much above their own colour (16 levels,
                 // see `Settings::led_glow`); the panel's picture and its mask are held at
                 // this mip level at most (`Settings::led_mips`)
                 lighting.led_glow = self.settings.led_glow as f32 * 0.25;
                 lighting.led_mips = self.settings.led_mips;
+                // the night sky: the stars and the moon (0 = none) and, in the Vanilla picture,
+                // the night's own light following the moon - a full moon high up lights it, a
+                // night without one is darker (the Enhanced sky does that in the air model)
+                lighting.night_sky = self.settings.night_sky;
+                lighting.sun_glare = self.settings.sun_glare;
+                // [ROLLBACK newsky-1] the Vanilla pictures draw the Enhanced sky (see `Lighting::new_sky`);
+                // [ROLLBACK aurora-1] and the aurora over the poleward horizon, the natural one of
+                // this place and day or the one called up by hand
+                lighting.new_sky = self.settings.new_sky;
+                let aurora = crate::aurora_fx::frame(self.settings.aurora, &self.clock);
+                lighting.aurora = aurora.amp;
+                lighting.aurora_dist = aurora.dist_km;
+                lighting.aurora_seed = aurora.seed;
+                // [ROLLBACK storm-1] lightning: the flash on the clouds and the scene, the bolt in the
+                // sky (the thunder it makes is played with the other environment sounds)
+                let storm = crate::storm_fx::frame(if self.paused { 0.0 } else { dt });
+                lighting.lightning = storm.flash;
+                lighting.lightning_dir = glam::Vec3::from(storm.dir);
+                lighting.lightning_bolt = storm.bolt;
+                lighting.lightning_bolt_dir = glam::Vec3::from(storm.bolt_dir);
+                lighting.lightning_seed = storm.bolt_seed;
+                lighting.lightning_dist_km = storm.dist_km;
+                if !lighting.enhanced && self.settings.night_sky > 0.0 {
+                    let alt = |z: f32| f64::from(z).clamp(-1.0, 1.0).asin().to_degrees();
+                    // (a closed sky keeps most of the moonlight from the ground)
+                    let illum = lighting.moon_illum * (1.0 - 0.85 * lighting.overcast.clamp(0.0, 1.0));
+                    let gain = omsi_sim::night::night_light_gain(alt(lighting.sun_dir.z), alt(lighting.moon_dir.z), f64::from(illum), self.settings.night_sky);
+                    lighting.ambient *= gain;
+                    lighting.secondary *= gain;
+                }
+                if storm.flash > 0.0 && !lighting.enhanced {
+                    // the plain picture is lit as OMSI lights it: the flash is a bluish-white
+                    // ambient and light from above, up to about a bright day's
+                    lighting.ambient += glam::Vec3::new(0.34, 0.37, 0.50) * storm.flash;
+                    lighting.secondary += glam::Vec3::new(0.30, 0.33, 0.46) * storm.flash * 0.8;
+                }
                 let mut finish = false;
                 let mut reconfigure = false;
                 let shot = self.shot.take();
@@ -3281,6 +3345,13 @@ impl App {
         // (the wheel over a cockpit switch used to turn it - an `<event>_drag` and its `_off`
         // - which clicked the buttons it rolled over instead of zooming: the wheel only
         // moves the view now)
+        if let (Some(w), Some((o, d, spread))) = (self.world.as_ref(), self.cursor_ray_now()) {
+            let blocked = self.player.as_ref().and_then(|p| p.opaque_body_hit(o, d));
+            if let Some(hit) = w.scenery_object_hit(o, d, crate::input_script::SCENERY_OBJECT_REACH, spread).filter(|h| blocked.map_or(true, |t| t >= h.t)) {
+                w.scenery_object_wheel(hit.map_id, &hit.event, -amount * 40.0);
+                return;
+            }
+        }
         let ctrl = self.keys.contains(&KeyCode::ControlLeft) || self.keys.contains(&KeyCode::ControlRight);
         if self.view == "outside" && self.player.is_some() && ctrl {
             // Ctrl+wheel: the outside camera stays where it is and narrows its field of view
@@ -3318,6 +3389,13 @@ impl App {
             }
         }
         let state = if pressed { ElementState::Pressed } else { ElementState::Released };
+        // [ROLLBACK aispawn-137] a click on a street puts an AI car there
+        if self.ai_pick && self.game_menu.is_none() {
+            if pressed {
+                self.ai_pick_click();
+            }
+            return;
+        }
         // placing a vehicle: a click sets it down
         if self.placing.is_some() && self.game_menu.is_none() {
             if state == ElementState::Pressed {
@@ -3579,6 +3657,35 @@ pub(crate) fn vehicle_temperatures(p: &Player) -> (f32, f32) {
         .filter(|v| v.is_finite())
         .unwrap_or_else(|| outside.clamp(18.0, 25.0));
     (outside, inside)
+}
+
+/// [ROLLBACK glassfx-3] How hard the player's bus blows on its glass (0..1): the strongest of its
+/// variables that look like a defroster / demister switch (`glass_fx::is_defrost_var`), 0
+/// for a bus that has none. The names are looked for once a vehicle and logged.
+fn defrost_level(p: &Player) -> f32 {
+    static NAMES: std::sync::Mutex<(u64, Vec<String>)> = std::sync::Mutex::new((0, Vec::new()));
+    let mut cache = NAMES.lock().unwrap_or_else(|e| e.into_inner());
+    if cache.0 != p.uid {
+        let mut names: Vec<String> = p.vehicle.ty.program.var_names().into_iter().filter(|n| crate::glass_fx::is_defrost_var(n)).collect();
+        names.sort();
+        if !names.is_empty() {
+            log::info!("glass effects: defroster variables of this bus: {}", names.join(", "));
+        }
+        *cache = (p.uid, names);
+    }
+    cache.1.iter().filter_map(|n| p.vehicle.var(n)).filter(|v| v.is_finite()).fold(0.0f32, |m, v| m.max(v.clamp(0.0, 1.0)))
+}
+
+/// [ROLLBACK glassfx-1, glassfx-3] The air in and round the player's bus, for `glass_fx`: the outside
+/// temperature and humidity from the weather, the cabin's from the bus's own scripts (or the
+/// engine's stand-in), the speed, the defroster, and which vehicle it is.
+fn glass_air(p: &Player) -> crate::glass_fx::Air {
+    let (outside, cabin) = vehicle_temperatures(p);
+    let abs = p.vehicle.host.abs_humidity;
+    // (no figure from the weather: a damp day)
+    let outside_rh = if abs > 0.0 { omsi_sim::vehicle::relative_humidity(outside, abs) } else { 0.7 };
+    let cabin_rh = p.vehicle.var("Cabinair_relHum").filter(|h| h.is_finite()).unwrap_or(0.5);
+    crate::glass_fx::Air { outside, outside_rh, cabin, cabin_rh, kmh: p.vehicle.physics.velocity_kmh().abs(), defrost: defrost_level(p), uid: p.uid }
 }
 
 /// OMSI's information bar: the time, the speed, temperatures, the passengers aboard, and the

@@ -366,7 +366,7 @@ pub(crate) fn set_route_by_hand(app: &mut App, line: &str) {
 
 /// The route number the bus shows: its matrix's (`Matrix_Nr`), else the one it was set to
 /// (`SetLineTo`), else its IBIS's line number.
-fn line_shown(v: &omsi_sim::VehicleInstance) -> Option<String> {
+pub(crate) fn line_shown(v: &omsi_sim::VehicleInstance) -> Option<String> {
     [v.str_var("Matrix_Nr"), v.str_var("SetLineTo")]
         .into_iter()
         .map(|s| s.trim().to_string())
@@ -1048,7 +1048,7 @@ pub(crate) fn run_move(app: &mut App, kind: &ListKind, action: &str, mv: Move) -
                 }
                 // the exact time: Enter starts typing it, and sets it when typed
                 "time_edit" if step => {
-                    if app.menu_edit.is_some() {
+                    if app.menu_edit.as_ref().is_some_and(|d| !d.starts_with('D')) {
                         app.apply_time_edit();
                     } else if app.lan.as_ref().is_some_and(|l| l.role == omsi_net::Role::Client) {
                         app.service_msg = Some(("In a LAN session the host sets the clock".into(), 3.0));
@@ -1057,6 +1057,26 @@ pub(crate) fn run_move(app: &mut App, kind: &ListKind, action: &str, mv: Move) -
                     } else {
                         app.menu_edit = Some(String::new());
                     }
+                }
+                // [ROLLBACK date-147] the date: Enter starts typing it, and sets it when typed
+                "date_edit" if step => {
+                    if app.menu_edit.as_ref().is_some_and(|d| d.starts_with('D')) {
+                        app.apply_date_edit();
+                    } else if !app.date_blocked() {
+                        app.menu_edit = Some("D".to_string());
+                    }
+                }
+                "dadj" if step => {
+                    let (d, m, y) = match arg.trim().parse::<usize>().unwrap_or(9) {
+                        0 => (-1, 0, 0),
+                        1 => (1, 0, 0),
+                        2 => (0, -1, 0),
+                        3 => (0, 1, 0),
+                        4 => (0, 0, -1),
+                        5 => (0, 0, 1),
+                        _ => (0, 0, 0),
+                    };
+                    app.shift_date(d, m, y);
                 }
                 "view_edit" if step && app.player.is_some() => {
                     app.view_editor_open();
@@ -1369,6 +1389,13 @@ fn steps_of(verb: &str) -> Option<Vec<f32>> {
         "led_glow" => (0..16).map(|v| v as f32).collect(),
         "radio_fx_speaker" | "radio_fx_noise" | "radio_fx_dropouts" => (0..=20).map(|v| v as f32 * 0.05).collect(),
         "led_mips" => (0..=80).map(|v| v as f32 * 0.05).collect(),
+        "night_sky" | "sun_glare" | "aurora" => (0..=40).map(|v| v as f32 * 0.05).collect(),
+        // [ROLLBACK aurora-1] the weather window's manual aurora: its strength and its minutes
+        "aurora_power" => (1..=32).map(|v| v as f32 * 0.05).collect(),
+        "aurora_minutes" => (1..=48).map(|v| v as f32 * 5.0).collect(),
+        // [ROLLBACK storm-1] the manual thunderstorm's strength and its minutes
+        "storm_power" => (1..=20).map(|v| v as f32 * 0.05).collect(),
+        "storm_minutes" => (1..=48).map(|v| v as f32 * 5.0).collect(),
         "ui_scale" => (10..=40).map(|v| v as f32 * 0.05).collect(),
         "chat_size" => (5..=30).map(|v| v as f32 * 0.1).collect(),
         "ui_opacity" => (4..=20).map(|v| v as f32 * 0.05).collect(),
@@ -1521,6 +1548,13 @@ fn option_now(app: &App, verb: &str, arg: &str) -> Option<f32> {
         "volume" => s.volume,
         "led_glow" => s.led_glow as f32,
         "led_mips" => s.led_mips,
+        "night_sky" => s.night_sky,
+        "sun_glare" => s.sun_glare,
+        "aurora" => s.aurora,
+        "aurora_power" => crate::aurora_fx::power(),
+        "aurora_minutes" => crate::aurora_fx::minutes(),
+        "storm_power" => crate::storm_fx::power(),
+        "storm_minutes" => crate::storm_fx::minutes(),
         "radio_fx_speaker" => s.radio_fx_speaker,
         "radio_fx_noise" => s.radio_fx_noise,
         "radio_fx_dropouts" => s.radio_fx_dropouts,
@@ -1638,6 +1672,35 @@ fn option_set(app: &mut App, verb: &str, arg: &str, v: f32) -> Option<(&'static 
         "led_mips" => {
             app.settings.led_mips = v.clamp(0.0, 4.0);
             Some(("led_mips", app.settings.led_mips.to_string()))
+        }
+        "night_sky" => {
+            app.settings.night_sky = v.clamp(0.0, 2.0);
+            Some(("night_sky", app.settings.night_sky.to_string()))
+        }
+        "sun_glare" => {
+            app.settings.sun_glare = v.clamp(0.0, 2.0);
+            Some(("sun_glare", app.settings.sun_glare.to_string()))
+        }
+        "aurora" => {
+            app.settings.aurora = v.clamp(0.0, 2.0);
+            Some(("aurora", app.settings.aurora.to_string()))
+        }
+        // (the manual aurora's own sliders are not kept for the next game)
+        "aurora_power" => {
+            crate::aurora_fx::set_power(v);
+            None
+        }
+        "aurora_minutes" => {
+            crate::aurora_fx::set_minutes(v);
+            None
+        }
+        "storm_power" => {
+            crate::storm_fx::set_power(v);
+            None
+        }
+        "storm_minutes" => {
+            crate::storm_fx::set_minutes(v);
+            None
         }
         "ctrl_deadzone" => {
             app.settings.ctrl_deadzone = v.clamp(0.0, 0.3);
@@ -1864,6 +1927,7 @@ fn toggle_now(app: &App, id: &str) -> Option<bool> {
         "vr" => s.vr,
         "vr_desktop_mirror" => s.vr_desktop_mirror,
         "doppler" => s.doppler,
+        "new_sky" => s.new_sky,
         "steering_linear" => s.steering_linear,
         "old_steering" => s.old_steering,
         "red_steer_spd" => s.red_steer_spd,
@@ -2139,6 +2203,10 @@ fn toggle_set(app: &mut App, id: &str, on: bool) -> Option<(&'static str, String
         "doppler" => {
             app.settings.doppler = on;
             Some(("doppler", bit))
+        }
+        "new_sky" => {
+            app.settings.new_sky = on;
+            Some(("new_sky", bit))
         }
         "steering_linear" => {
             app.settings.steering_linear = on;
@@ -2476,7 +2544,14 @@ fn select_options(key: &str) -> Vec<(&'static str, &'static str)> {
         "max_obj_dist" => vec![("auto", "Automatic"), ("500", "500 m"), ("750", "750 m"), ("900", "900 m"), ("1500", "1500 m"), ("3000", "3000 m")],
         "min_obj_size" => vec![("0.005", "All"), ("0.013", "Normal"), ("0.02", "Fewer (faster)"), ("0.03", "Few (fastest)")],
         "mirror_size" => vec![("0", "Off"), ("128", "Low (128)"), ("256", "Normal (256)"), ("512", "High (512)"), ("1024", "Very high (1024)")],
-        "texture_memory" => vec![("0", "Automatic"), ("500", "500 MB"), ("1000", "1 GB"), ("1500", "1.5 GB"), ("2000", "2 GB"), ("3000", "3 GB"), ("4000", "4 GB"), ("6000", "6 GB")],
+        "texture_memory" => {
+            // [ROLLBACK vram-129] more than 6 GB where the graphics card holds it
+            let mut o = vec![("0", "Automatic"), ("500", "500 MB"), ("1000", "1 GB")];
+            o.extend([("1500", "1.5 GB"), ("2000", "2 GB")]);
+            o.extend([("3000", "3 GB"), ("4000", "4 GB"), ("6000", "6 GB")]);
+            o.extend(crate::memory::texture_memory_extras());
+            o
+        }
         "drive_keys" => vec![("omsi", "Custom controls (Controls page)"), ("simple", "W A S D + arrows"), ("wasd", "W A S D only"), ("arrows", "Arrow keys only")],
         "resolution" => crate::launcher::pages::RESOLUTIONS.to_vec(),
         "navigator_corner" => vec![("top-left", "Top left"), ("top-right", "Top right"), ("bottom-left", "Bottom left"), ("bottom-right", "Bottom right")],
@@ -2604,8 +2679,8 @@ fn options_pages(app: &App) -> Vec<Page> {
         pick("render_scale", "Render scale", later),
         pick("anisotropy", "Anisotropic", later),
         // (traced shadows bring the traced occlusion: always on then)
-        switch_row(app, "rt_shadows", "Ray traced shadows (and occlusion)", "Needs a GPU with ray queries").filter(|_| app.settings.enhanced),
-        pick("rt_reflections", "Ray traced reflections", later).filter(|_| app.settings.enhanced),
+        switch_row(app, "rt_shadows", "Ray traced shadows (and occlusion)", "Needs a GPU with ray queries").filter(|_| app.settings.enhanced && app.settings.rt_unlocked),
+        pick("rt_reflections", "Ray traced reflections", later).filter(|_| app.settings.enhanced && app.settings.rt_unlocked),
         switch_row(app, "shadows", "Sun shadows", "Enables/Disabled shadows").filter(|_| !app.settings.rt_shadows),
         pick("shadow_size", "Shadow map", later),
         switch_row(app, "ssao", "Ambient occlusion", later).filter(|_| !app.settings.rt_shadows),
@@ -2613,6 +2688,10 @@ fn options_pages(app: &App) -> Vec<Page> {
         switch_row(app, "detail_textures", "Detail texturing up close", "The ground and large walls get fine grain when close"),
         slider_row(app, "led_glow", "LED glow", "How strongly the dots of LED destination displays glow", &|v| format!("{}/15", v as i64)),
         slider_row(app, "led_mips", "LED mask mipmaps", "Keep the mip chain of the LED masks (smoother from a distance).", &|v| format!("{v:.2}")),
+        slider_row(app, "night_sky", "Night sky", "Stars, the Milky Way and the moon with its phases; the night is brighter with a full moon and darker without one", &|v| if v < 0.005 { "Off".to_string() } else { format!("{v:.2}") }),
+        slider_row(app, "aurora", "Aurora (northern lights)", "How often the night sky has one of its own accord, by the map's place and the day; the weather window can call one up by hand", &|v| if v < 0.005 { "Off".to_string() } else { format!("{v:.2}") }),
+        switch_row(app, "new_sky", "Enhanced sky in Vanilla", "Clouds, sun, moon, stars and aurora of the Enhanced sky in Vanilla and Vanilla+").filter(|_| !app.settings.enhanced),
+        slider_row(app, "sun_glare", "Sun glare", "The glare round the sun and the moon, hidden behind buildings and trees", &|v| if v < 0.005 { "Off".to_string() } else { format!("{v:.2}") }).filter(|_| app.settings.enhanced),
         switch_row(app, "reflections", "Reflection maps (paint, chrome, glass)", later).filter(|_| app.settings.rt_reflections == "off"),
         switch_row(app, "clouds", "Clouds", later),
     ]
@@ -2875,6 +2954,7 @@ fn world_pages(app: &App) -> Vec<Page> {
     let pct = |v: f32| format!("{:.0} %", v * 100.0);
     let mut time: Vec<(String, String)> = Vec::new();
     let mut weather: Vec<(String, String)> = Vec::new();
+    let mut sky: Vec<(String, String)> = Vec::new();
     let mut metar: Vec<(String, String)> = Vec::new();
     if !client {
         let t = app.clock.time;
@@ -2901,7 +2981,7 @@ fn world_pages(app: &App) -> Vec<Page> {
             ));
         } else {
             // the clock, large: a click types a time (12 is 12:00:00, 12:30 is 12:30:00)
-            match app.menu_edit.as_ref() {
+            match app.menu_edit.as_ref().filter(|d| !d.starts_with('D')) {
                 Some(d) => {
                     let typed = if d.is_empty() {
                         "hh:mm:ss".to_string()
@@ -2931,6 +3011,27 @@ fn world_pages(app: &App) -> Vec<Page> {
             time.push((
                 row("Adjust", 'g', &adj.join("\u{1e}"), "", None),
                 "tadj".to_string(),
+            ));
+            // [ROLLBACK date-147] the date: a click types it (2026-10-14 or 14.10.2026), and the
+            // steps are a day, a month, a year
+            let (dd, dm) = app.clock.day_month();
+            match app.menu_edit.as_ref().and_then(|d| d.strip_prefix('D')) {
+                Some(d) => {
+                    let typed = match d.is_empty() {
+                        true => "YYYY-MM-DD".to_string(),
+                        false => format!("{d}_"),
+                    };
+                    time.push((row("Date", 'U', &typed, "", None), "date_edit".to_string()));
+                }
+                None => {
+                    let text = format!("{:04}-{dm:02}-{dd:02}", app.clock.year);
+                    time.push((row("Date", 'T', &text, "", None), "date_edit".to_string()));
+                }
+            }
+            let dadj = ["−1 d", "+1 d", "−1 mo", "+1 mo", "−1 y", "+1 y"];
+            time.push((
+                row("Adjust date", 'g', &dadj.join("\u{1e}"), "", None),
+                "dadj".to_string(),
             ));
             time.extend(slider_row(app, "hour", "Hour", "", &|v| {
                 format!("{:02}", v as i64)
@@ -3050,6 +3151,27 @@ fn world_pages(app: &App) -> Vec<Page> {
                 "weather_custom",
             ));
         }
+        // [ROLLBACK aurora-1] an aurora by hand: how strong, for how long, and the button (on a
+        // page of its own, "Sky": the Weather page has no room for three more rows)
+        sky.extend(slider_row(app, "aurora_power", "Aurora strength", "", &|v| format!("{:.0} %", v * 100.0)));
+        sky.extend(slider_row(app, "aurora_minutes", "Aurora duration", "", &|v| format!("{} min", v as i64)));
+        sky.push(button(
+            "Aurora (northern lights)",
+            if crate::aurora_fx::running() { "Stop" } else { "Start now" },
+            // (no description: a row with one makes the window taller than the other pages of
+            // the weather group - see `compact` in `draw_settings`)
+            "",
+            "aurora_toggle",
+        ));
+        // [ROLLBACK storm-1] and a thunderstorm by hand (lightning, thunder; no descriptions, as above)
+        sky.extend(slider_row(app, "storm_power", "Storm strength", "", &|v| format!("{:.0} %", v * 100.0)));
+        sky.extend(slider_row(app, "storm_minutes", "Storm duration", "", &|v| format!("{} min", v as i64)));
+        sky.push(button(
+            "Thunderstorm",
+            if crate::storm_fx::running() { "Stop" } else { "Start now" },
+            "",
+            "storm_toggle",
+        ));
         metar.extend(switch_row(app, "metar_sync", "METAR sync", ""));
         let src = if app.settings.metar_station.is_empty() {
             format!("{} ({})", app.metar_station(), omsi_ui::tr("automatic"))
@@ -3085,7 +3207,7 @@ fn world_pages(app: &App) -> Vec<Page> {
             metar.push(button("METAR report", "Load once", "", "metar_once"));
         }
     }
-    vec![("Time", time), ("Weather", weather), ("METAR", metar)]
+    vec![("Time", time), ("Weather", weather), ("METAR", metar), ("Sky", sky)]
 }
 
 /// The pages of the settings window `kind` (empty ones left out) and the one shown.

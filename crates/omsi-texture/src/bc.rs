@@ -693,6 +693,57 @@ pub fn downsample(rgba: &[u8], w: u32, h: u32) -> (Vec<u8>, u32, u32) {
     (out, nw as u32, nh as u32)
 }
 
+/// [ROLLBACK alphamip-1] Like [`downsample`] but for pictures whose alpha means "how much
+/// of the surface is there" (glass, decals, grids, foliage): the colour of a 2x2 block is
+/// averaged weighted by alpha, so a see-through texel (whose RGB is usually black or
+/// whatever the artist's brush left) does not drag the visible colour toward itself at
+/// every level. Alpha itself is the plain average (coverage). A block that is entirely
+/// clear has no visible colour to protect, so it keeps the plain average (masks and
+/// lookup pictures keep their RGB). Opaque pictures give what [`downsample`] gives.
+pub fn downsample_alpha_weighted(rgba: &[u8], w: u32, h: u32) -> (Vec<u8>, u32, u32) {
+    let (w, h) = (w as usize, h as usize);
+    let (nw, nh) = ((w / 2).max(1), (h / 2).max(1));
+    let lin = srgb_to_linear_table();
+    let back = linear_to_srgb_table();
+    let mut out = vec![0u8; nw * nh * 4];
+    let fill_row = |y: usize, dst: &mut [u8]| {
+        for x in 0..nw {
+            let mut plain = [0.0f32; 3];
+            let mut weighted = [0.0f32; 3];
+            let mut a = 0u32;
+            for dy in 0..2 {
+                let sy = (y * 2 + dy).min(h - 1);
+                for dx in 0..2 {
+                    let sx = (x * 2 + dx).min(w - 1);
+                    let o = (sy * w + sx) * 4;
+                    let wa = rgba[o + 3] as f32;
+                    for k in 0..3 {
+                        let l = lin[rgba[o + k] as usize];
+                        plain[k] += l;
+                        weighted[k] += l * wa;
+                    }
+                    a += rgba[o + 3] as u32;
+                }
+            }
+            let d = &mut dst[x * 4..x * 4 + 4];
+            for k in 0..3 {
+                let l = if a > 0 { weighted[k] / a as f32 } else { plain[k] * 0.25 };
+                d[k] = back[((l * 4096.0 + 0.5) as usize).min(4096)];
+            }
+            d[3] = ((a + 2) / 4) as u8;
+        }
+    };
+    if nw * nh >= 65536 {
+        use rayon::prelude::*;
+        out.par_chunks_mut(nw * 4).enumerate().for_each(|(y, dst)| fill_row(y, dst));
+    } else {
+        for (y, dst) in out.chunks_mut(nw * 4).enumerate() {
+            fill_row(y, dst);
+        }
+    }
+    (out, nw as u32, nh as u32)
+}
+
 /// Resample an RGBA picture to `nw` x `nh` with a Catmull-Rom filter (the texel centres
 /// keep their places in texture space, so a picture resized by a texel or two looks the
 /// same where it is drawn; the filter keeps its sharpness).
@@ -907,6 +958,45 @@ mod tests {
         assert_eq!((w, h), (1, 1));
         assert!((d[0] as i32 - 188).abs() <= 1, "{}", d[0]);
         assert_eq!(d[3], 255);
+    }
+
+    #[test]
+    fn alpha_weighted_downsample_keeps_the_visible_colour() {
+        // one texel of colour (40, 80, 120) at alpha 64 among three clear black ones
+        let rgba = [40u8, 80, 120, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let (d, w, h) = downsample_alpha_weighted(&rgba, 2, 2);
+        assert_eq!((w, h), (1, 1));
+        for (got, want) in d[..3].iter().zip([40i32, 80, 120]) {
+            assert!((*got as i32 - want).abs() <= 1, "{got} vs {want}");
+        }
+        assert_eq!(d[3], 16);
+        // the plain box would have darkened it
+        let (p, _, _) = downsample(&rgba, 2, 2);
+        assert!(p[2] < 100, "{}", p[2]);
+    }
+
+    #[test]
+    fn alpha_weighted_downsample_of_clear_pixels_keeps_their_colour() {
+        let mut rgba = Vec::new();
+        for c in [10u8, 200, 10, 200] {
+            rgba.extend_from_slice(&[c, c, c, 0]);
+        }
+        let (d, _, _) = downsample_alpha_weighted(&rgba, 2, 2);
+        let (p, _, _) = downsample(&rgba, 2, 2);
+        assert_eq!(d, p);
+        assert_eq!(d[3], 0);
+    }
+
+    #[test]
+    fn alpha_weighted_downsample_of_opaque_pictures_is_the_plain_one() {
+        let (w, h) = (6u32, 4u32);
+        let src: Vec<u8> = (0..w * h).flat_map(|i| [(i * 9) as u8, (i * 5) as u8, (i * 3) as u8, 255]).collect();
+        let (a, aw, ah) = downsample_alpha_weighted(&src, w, h);
+        let (b, bw, bh) = downsample(&src, w, h);
+        assert_eq!((aw, ah), (bw, bh));
+        for (x, y) in a.iter().zip(&b) {
+            assert!((*x as i32 - *y as i32).abs() <= 1);
+        }
     }
 
     #[test]

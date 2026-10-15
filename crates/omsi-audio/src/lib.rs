@@ -4,6 +4,7 @@ pub mod fx;
 pub mod mixer;
 pub mod radio;
 pub mod soundset;
+pub mod thunder;
 pub mod stream;
 pub mod wav;
 

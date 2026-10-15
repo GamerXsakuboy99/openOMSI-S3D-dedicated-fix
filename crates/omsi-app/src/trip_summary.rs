@@ -48,7 +48,15 @@ pub(crate) struct SummaryWindow {
     /// What the last click on Copy or Save did.
     note: Option<String>,
     panel: Rect,
-    buttons: [Rect; 3],
+    /// Copy, Save, then Close - or in Career Mode the next course (or Close when the tour has
+    /// no more) - and the garage.
+    buttons: [Rect; 4],
+    /// A Career Mode session: the window asks what next.
+    career: bool,
+    /// The tour has a next course after this one.
+    next_ok: bool,
+    /// "Back to the garage" was pressed: the session ends.
+    leave: bool,
     rows_fit: usize,
     hover: Option<usize>,
     pressed: Option<usize>,
@@ -70,7 +78,10 @@ impl SummaryWindow {
             shown: None,
             note: None,
             panel: none,
-            buttons: [none; 3],
+            buttons: [none; 4],
+            career: false,
+            next_ok: false,
+            leave: false,
             rows_fit: 1,
             hover: None,
             pressed: None,
@@ -83,7 +94,10 @@ impl SummaryWindow {
     }
 
     /// Show `summary`, the one of trip `trip` of the duty.
-    fn show(&mut self, summary: TripSummary, trip: usize) {
+    fn show(&mut self, summary: TripSummary, trip: usize, career: bool, next_ok: bool) {
+        self.career = career;
+        self.next_ok = next_ok;
+        self.leave = false;
         self.summary = Some(summary);
         self.trip = trip;
         self.scroll = 0;
@@ -135,7 +149,9 @@ impl App {
     /// player wants them (the setting `trip_summary`), once, and only for a trip the bus drove to
     /// its end - not one given up on the way or never begun.
     pub(crate) fn trip_summary_open(&mut self, trip: usize) {
-        if !self.settings.trip_summary {
+        let career = self.career_session.is_some();
+        // (a Career Mode session shows it whatever the setting says: it asks what next)
+        if !self.settings.trip_summary && !career {
             return;
         }
         let (Some(duty), Some(journey)) = (self.duty.as_ref(), self.journey.as_ref()) else { return };
@@ -143,12 +159,46 @@ impl App {
         if self.summary.shown.as_ref() == Some(&key) {
             return;
         }
-        let Some(s) = journey.trip_summary(trip, true) else { return };
+        let Some(mut s) = journey.trip_summary(trip, true) else { return };
         if !s.rows.last().is_some_and(|r| r.served) || !s.rows.iter().any(|r| r.served) {
             return;
         }
+        let next_ok = trip + 1 < duty.trips.len();
+        let course = career.then(|| {
+            let planned = duty.trips.get(trip);
+            let odo: Vec<f64> = s.rows.iter().filter_map(|r| r.odo.trim().replace(',', ".").parse::<f64>().ok()).collect();
+            let km = match (odo.first(), odo.last()) {
+                (Some(a), Some(b)) if b >= a => b - a,
+                _ => 0.0,
+            };
+            crate::career_session::Course {
+                trip,
+                name: planned.map(|t| t.name.clone()).unwrap_or_default(),
+                line: planned.map(|t| t.line.clone()).unwrap_or_else(|| duty.line.clone()),
+                terminus: planned.map(|t| t.terminus.clone()).unwrap_or_default(),
+                stops: s.rows.len() as u32,
+                served: s.rows.iter().filter(|r| r.served).count() as u32,
+                late: s.rows.iter().filter(|r| r.served && r.late).count() as u32,
+                early: s.rows.iter().filter(|r| r.served && r.early).count() as u32,
+                km,
+            }
+        });
         self.summary.shown = Some(key);
-        self.summary.show(s, trip);
+        // [ROLLBACK careerpay-1] Career Mode: what this course pays for being one in a row, and the next
+        if let Some(done) = self.career_session.as_ref().map(|cs| cs.courses.len()) {
+            let (now, next) = (crate::career_session::streak_mult(done + 1), crate::career_session::streak_mult(done + 2));
+            let tail = if next_ok { format!("; the next one x{next:.1}") } else { String::new() };
+            s.head = format!("{}\nCourse {} in a row: this one pays x{now:.1}{tail}", s.head, done + 1);
+        }
+        self.summary.show(s, trip, career, next_ok);
+        if let (Some(c), Some(cs)) = (course, self.career_session.as_mut()) {
+            cs.add_course(c);
+        }
+    }
+
+    /// "Back to the garage" was pressed in a Career Mode session (once): the game ends.
+    pub(crate) fn summary_leave(&mut self) -> bool {
+        std::mem::take(&mut self.summary.leave)
     }
 
     /// A key of the window, seen before the game's own handling of it. True when it is taken.
@@ -162,6 +212,13 @@ impl App {
             KeyCode::Escape | KeyCode::Enter | KeyCode::NumpadEnter => {
                 if !repeat {
                     self.summary.open = false;
+                }
+                true
+            }
+            KeyCode::KeyG if self.summary.career && !ctrl => {
+                if !repeat {
+                    self.summary.open = false;
+                    self.summary.leave = true;
                 }
                 true
             }
@@ -231,6 +288,10 @@ impl App {
                 match i {
                     0 => self.summary_copy(),
                     1 => self.summary_save(),
+                    3 => {
+                        self.summary.open = false;
+                        self.summary.leave = true;
+                    }
                     _ => self.summary.open = false,
                 }
             }
@@ -291,6 +352,7 @@ impl App {
         let cursor = Vec2::new(self.cursor.0, self.cursor.1);
         let sw = &mut self.summary;
         let Some(summary) = sw.summary.as_ref() else { return };
+        let career = sw.career;
         let fonts = sw.fonts.get_or_insert_with(Fonts::new);
         let (size, head_size, row_h) = (12.5 * u, 11.5 * u, 22.0 * u);
         let (pad, gap, margin) = (22.0 * u, 16.0 * u, 20.0 * u);
@@ -333,24 +395,27 @@ impl App {
         let max_panel_h = (hf - 2.0 * margin).max(240.0 * u);
         let fit = (((max_panel_h - head_h - foot_h - 2.0 * pad) / row_h).floor() as usize).max(3);
         let shown = n.min(fit);
-        let panel_w = (table_w + 2.0 * pad).max(560.0 * u).min(wf - 2.0 * margin);
+        let panel_w = (table_w + 2.0 * pad).max(if career { 660.0 } else { 560.0 } * u).min(wf - 2.0 * margin);
         let panel_h = head_h + shown as f32 * row_h + foot_h + 2.0 * pad;
         let panel = Rect::new((wf - panel_w) * 0.5, (hf - panel_h) * 0.5, panel_w, panel_h);
         sw.rows_fit = fit;
         sw.scroll = sw.scroll.min(n.saturating_sub(shown));
         let first = sw.scroll;
         sw.panel = panel;
-        let (bw, bh) = (150.0 * u, 36.0 * u);
+        let (bw, bh) = ((if career { 138.0 } else { 150.0 }) * u, 36.0 * u);
         let by = panel.bottom() - pad - bh;
-        let b_close = Rect::new(panel.right() - pad - bw, by, bw, bh);
+        // (Career Mode: the garage at the right end, the next course left of it)
+        let b_garage = if career { Rect::new(panel.right() - pad - bw, by, bw, bh) } else { Rect::new(0.0, 0.0, 0.0, 0.0) };
+        let b_close = if career { Rect::new(b_garage.x - 10.0 * u - bw, by, bw, bh) } else { Rect::new(panel.right() - pad - bw, by, bw, bh) };
         let b_save = Rect::new(b_close.x - 10.0 * u - bw, by, bw, bh);
         let b_copy = Rect::new(b_save.x - 10.0 * u - bw, by, bw, bh);
-        sw.buttons = [b_copy, b_save, b_close];
+        sw.buttons = [b_copy, b_save, b_close, b_garage];
         // (not `button_at`: the fonts hold a borrow of the window's field, not of all of it)
-        let hover = [b_copy, b_save, b_close].iter().position(|r| r.contains(cursor));
+        let hover = [b_copy, b_save, b_close, b_garage].iter().position(|r| r.contains(cursor));
         sw.hover = hover;
         let note = sw.note.clone();
         let more = n > shown;
+        let next_ok = sw.next_ok;
 
         let pt = &mut sw.painter;
         pt.clear();
@@ -419,9 +484,16 @@ impl App {
         if let Some(n) = note {
             pt.text_in(atlas, fonts, &n, 12.0 * u, Weight::Regular, Rect::new(x0, by, b_copy.x - x0 - 12.0 * u, bh), Align::Left, DIM);
         }
-        let labels = [omsi_ui::tr("Copy").to_string(), omsi_ui::tr("Save to file").to_string(), omsi_ui::tr("Close").to_string()];
-        for (i, b) in [b_copy, b_save, b_close].iter().enumerate() {
-            let main = i == 2;
+        let labels = [
+            omsi_ui::tr("Copy").to_string(),
+            omsi_ui::tr("Save to file").to_string(),
+            omsi_ui::tr(if career && next_ok { "Next course" } else { "Close" }).to_string(),
+            omsi_ui::tr("Back to the garage").to_string(),
+        ];
+        let all = [b_copy, b_save, b_close, b_garage];
+        for (i, b) in all.iter().enumerate().take(if career { 4 } else { 3 }) {
+            // (Career Mode: the garage is the main button when the tour has no more courses)
+            let main = if career { (i == 2 && next_ok) || (i == 3 && !next_ok) } else { i == 2 };
             let fill = match (main, hover == Some(i)) {
                 (true, true) => BTN_MAIN_HOVER,
                 (true, false) => BTN_MAIN,

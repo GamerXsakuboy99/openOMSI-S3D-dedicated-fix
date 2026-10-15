@@ -204,6 +204,10 @@ pub(crate) struct Args {
     /// launcher's "Automatic") instead of `--entry`.
     #[arg(long)]
     pub(crate) auto_entry: bool,
+    /// A Career Mode session file: the launcher made it, the game reports the courses driven
+    /// into it and offers the garage or the next course after each (see `career_session.rs`).
+    #[arg(long)]
+    pub(crate) career: Option<String>,
     /// OMSI's tutorial 1..4 (its situation, and its pages beside the picture).
     #[arg(long)]
     pub(crate) tutorial: Option<usize>,

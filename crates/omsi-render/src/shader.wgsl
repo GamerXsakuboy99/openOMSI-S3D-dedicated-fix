@@ -25,6 +25,11 @@ struct Camera {
     light_view_proj_lamp: mat4x4<f32>, // the player's headlamps' shadow map (perspective), see `lamp_shadow`
     lamp: vec4<f32>,         // x 1 when the lamp shadow map was drawn this frame, y near, z far plane (m), w texel size
     parts: array<vec4<f32>, 9>, // the player's coupled sections as boxes (three vec4 each, like inside_a, _b, _c)
+    fx: vec4<f32>,           // [ROLLBACK glassfx-1] x condensation, y frost on the player's glass (0..1), zw spare
+    night: vec4<f32>,        // [ROLLBACK nightsky-1] x local sidereal time (rad), y latitude (rad), z night-sky strength, w night (0..1)
+    moon: vec4<f32>,         // xyz towards the moon, w its angular radius (rad)
+    bolt: vec4<f32>,         // [ROLLBACK storm-1] xyz towards the middle of the strongest strike's bolt, w the flash's light (0..1.3)
+    bolt2: vec4<f32>,        // x how visible the bolt is (0 = none), y its shape (seed 0..1023), z its distance (km)
 };
 
 // 1 when the point lies inside the player's vehicle (its [boundingbox], shrunk a little so
@@ -80,6 +85,23 @@ fn near_player_vehicle(world: vec3<f32>) -> f32 {
     let y = d.x * sh + d.y * ch - camera.inside_c.y;
     let z = d.z - camera.inside_c.z;
     let h = camera.inside_b.yzw + vec3<f32>(0.25);
+    return select(0.0, 1.0, abs(x) < h.x && abs(y) < h.y && abs(z) < h.z);
+}
+
+// [ROLLBACK glassfx-3] Like `near_player_vehicle`, but with room for the parts that swing out of the
+// box: an opened door reaches a metre and more beyond the skin, a hatch above the roof. For the
+// ice on the glass, which a door keeps when it opens.
+fn near_player_wide(world: vec3<f32>) -> f32 {
+    if (camera.inside_c.w < 0.5) {
+        return 0.0;
+    }
+    let d = world - camera.inside_a.xyz;
+    let sh = camera.inside_a.w;
+    let ch = camera.inside_b.x;
+    let x = d.x * ch - d.y * sh - camera.inside_c.x;
+    let y = d.x * sh + d.y * ch - camera.inside_c.y;
+    let z = d.z - camera.inside_c.z;
+    let h = camera.inside_b.yzw + vec3<f32>(1.8, 1.8, 1.5);
     return select(0.0, 1.0, abs(x) < h.x && abs(y) < h.y && abs(z) < h.z);
 }
 
@@ -216,6 +238,11 @@ fn weather_outside_n(world: vec3<f32>, n: vec3<f32>, terrain: bool, surface: f32
 override ALPHA_TEST: bool = true;
 // Multisampled cutout pipelines can turn filtered alpha directly into sample coverage.
 override ALPHA_TO_COVERAGE: bool = false;
+// [ROLLBACK blendcut-140] Set on the pipelines of depth-writing blended draws: a texel of
+// such a layer that is fully transparent is not drawn at all. Written into the depth
+// buffer as well, a small plane with an alpha texture (a sticker, a text plane) cut a
+// hole of its own shape into whatever was drawn after it behind it.
+override BLEND_CUT: bool = false;
 @group(0) @binding(5) var t_shadow: texture_depth_2d;
 @group(0) @binding(6) var s_shadow: sampler_comparison;
 @group(0) @binding(7) var t_shadow_far: texture_depth_2d;
@@ -1565,6 +1592,307 @@ fn rain_behind(world: vec3<f32>, through: vec3<f32>, fallback: vec3<f32>, scale:
     return mix(fallback, seen, inside);
 }
 
+// [ROLLBACK glassfx-2] Condensation and frost on the windows - in the layer the rain is in.
+//
+// Fogged and frosted glass is drawn by the same film as the rain drops (the `Rain_Window_*`
+// layer of the bus, `emissive.w` 2), under the drops: those are the panes that really are
+// windows (not the instrument glass or a mirror's), and the film already has the picture
+// behind the glass to look through (`rain_behind`). `camera.fx` holds the levels (x
+// condensation, y frost, `glass_fx.rs`); only the player's own vehicle wears any.
+//
+// Everything is laid out in true metres over the pane (`pane_frame`: the texture's scale
+// per metre, to a quarter of an octave) and band-limited by the size of a pixel on the glass
+// (`ice_band`): fine structure fades into its average as the pane gets small, so it neither
+// shimmers nor goes to mush, and close up the crystals and beads can be made out.
+//   * frost: crystals grown from sites about 3.5 cm apart, each a feather - a stem with barbs
+//     at an angle to it, a few millimetres apart - that spreads as the level rises until the
+//     crystals meet in grain boundaries and a thin sheet fills the rest. A ridge is thick
+//     ice: it scatters white and bends what is seen through it (the slope of the ridges
+//     tilts the eye's ray, so the street behind is torn into slivers), blurred more where
+//     the ice is thicker.
+//   * condensation: a haze of droplets too small to see (white, blurring), in patches and
+//     thicker low on the pane, a stipple of beads a few millimetres across (each a lens),
+//     and runs where a bead has grown heavy and left a clear track.
+struct Pane {
+    ok: bool,
+    // metres over the pane: x across, y down it
+    q: vec2<f32>,
+    // metres a pixel covers on the pane
+    px: f32,
+    // the pane's normal on the rain's side, and the pane's two directions in the world
+    out: vec3<f32>,
+    side_w: vec3<f32>,
+    down_w: vec3<f32>,
+    // height above the middle of the player's vehicle (m)
+    lz: f32,
+};
+
+fn pane_frame(world: vec3<f32>, uv: vec2<f32>, n: vec3<f32>, outside_in: bool) -> Pane {
+    var f: Pane;
+    f.ok = false;
+    f.q = vec2<f32>(0.0);
+    f.px = 1.0;
+    f.out = n;
+    f.side_w = vec3<f32>(1.0, 0.0, 0.0);
+    f.down_w = vec3<f32>(0.0, 0.0, -1.0);
+    f.lz = 0.0;
+    // (the derivatives first, while every pixel of the quad still takes part)
+    let dpx = dpdx(world);
+    let dpy = dpdy(world);
+    let dux = dpdx(uv);
+    let duy = dpdy(uv);
+    f.px = max(max(length(dpx), length(dpy)), 1e-5);
+    let det = dux.x * duy.y - dux.y * duy.x;
+    if (abs(det) < 1e-12) {
+        return f;
+    }
+    let dpdu = (dpx * duy.y - dpy * dux.y) / det;
+    let dpdv = (dpy * dux.x - dpx * duy.x) / det;
+    let mu = length(dpdu);
+    let mv = length(dpdv);
+    if (mu < 1e-6 || mv < 1e-6) {
+        return f;
+    }
+    // (metres per unit of uv, rounded to a quarter of an octave so that neighbouring
+    // triangles of one pane share the grid: the scale is true to within 9 %)
+    let su = exp2(round(log2(mu) * 4.0) * 0.25);
+    let sv = exp2(round(log2(mv) * 4.0) * 0.25);
+    let p = vec2<f32>(uv.x * su, uv.y * sv);
+    var down = -vec2<f32>(dpdu.z / mu, dpdv.z / mv);
+    if (length(down) < 0.2) {
+        down = vec2<f32>(0.0, 1.0);
+    }
+    let ang = round(atan2(down.y, down.x) / 0.7853982) * 0.7853982;
+    down = vec2<f32>(cos(ang), sin(ang));
+    let side = vec2<f32>(down.y, -down.x);
+    f.q = vec2<f32>(dot(p, side), dot(p, down));
+    let tu = dpdu / su;
+    let tv = dpdv / sv;
+    let eye = normalize(camera.cam_pos.xyz - world);
+    var out = safe_normal(n);
+    out = select(-out, out, dot(out, eye) >= 0.0);
+    out = select(out, -out, outside_in);
+    f.out = out;
+    var side_w = side.x * tu + side.y * tv;
+    side_w = side_w - out * dot(side_w, out);
+    f.side_w = side_w / max(length(side_w), 1e-6);
+    var down_w = down.x * tu + down.y * tv;
+    down_w = down_w - out * dot(down_w, out) - f.side_w * dot(down_w, f.side_w);
+    f.down_w = down_w / max(length(down_w), 1e-6);
+    f.lz = world.z - camera.inside_a.z - camera.inside_c.z;
+    f.ok = true;
+    return f;
+}
+
+// How much of a pattern of `freq` cycles a metre survives at a pixel of `px` metres: all of
+// it above 6 pixels to the cycle, none below 2.
+fn ice_band(freq: f32, px: f32) -> f32 {
+    return 1.0 - smoothstep(0.16, 0.5, freq * px);
+}
+
+// One layer of crystals on a grid of `cell` metres: x thickness 0..1, yz the slope of the
+// surface (across, down the pane). Each cell may hold a feather - a stem with barbs at an
+// angle to it (a few millimetres apart, a little curved), whose length grows with the level
+// - and neighbours overlap. `prob` is the share of cells with one, `big` the coarser layer.
+fn frost_layer(c: vec2<f32>, px: f32, lv: f32, cell: f32, prob: f32, gain: f32, big: bool) -> vec3<f32> {
+    let base = floor(c / cell);
+    let grow = pow(lv, 0.6);
+    var thick = 0.0;
+    var slope = vec2<f32>(0.0);
+    for (var j = -1; j <= 1; j = j + 1) {
+        for (var i = -1; i <= 1; i = i + 1) {
+            let cl = base + vec2<f32>(f32(i), f32(j));
+            let h3 = rain_hash(cl + 41.0);
+            if (h3.y > prob) {
+                continue;
+            }
+            let h1 = rain_hash(cl);
+            let h2 = rain_hash(cl + 17.0);
+            let site = (cl + vec2<f32>(0.1) + h1 * 0.8) * cell;
+            let a = h2.x * 6.2831853;
+            let dir = vec2<f32>(cos(a), sin(a));
+            let perp = vec2<f32>(-dir.y, dir.x);
+            let dm = c - site;
+            let along = dot(dm, dir);
+            let across = dot(dm, perp);
+            let len = cell * 0.95 * grow * (0.55 + 0.45 * h2.y) + 1e-5;
+            let t = along / len;
+            let aa = abs(across);
+            if (t < -0.35 || t > 1.0 || aa > len * 0.7) {
+                continue;
+            }
+            let s = clamp((t + 0.35) / 1.35, 0.0, 1.0);
+            // (the outline: a leaf, its edge ragged)
+            let rag = 0.75 + 0.5 * rain_patches(vec2<f32>(along * 120.0, h3.x * 50.0));
+            let half = len * 0.46 * pow(sin(3.14159265 * s), 0.7) * rag;
+            if (aa >= half) {
+                continue;
+            }
+            let env = 1.0 - smoothstep(0.7 * half, half, aa);
+            let body = 1.0 - smoothstep(0.0, half, aa);
+            let sgn = select(-1.0, 1.0, across >= 0.0);
+            let k = (h3.x - 0.5) * 80.0 / (cell / 0.034);
+            let sp = 0.0032 * (0.8 + 0.5 * h1.y) * select(1.0, 1.6, big);
+            let ct = 0.55 + 0.35 * h2.y;
+            let u = (along - aa * ct + k * across * across) / sp + 0.4 * (rain_patches(c * 80.0 + cl) - 0.5);
+            let ph = u * 6.2831853;
+            let rid = 0.5 + 0.5 * cos(ph);
+            let bl = ice_band(1.0 / sp, px);
+            // (the ridge's mean is 5/16)
+            let barb = mix(0.3125, rid * rid * rid, bl);
+            let stem = (1.0 - smoothstep(0.0004, 0.0012, aa)) * (1.0 - smoothstep(0.9, 1.0, t)) * bl;
+            let tc = clamp((env * (0.3 * body + 0.75 * barb * sqrt(body)) + 0.5 * stem) * gain, 0.0, 1.0);
+            if (tc > thick) {
+                thick = tc;
+                // the slope of the ridges: d(ridge)/du times the gradient of u, for a height of 0.15 mm
+                let dr = 3.0 * rid * rid * (-0.5 * sin(ph)) * 6.2831853;
+                let grad_u = (dir + perp * (-ct * sgn + 2.0 * k * across)) / sp;
+                slope = dr * grad_u * 1.5e-4 * bl * env;
+            }
+        }
+    }
+    return vec3<f32>(thick, slope);
+}
+
+// Frost at `c` (metres over the pane): x thickness 0..1, yz the slope of its surface.
+fn frost_pattern(c: vec2<f32>, px: f32, level: f32, lz: f32) -> vec4<f32> {
+    // (lower panes, and the lower part of one, freeze first)
+    let lv = clamp(level * (1.0 + clamp(0.15 - lz * 0.12, -0.15, 0.2)), 0.0, 1.0);
+    let f1 = frost_layer(c, px, lv, 0.034, 0.45 + 0.55 * lv, 1.0, false);
+    let f2 = frost_layer(c + vec2<f32>(0.3, 0.7), px, lv, 0.082, 0.1 + 0.8 * lv, 0.9, true);
+    let use2 = f2.x > f1.x;
+    let thick1 = max(f1.x, f2.x);
+    let slope1 = select(f1.yz, f2.yz, use2);
+    // patches where it has not taken yet, fewer the colder
+    let patchy = rain_patches(c * 3.0 + vec2<f32>(6.0, 13.0)) * 0.6 + 0.5;
+    let thr = 1.0 - lv * 1.7;
+    let pm = smoothstep(thr - 0.15, thr + 0.15, patchy);
+    // a thin sheet fills the rest when it is cold enough
+    let sheet = smoothstep(0.4, 1.0, lv) * 0.75 * (0.75 + 0.25 * rain_patches(c * 9.0 + vec2<f32>(2.0, 5.0)));
+    let thick = max(thick1 * pm, sheet);
+    return vec4<f32>(clamp(thick, 0.0, 1.0), slope1 * pm, 0.0);
+}
+
+// Condensation at `c`: x the haze (0..1), y the beads (lens cover 0..1), zw the slope of the
+// water (across, down).
+fn fog_pattern(c: vec2<f32>, px: f32, level: f32, lz: f32) -> vec4<f32> {
+    let m1 = rain_patches(c * 1.7 + vec2<f32>(3.1, 8.7));
+    let m2 = rain_patches(c * 6.0 + vec2<f32>(11.3, 1.9));
+    let m3 = rain_patches(c * 21.0 + vec2<f32>(5.5, 14.2));
+    let low = clamp(0.18 - lz * 0.2, -0.1, 0.2);
+    let field = 0.5 * m1 + 0.32 * m2 + 0.18 * m3 + low;
+    let thr = 0.95 - 1.2 * level;
+    var haze = smoothstep(thr, thr + 0.28, field);
+    // the stipple of the droplets
+    let grain = rain_patches(c * 480.0);
+    haze = haze * (0.82 + 0.36 * mix(0.5, grain, ice_band(480.0, px)));
+    // beads a few millimetres across on a grid of their own, each a little lens
+    let bg = rain_turn(c, 0.4) / 0.0032;
+    let bc = floor(bg);
+    let bh = rain_hash(bc + 3.0);
+    let r = 0.2 + 0.2 * bh.y;
+    let at = vec2<f32>(r) + rain_hash(bc + 9.0) * (1.0 - 2.0 * r);
+    let dv = bg - bc - at;
+    let on = step(bh.x, level * 0.55 * smoothstep(0.1, 0.5, haze + 0.2));
+    let dl = length(dv);
+    let bband = ice_band(312.0, px);
+    let bead = (1.0 - smoothstep(r * 0.8, r, dl)) * on * bband;
+    var slope = rain_turn(dv / r * 0.8, -0.4) * bead;
+    // runs: a bead grown heavy has slid down and left a clear track with a bead at its end
+    let rw = 0.011;
+    let col = floor(c.x / rw);
+    let rh = rain_hash(vec2<f32>(col, 77.0));
+    let rh2 = rain_hash(vec2<f32>(col, 133.0));
+    let rn = step(rh.x, 0.10 * level);
+    let start = fract(rh.y * 7.3) * 0.8 - 0.2;
+    let length_m = 0.12 + 0.55 * rh2.x;
+    let dn = c.y - start;
+    let xin = c.x - (col + 0.5 + 0.3 * (rh2.y - 0.5)) * rw + 0.0012 * sin(dn * 60.0 + rh.y * 30.0);
+    let wdt = 0.0010 + 0.0010 * rh2.x;
+    let chan = 1.0 - smoothstep(wdt * 0.7, wdt, abs(xin));
+    let seg = smoothstep(0.0, 0.01, dn) * (1.0 - smoothstep(length_m - 0.01, length_m, dn));
+    let run = rn * chan * seg * ice_band(1.0 / (2.0 * wdt), px);
+    // (the bead at its end)
+    let head = rn * (1.0 - smoothstep(wdt * 1.1, wdt * 1.9, length(vec2<f32>(xin, dn - length_m)))) * ice_band(1.0 / (3.0 * wdt), px);
+    slope = slope + vec2<f32>(clamp(xin / wdt, -1.0, 1.0) * 0.5 * run, 0.0);
+    haze = haze * (1.0 - 0.8 * max(run, head));
+    return vec4<f32>(haze, max(bead, head * 0.9), slope.x, slope.y);
+}
+
+// What lies behind the pane along `dir` (from the eye, through the ice): the clean picture
+// of the film's slot, `blur` (a share of the picture's height) wide - nine taps on a spiral -
+// or `fallback` beyond it. `scale` takes the picture into the caller's units.
+fn ice_behind(world: vec3<f32>, dir: vec3<f32>, blur: f32, fallback: vec3<f32>, scale: f32) -> vec3<f32> {
+    if (camera.flags.z > -0.5) {
+        return fallback;
+    }
+    let c = camera.view_proj * vec4<f32>(world + dir * 6.0, 1.0);
+    if (c.w <= 0.05) {
+        return fallback;
+    }
+    let ndc = c.xy / c.w;
+    let uv = vec2<f32>(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5);
+    let dims = vec2<f32>(textureDimensions(t_env));
+    let radius = blur * dims.y;
+    var acc = vec3<f32>(0.0);
+    for (var k = 0; k < 9; k = k + 1) {
+        let fk = f32(k) + 0.5;
+        let a = fk * 2.399963;
+        let off = vec2<f32>(cos(a), sin(a)) * sqrt(fk / 9.0) * radius / dims;
+        acc = acc + textureSampleLevel(t_env, s_diffuse, clamp(uv + off, vec2<f32>(0.001), vec2<f32>(0.999)), 0.0).rgb;
+    }
+    let inside = smoothstep(0.0, 0.06, min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y)));
+    let seen = finite_or(acc / 9.0 * scale, fallback);
+    return mix(fallback, seen, inside);
+}
+
+// [ROLLBACK glassfx-3] `top` over `bottom`: both a colour (not multiplied by its cover) and a cover.
+fn film_over(top: vec4<f32>, bottom: vec4<f32>) -> vec4<f32> {
+    let a = top.a + (1.0 - top.a) * bottom.a;
+    return vec4<f32>((top.rgb * top.a + bottom.rgb * bottom.a * (1.0 - top.a)) / max(a, 1e-4), a);
+}
+
+// The ice on a window, as the film shows it: rgb the colour (in the caller's units, before
+// its exposure) and a the cover. `v` is towards the eye, `white` the radiance of a white
+// surface there (the sky's light) and `sun` the sun's. Nothing for any vehicle but the
+// player's own. Call it in uniform control flow (the levels are a uniform).
+fn ice_layer(world: vec3<f32>, uv: vec2<f32>, n: vec3<f32>, outside_in: bool, v: vec3<f32>, white: vec3<f32>, sun: vec3<f32>, scale: f32) -> vec4<f32> {
+    let fog_level = clamp(camera.fx.x, 0.0, 1.0);
+    let frost_level = clamp(camera.fx.y, 0.0, 1.0);
+    let pane = pane_frame(world, uv, n, outside_in);
+    if (!pane.ok || near_player_wide(world) < 0.5) {
+        return vec4<f32>(0.0);
+    }
+    var fogv = vec4<f32>(0.0);
+    if (fog_level > 0.003) {
+        fogv = fog_pattern(pane.q, pane.px, fog_level, pane.lz);
+    }
+    var frv = vec4<f32>(0.0);
+    if (frost_level > 0.003) {
+        frv = frost_pattern(pane.q, pane.px, frost_level, pane.lz);
+    }
+    let cover_f = clamp(max(fogv.x * 0.95, fogv.y * 0.9), 0.0, 1.0);
+    let cover_t = clamp(frv.x * 1.15, 0.0, 1.0);
+    let cover = 1.0 - (1.0 - cover_f) * (1.0 - cover_t);
+    if (cover < 0.002) {
+        return vec4<f32>(0.0);
+    }
+    // how white each is: the haze scatters, the beads are clear; thick ice is a white sheet
+    let white_f = fogv.x * 0.62 * (0.5 + 0.5 * fog_level);
+    let white_t = frv.x * 0.8;
+    let whiten = clamp((cover_f * (1.0 - cover_t) * white_f + cover_t * white_t) / max(cover, 1e-4), 0.0, 1.0);
+    let frosty = cover_t / max(cover_f + cover_t, 1e-4);
+    let blur = 0.014 * fogv.x + 0.012 * frv.x;
+    // the slope of the water or the ice tilts the eye's ray a little
+    let slope = fogv.zw + frv.yz;
+    let tilt = pane.side_w * slope.x + pane.down_w * slope.y;
+    let dir = normalize(-v - tilt * 0.1);
+    let tint = mix(vec3<f32>(1.0), vec3<f32>(0.9, 0.96, 1.0), frosty);
+    let lit = (white + sun) * tint;
+    let behind = ice_behind(world, dir, blur, white * 0.6, scale);
+    return vec4<f32>(mix(behind, lit, whiten), cover);
+}
+
 // A drop lit: `refl` what the dome mirrors, `thru` what is seen through it (both
 // radiance), `mist_col` the light the mist scatters, `sun` the sun's strength for the
 // sparkles, `d_thru` the way through (from `rain_through`). Colour and cover.
@@ -1607,7 +1935,19 @@ fn rain_env_vanilla(d: vec3<f32>) -> vec3<f32> {
 @fragment
 fn fs_main(in: FsIn) -> @location(0) vec4<f32> {
     var unused = 0.0;
-    return shade_vanilla(in, &unused, camera.cam_pos.xyz);
+    let c = shade_vanilla(in, &unused, camera.cam_pos.xyz);
+    if (blend_cut(c.a, in.params2.w, in.params.y)) {
+        discard;
+    }
+    return c;
+}
+
+// [ROLLBACK blendcut-140] see `BLEND_CUT`: not for the ground's own layers, which seal it.
+// [ROLLBACK blendcut-142] and not for a vehicle drawn in model order (`vis` 2, see
+// `instance_entries`): its invisible masks hide what the model draws behind them later, as
+// Omsi.exe's depth write of a `[matl_alpha] 2` slot makes them whatever its alpha.
+fn blend_cut(alpha: f32, surface: f32, vis: f32) -> bool {
+    return BLEND_CUT && alpha < 0.003 && surface < 0.1 && material.extra.x < 0.5 && vis < 1.5;
 }
 
 // Shared with Enhanced and the wheel splash mask: pools spread as the road soaks.
@@ -1626,6 +1966,9 @@ fn road_puddle_coverage(world: vec3<f32>, normal: vec3<f32>, wet: f32) -> f32 {
 fn fs_vanilla_reflections(in: FsIn) -> EnhancedOut {
     var weight = 0.0;
     let c = shade_vanilla(in, &weight, camera.cam_pos.xyz);
+    if (blend_cut(c.a, in.params2.w, in.params.y)) {
+        discard;
+    }
     let coverage = select(c.a, 0.0, in.params2.w > 1.5);
     var out: EnhancedOut;
     out.color = c;
@@ -1649,7 +1992,17 @@ fn shade_vanilla_linear(in: FsIn, puddle_weight: ptr<function, f32>, eye: vec3<f
         let d = rain_light(g, v, through, rain_env_vanilla(reflect(-v, g.n)), seen, rain_env_vanilla(vec3<f32>(0.0, 0.0, 0.5)) * 0.9, camera.sun_color.rgb * camera.sun_dir.w);
         // (fading out with the distance: see enhanced.wgsl)
         let near = 1.0 - smoothstep(5.0, 15.0, distance(in.world, camera.cam_pos.xyz));
-        return vec4<f32>(min(d.rgb, vec3<f32>(1.5)), d.a * near);
+        var film = vec4<f32>(min(d.rgb, vec3<f32>(1.5)), d.a * near);
+        // [ROLLBACK glassfx-2, glassfx-3] condensation and frost (see `ice_layer`): the rain is on the
+        // outside of the glass, so seen from outside the drops lie over the ice, and from the
+        // cab the ice (steam on the inside, frost on the glass) lies over the drops
+        if (camera.fx.x + camera.fx.y > 0.003) {
+            let in_cab_ice = inside_vehicle(camera.cam_pos.xyz) * near_player_wide(in.world) > 0.5;
+            let ice = ice_layer(in.world, in.uv - in.params.zw, in.normal, in_cab_ice, v, rain_env_vanilla(vec3<f32>(0.0, 0.0, 0.5)) * 0.9, camera.sun_color.rgb * camera.sun_dir.w * 0.3, 1.0);
+            let ice_c = vec4<f32>(min(ice.rgb, vec3<f32>(1.5)), ice.a);
+            film = select(film_over(film, ice_c), film_over(ice_c, film), in_cab_ice);
+        }
+        return film;
     }
     var duv = tex_address(in.uv);
     if (material.extra.x > 0.5) {
@@ -1701,7 +2054,12 @@ fn shade_vanilla_linear(in: FsIn, puddle_weight: ptr<function, f32>, eye: vec3<f
             discard;
         }
     }
-    let n = safe_normal(in.normal);
+    var n = safe_normal(in.normal);
+    // [ROLLBACK foliage-140] a leaf card whose back copy points its normals down is lit
+    // like the front one (OMSI points a crown's normals up), not left to the ambient alone
+    if (mode > 0.5 && mode < 1.5 && material.extra.x < 0.5 && n.z < 0.0) {
+        n = -n;
+    }
     let ndl = max(dot(n, camera.sun_dir.xyz), 0.0);
     // three lights like the original: direct sun (A), light from above (B), ambient (C)
     let from_above = 0.5 + 0.5 * n.z;

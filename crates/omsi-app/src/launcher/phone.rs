@@ -50,7 +50,8 @@ pub enum Sheet {
 }
 
 /// The pages More opens.
-const MORE: [(Page, &str, &str, &str); 8] = [
+const MORE: [(Page, &str, &str, &str); 10] = [
+    (Page::Career, "Career Mode", "commute", "Your bus company"),
     (Page::Profile, "Profile", "badge", "Your driver, level and records"),
     (Page::Settings, "Settings", "tune", "Graphics, sound, gameplay"),
     (Page::Controls, "Controls", "sports_esports", "Touch, wheels and gamepads"),
@@ -58,6 +59,7 @@ const MORE: [(Page, &str, &str, &str); 8] = [
     (Page::Tutorials, "Tutorials", "help", "Learn to drive the buses"),
     (Page::Timetable, "Timetable", "schedule", "The map's lines and trips"),
     (Page::AiList, "AI list", "garage", "The buses on the map"),
+    (Page::Catalog, "Bus catalogue", "directions_bus", "How the buses are named and sorted"),
     (Page::Setup, "Setup", "folder_open", "The OMSI 2 folder and content"),
 ];
 
@@ -1173,6 +1175,8 @@ fn embedded(l: &mut Launcher, page: Page, body: Rect, back: bool) {
     l.ui.push_clip(Rect::new(body.x, body.y + top, body.w, body.h - top), 0.0);
     match page {
         Page::Drive => super::drive::draw(l, content),
+        Page::Career => super::career::draw(l, content),
+        Page::Catalog => super::career_catalog::draw_page(l, content),
         Page::Multiplayer => super::multiplayer::draw(l, content),
         Page::Profile => super::pages::profile(l, content),
         Page::Settings => super::pages::settings(l, content),

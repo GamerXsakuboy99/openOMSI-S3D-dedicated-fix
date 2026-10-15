@@ -255,6 +255,38 @@ impl App {
         self.service_msg = Some((format!("{n} placed vehicle(s) removed"), 3.0));
     }
 
+    /// [ROLLBACK aispawn-137] A click while the tools window waits for a street: an AI car
+    /// of the random traffic is put on the lane nearest to where the click meets the ground.
+    /// It drives on by itself, taking any way at the forks. The mode stays on (Escape ends it).
+    pub(crate) fn ai_pick_click(&mut self) {
+        let (Some(w), Some(cam), Some(s)) = (
+            self.world.clone(),
+            self.camera.as_ref(),
+            self.surface.as_ref(),
+        ) else {
+            return;
+        };
+        let (o, d) = self.world_cursor_ray(cam, (s.config.width, s.config.height));
+        let Some(hit) = ground_hit(&w, o, d.as_dvec3(), 600.0) else {
+            self.service_msg = Some(("AI car: point at the ground".into(), 2.0));
+            return;
+        };
+        let text = match (
+            self.traffic.as_mut(),
+            self.renderer.as_ref(),
+            self.scene.as_mut(),
+        ) {
+            (Some(t), Some(r), Some(scene)) => match t.spawn_random_at(&w, r, scene, hit) {
+                Ok(text) => text,
+                Err(why) => format!("AI car: {why}"),
+            },
+            _ => "AI car: no traffic in this game".to_string(),
+        };
+        log::info!("{text}");
+        self.devtools.note(&text);
+        self.service_msg = Some((text, 4.0));
+    }
+
     /// Escape while placing: the vehicle goes again.
     pub(crate) fn placing_cancel(&mut self) {
         let Some(pl) = self.placing.take() else { return };

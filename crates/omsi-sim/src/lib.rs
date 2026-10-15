@@ -2,6 +2,8 @@
 
 pub mod ai_motion;
 pub mod anim;
+pub mod aurora;
+pub mod blindtex;
 pub mod clock;
 pub mod collision;
 pub mod cookie;
@@ -14,12 +16,16 @@ pub mod ibis;
 pub mod human;
 pub mod human_omsi;
 pub mod input;
+pub mod night;
+pub mod paint_mix;
 pub mod particles;
 pub mod physics;
 pub mod rigid;
 pub mod scenery;
 pub mod scripttex;
 pub mod startup;
+pub mod mist;
+pub mod storm;
 pub mod texttex;
 pub mod traffic;
 pub mod vehicle;

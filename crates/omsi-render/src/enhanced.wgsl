@@ -557,6 +557,9 @@ fn led_dots() -> bool { return led_on() && (!led_forced() || material.params.z >
 fn fs_enhanced(in: FsIn) -> EnhancedOut {
     var puddle_weight = vec2<f32>(0.0);
     let c = shade_enhanced(in, &puddle_weight, false, camera.cam_pos.xyz);
+    if (blend_cut(c.a, in.params2.w, in.params.y)) {
+        discard;
+    }
     let screen = material.flags.x > 0.5;
     // an LED panel's dots stay in the glow's source (`post.wgsl`), the other screens'
     // letters stay out of it
@@ -644,7 +647,18 @@ fn shade_enhanced(in: FsIn, puddle_weight: ptr<function, vec2<f32>>, capture: bo
         // windows peppered black. Drops smaller than a pixel give way to the mist now
         // (`rain_dome`), and the rest fade out over the first fifteen metres.
         let near = 1.0 - smoothstep(5.0, 15.0, length(v));
-        return vec4<f32>(d.rgb * enh.exposure.x * aer.a, d.a * near);
+        var film = vec4<f32>(d.rgb * enh.exposure.x * aer.a, d.a * near);
+        // [ROLLBACK glassfx-2, glassfx-3] condensation and frost (see `ice_layer`), lit as a white surface
+        // on the eye's side of the pane is, by the sky and the sun. Seen from outside the rain's
+        // drops lie over the ice, from the cab the ice lies over the drops
+        if (camera.fx.x + camera.fx.y > 0.003) {
+            let in_cab_ice = inside_vehicle(camera.cam_pos.xyz) * near_player_wide(in.world) > 0.5;
+            let wn = select(-in.normal, in.normal, dot(in.normal, vn) >= 0.0);
+            let ice = ice_layer(in.world, in.uv - in.params.zw, in.normal, in_cab_ice, vn, sh_irradiance(wn) / PI * 0.9, enh.sun.rgb / PI * 0.6 * sun_shadow_hard(in.world, wn), 1.0 / max(enh.exposure.x, 1e-6));
+            let ice_c = vec4<f32>(ice.rgb * enh.exposure.x * aer.a, ice.a);
+            film = select(film_over(film, ice_c), film_over(ice_c, film), in_cab_ice);
+        }
+        return film;
     }
     // --- the surface's texture and alpha, exactly as the vanilla pass reads them
     let terrain = material.extra.x > 0.5;
@@ -781,6 +795,11 @@ fn shade_enhanced(in: FsIn, puddle_weight: ptr<function, vec2<f32>>, capture: bo
     // Leaves and fences transmit light. A terrain road-cut mask only removes ground:
     // its remaining pixels must shade like the uncut ground on terrain-mapped splines.
     let thin = !terrain && mode > 0.5 && mode < 1.5;
+    // [ROLLBACK foliage-140] a leaf card's back copy with its normals pointing down (the
+    // ambient of the ground, the sun's shadow pushed into the card itself): turned up
+    if (thin && n.z < 0.0) {
+        n = -n;
+    }
     let has_env = material.params2.y > 0.0;
     // A blended transmap body is a masked paint surface, not glass. Traffic cars often
     // use this material layout for their body; depth-disabled blends remain glass.
@@ -830,6 +849,12 @@ fn shade_enhanced(in: FsIn, puddle_weight: ptr<function, vec2<f32>>, capture: bo
         n = normalize(n - (t * inv * slope.x + b * inv * slope.y) * 0.6);
     }
     var albedo = tex.rgb * material.color.rgb;
+    // [ROLLBACK leafcolour-141] A leaf card whose material has a black diffuse colour (and the
+    // white ambient colour Omsi.exe gives every slot): Direct3D lights it by the ambient
+    // light alone, so its texture shows. Here the diffuse colour alone made the crown black.
+    if (thin && dot(material.color.rgb, vec3<f32>(0.2126, 0.7152, 0.0722)) < 0.04) {
+        albedo = tex.rgb * max(material.ambient.rgb, vec3<f32>(0.5));
+    }
     var detail_factor = 1.0;
     // how the sun's highlight varies over the ground: the road's grain and its patches take
     // the highlight apart (1 = even, as it was: a plain white veil)
@@ -1053,8 +1078,11 @@ fn shade_enhanced(in: FsIn, puddle_weight: ptr<function, vec2<f32>>, capture: bo
             // light having passed the leaf's colour twice.
             let through = pow(clamp(dot(-v, s), 0.0, 1.0), 3.0);
             let leaf = sf.albedo / PI;
+            // [ROLLBACK twilight-1] (a low sun shines through the leaves the more: the crowns
+            // against a setting sun glow, the golden-hour look of a tree-lined street)
+            let golden = 1.0 - smoothstep(0.04, 0.35, s.z);
             direct = e_sun * (leaf * (0.42 + 0.3 * max(nl, 0.0) + 0.08 * max(-nl, 0.0))
-                + leaf * min(sf.albedo * 2.2, vec3<f32>(1.0)) * through * 0.45);
+                + leaf * min(sf.albedo * 2.2, vec3<f32>(1.0)) * through * (0.45 + 0.4 * golden));
         } else if (nl > 0.0) {
             // the sun is a disc, not a point: no highlight sharper than it
             let a = max(rough * rough, 0.012);

@@ -41,12 +41,25 @@ struct Enhanced {
     // rgb the sun's irradiance at 1400, 2100 and 2800 m (the cumulus layer) and 7000 m
     // (the high thin layer), through the atmosphere from up there
     cloud_sun: array<vec4<f32>, 4>,
+    // [ROLLBACK storm-3] rgb the lightning flash's light, as it is in `sh` and `fog_color`
+    // (the sky cube takes it out again), xyz the direction of its directional part
+    flash: vec4<f32>,
+    flash_dir: vec4<f32>,
+    // [ROLLBACK twilight-1] x the green flash's chance today (0 .. 1)
+    twilight: vec4<f32>,
 };
 @group(0) @binding(11) var<uniform> enh: Enhanced;
 @group(0) @binding(13) var s_lin: sampler;
 @group(0) @binding(14) var t_sky_lut: texture_2d<f32>;
 
 const PI: f32 = 3.14159265;
+
+// [ROLLBACK storm-3] Set by the sky cube's pass: the cube is drawn a face a frame and kept
+// for many, so whatever flashes (the lightning's light in the sky harmonics and the fog) must
+// not go into it - each face would keep the flash of the frame it was drawn in, and the sky
+// would show its six faces blinking at their own times. The flash is laid over the sky
+// afterwards, at the picture's resolution, every frame (`lightning_layer`).
+var<private> sky_pass: bool = false;
 
 // Irradiance from the sky and the ground on a surface facing n.
 fn sh_irradiance(n: vec3<f32>) -> vec3<f32> {
@@ -56,6 +69,11 @@ fn sh_irradiance(n: vec3<f32>) -> vec3<f32> {
         + c[4].rgb * (1.092548 * n.x * n.y) + c[5].rgb * (1.092548 * n.y * n.z)
         + c[6].rgb * (0.315392 * (3.0 * n.z * n.z - 1.0)) + c[7].rgb * (1.092548 * n.x * n.z)
         + c[8].rgb * (0.546274 * (n.x * n.x - n.y * n.y));
+    if (sky_pass) {
+        // the flash's terms (lib.rs prepare_enhanced: 40 % from all round, 60 % from its direction)
+        let fl = enh.flash.rgb * (1.9496 * 0.282095) + enh.flash.rgb * (0.6 * 1.0233 * 0.488603 * dot(n, enh.flash_dir.xyz));
+        return max(e - fl, vec3<f32>(0.0));
+    }
     return max(e, vec3<f32>(0.0));
 }
 
@@ -119,7 +137,11 @@ fn air_of(dir: vec3<f32>, dist: f32, h0: f32, h1: f32, clear: f32) -> vec4<f32> 
     // already holds the glow round the sun); a weather fog glows with the light around it
     // and brighter towards the sun
     let horizon = sky_table(normalize(vec3<f32>(dir.x, dir.y, max(dir.z, 0.0) * 0.3 + 0.03)));
-    let fog_in = enh.fog_color.rgb + enh.sun.rgb * hg_phase(dot(dir, camera.sun_dir.xyz), 0.55) * 0.9;
+    let fog_flash = enh.flash.rgb * (0.9 / PI * 0.5);
+    // [ROLLBACK twilight-1] a low sun shines through the fog and the haze more strongly forward:
+    // the golden glow of a street in the evening light, round the sun and not elsewhere
+    let golden = 1.0 - smoothstep(0.04, 0.35, camera.sun_dir.z);
+    let fog_in = enh.fog_color.rgb - select(vec3<f32>(0.0), fog_flash, sky_pass) + enh.sun.rgb * hg_phase(dot(dir, camera.sun_dir.xyz), mix(0.55, 0.7, golden)) * (0.9 * (1.0 + 0.3 * golden));
     let inscatter = mix(horizon, fog_in, tau_fog / tau);
     return vec4<f32>(inscatter * (1.0 - t), t);
 }

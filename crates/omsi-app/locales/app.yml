@@ -25272,3 +25272,15 @@ _version: 2
 
 "A window with the trip's stops and times comes up when a trip is over":
   pl: "Po zakończeniu kursu pojawia się okno z przystankami i godzinami kursu"
+
+"Next course":
+  pl: "Następny kurs"
+
+"Back to the garage":
+  pl: "Powrót do zajezdni"
+
+"None yet. Click the bus to choose a spot, then add a text or a picture.":
+  pl: "Jeszcze żadnych. Kliknij autobus, by wybrać miejsce, potem dodaj tekst lub obrazek."
+
+"A preset is a named set of stickers. It can be put on any bus of this model.":
+  pl: "Preset to nazwany zestaw naklejek. Można go nałożyć na każdy autobus tego modelu."

@@ -246,6 +246,9 @@ pub(crate) struct App {
     pub(crate) remote_added: std::collections::HashMap<i64, crate::scene::TileGpu>,
     /// Placing a vehicle with the mouse (the spawner): see `placing`.
     pub(crate) placing: Option<crate::placing::Placing>,
+    /// [ROLLBACK aispawn-137] The tools window asked for an AI car: a click on a street puts
+    /// one there (Escape ends it).
+    pub(crate) ai_pick: bool,
     /// The chooser shows the administration's lines (label, action) instead of vehicles.
     pub(crate) admin_list: Option<Vec<(String, String)>>,
     /// Which of the game menu's lists `admin_list` holds (see `game_lists`).
@@ -286,6 +289,8 @@ pub(crate) struct App {
     pub(crate) html_pressed: Option<(usize, f32, f32)>,
     /// The same for a page of a scenery object: its map id, script texture index and place.
     pub(crate) html_object_pressed: Option<(i64, usize, f32, f32)>,
+    /// The currently held scenery object switch: its map id and event name.
+    pub(crate) pressed_scenery_object: Option<(i64, String)>,
     /// Cursor movement (logical pixels) while dragging a switch, not yet handed to the
     /// script: `<event>_drag` fires once a frame with it (see `Player::drag`).
     pub(crate) drag_delta: (f32, f32),
@@ -374,6 +379,8 @@ pub(crate) struct App {
     pub(crate) quick: crate::quick_menu::QuickMenu,
     /// The summary of the trip just driven (see `trip_summary.rs`).
     pub(crate) summary: crate::trip_summary::SummaryWindow,
+    /// A Career Mode session (`--career <file>`): the courses driven are reported into it.
+    pub(crate) career_session: Option<crate::career_session::Session>,
 }
 
 impl App {

@@ -87,6 +87,10 @@ pub struct BusService {
     /// more than `EARLY_STOP_SHORT` early (`schedule::TripTimes::kinds`).
     pub always: Vec<i64>,
     pub serve_early: Vec<i64>,
+    /// [ROLLBACK waitstop-136] Stops where the timetable has it wait for the departure time
+    /// (`[profile_otherstopping]` 3 and 4, `schedule::WAIT_KINDS`); at any other it leaves
+    /// when the people are off and on, early or not.
+    pub wait_stops: Vec<i64>,
 }
 
 /// The side the bus pulls out towards: left (1) from a bay on the right, else right (2).
@@ -128,6 +132,12 @@ fn early_wait(depart: f64, now: f64, layover: bool, rail: bool) -> f64 {
 // [ROLLBACK engine-95] was 210 s / 75 s: the engine stops for any wait over two minutes and starts a minute before
 const PARKED_WAIT: f64 = 120.0;
 const PARKED_START: f64 = 60.0;
+/// [ROLLBACK terminus-130] Seconds after its trip is over that a bus stands before the
+/// engine stops (the passengers are off by then).
+const TRIP_DONE_PARK: f32 = 20.0;
+/// [ROLLBACK stopstuck-130] Seconds of boarding past the departure after which the doors
+/// close whoever is still said to be at them.
+const BOARDING_MAX: f32 = 120.0;
 /// On a layover, the doors open this long before the departure.
 const LAYOVER_BOARDING: f64 = 45.0;
 /// Pull into the bay over this distance before the stop: the stop's docking distance,
@@ -192,6 +202,7 @@ impl BusService {
             last_stop: None,
             always: Vec::new(),
             serve_early: Vec::new(),
+            wait_stops: Vec::new(),
         }
     }
 
@@ -217,6 +228,12 @@ impl BusService {
     /// [ROLLBACK aiparked-73] Standing out a long layover with the engine off: it starts again
     /// `PARKED_START` before the doors open for the departure.
     pub fn parked(&self, day_time: f64) -> bool {
+        // [ROLLBACK terminus-130] a bus that has finished its trip and stands at the end of
+        // the line waits for its next trip with the engine off, as one placed there does
+        // (it stood with the engine running until the next trip was handed to it)
+        if self.phase == Phase::TripDone {
+            return self.phase_t > TRIP_DONE_PARK;
+        }
         matches!(self.phase, Phase::Waiting | Phase::Boarding) && self.long_wait && self.leave_at - day_time > PARKED_START
     }
 
@@ -272,19 +289,25 @@ impl BusService {
         let last = (self.stops.len() == 1 && !self.route_open) || self.last_stop == Some(stop.id);
         let early = stop.depart - day_time;
         last || self.layover
-            || early > EARLY_STOP
+            || (early > EARLY_STOP && self.wait_stops.contains(&stop.id))
             || self.always.contains(&stop.id)
             || (early > EARLY_STOP_SHORT && self.serve_early.contains(&stop.id))
     }
 
     /// Arrived at the front stop: what now.
-    fn arrive(&mut self, ctx: &Ctx, depart: f64, at: (usize, f32)) {
+    fn arrive(&mut self, ctx: &Ctx, depart: f64, id: i64, at: (usize, f32)) {
         if omsi_cfg::env::var_os("OMSI_DEBUG_STOPS").is_some() {
             log::info!("t={:.1}: timetable bus {} serves its stop {:?}", ctx.day_time, ctx.id, self.stops.front().map(|s| s.id));
         }
         let layover = std::mem::take(&mut self.layover);
         let rail = ctx.net.lanes.get(at.0).is_some_and(|l| l.kind == LaneKind::Rail);
-        let wait = early_wait(depart, ctx.day_time, layover, rail);
+        // [ROLLBACK waitstop-136] it stands out its time where the timetable says so, on its
+        // layover and (a train) at its stations; elsewhere it goes when the people are done
+        let wait = if layover || rail || self.wait_stops.contains(&id) {
+            early_wait(depart, ctx.day_time, layover, rail)
+        } else {
+            0.0
+        };
         self.leave_at = ctx.day_time + wait;
         self.long_wait = wait >= PARKED_WAIT;
         self.boarding = boarding_time(ctx.id);
@@ -375,6 +398,10 @@ impl BusService {
                 // see); the doors close when it is time to go
                 if self.boarding <= 0.0 && ctx.day_time >= self.leave_at {
                     self.set_phase(Phase::Closing);
+                } else if ctx.day_time >= self.leave_at && self.phase_t > BOARDING_MAX {
+                    // [ROLLBACK stopstuck-130] somebody always said to be at the doors (a
+                    // passenger who never gets in) kept the bus at its stop for good
+                    self.set_phase(Phase::Closing);
                 }
                 here
             }
@@ -420,7 +447,7 @@ impl BusService {
             if stop.ri < st.route_index {
                 if crept_past {
                     self.near_d = f32::INFINITY;
-                    self.arrive(ctx, stop.depart, (st.lane, st.s));
+                    self.arrive(ctx, stop.depart, stop.id, (st.lane, st.s));
                     return Some(st.front);
                 }
                 // behind it already (the route was cut short)
@@ -483,7 +510,7 @@ impl BusService {
             let queued = close || (speed < 0.3 && ctx.stopped > 6.0 && d < 45.0 && d >= 2.0);
             if (d < 2.0 && speed < 0.3) || queued || (d < -2.0 - pull && crept_past) {
                 self.near_d = f32::INFINITY;
-                self.arrive(ctx, stop.depart, (st.lane, st.s));
+                self.arrive(ctx, stop.depart, stop.id, (st.lane, st.s));
                 return Some(st.front);
             }
             self.near_d = d;
@@ -551,6 +578,19 @@ mod tests {
     }
 
     #[test]
+    fn a_bus_at_the_end_of_its_line_stops_the_engine() {
+        // [ROLLBACK terminus-130]
+        let mut s = BusService::new(vec![]);
+        s.phase = Phase::TripDone;
+        s.phase_t = 5.0;
+        assert!(!s.parked(0.0));
+        s.phase_t = TRIP_DONE_PARK + 1.0;
+        assert!(s.parked(0.0));
+        s.phase = Phase::Running;
+        assert!(!s.parked(0.0));
+    }
+
+    #[test]
     fn standing_time() {
         let mut s = BusService::new(vec![]);
         assert_eq!(s.standing_for(0.0), 0.0);
@@ -568,8 +608,11 @@ mod tests {
         s.last_stop = Some(3);
         // on time at a stop in the middle: only if somebody wants it
         assert!(!s.must_serve(&stop(2, 200.0), 150.0));
-        // over two minutes early: it stops and waits
+        // over two minutes early: it stops and waits, where the timetable says it waits
+        assert!(!s.must_serve(&stop(2, 200.0), 70.0));
+        s.wait_stops = vec![2];
         assert!(s.must_serve(&stop(2, 200.0), 70.0));
+        s.wait_stops.clear();
         // the trip's terminus, and the last stop it knows of with the route complete
         assert!(s.must_serve(&stop(3, 300.0), 300.0));
         s.stops = vec![stop(2, 200.0)].into();

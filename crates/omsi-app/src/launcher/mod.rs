@@ -22,6 +22,18 @@ pub(crate) use state::crash_of;
 mod theme;
 mod timetable;
 mod ailist;
+mod career;
+mod career_catalog;
+mod career_debug;
+mod career_depot;
+mod career_ignore;
+mod career_jobs;
+mod career_livery;
+mod career_shop;
+mod career_staff;
+mod staff;
+mod company;
+mod thumbs;
 mod ui;
 mod dialogs;
 
@@ -43,6 +55,10 @@ use winit::window::{Window, WindowId};
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Page {
     Drive,
+    /// A bus company: dealership, fleet, finance, the names catalogue (`career`).
+    Career,
+    /// The bus catalogue's editor, opened from Settings (not on the rail).
+    Catalog,
     Multiplayer,
     Profile,
     Settings,
@@ -56,8 +72,9 @@ pub enum Page {
     Setup,
 }
 
-const PAGES: [(Page, &str, &str); 11] = [
+const PAGES: [(Page, &str, &str); 12] = [
     (Page::Drive, "Drive", "directions_bus"),
+    (Page::Career, "Career Mode", "commute"),
     (Page::Multiplayer, "Multiplayer", "groups"),
     (Page::Profile, "Profile", "badge"),
     (Page::Settings, "Settings", "tune"),
@@ -113,6 +130,9 @@ pub struct Launcher {
     /// The launcher made for a phone (see `phone`).
     pub phone: phone::PhoneView,
     pub pages: pages::PagesView,
+    /// Career Mode's page state and the bus thumbnails it (and later other pages) use.
+    pub career: career::CareerView,
+    thumbs: thumbs::Thumbs,
     pub mp: multiplayer::MultiplayerView,
     /// Server icons in the interface pipeline (by server address), and those decoded but
     /// not yet uploaded.
@@ -122,6 +142,13 @@ pub struct Launcher {
     modifiers: ui::Modifiers,
     /// Right or left drag over the showroom.
     dragging: Option<Vec2>,
+    /// The drag is the middle button's: it moves the camera instead of turning the bus.
+    drag_pan: bool,
+    /// W, A, S, D, Q, E held (the customize screen's camera flies with them).
+    cam_keys: [bool; 6],
+    /// The mouse is over a handle of the customize screen's gizmo (last frame): a press
+    /// there is the gizmo's, not the bus's turning.
+    gizmo_hot: bool,
     clipboard: Option<Clipboard>,
     exit_after: Option<f32>,
     shot: Option<(f32, std::path::PathBuf)>,
@@ -136,6 +163,10 @@ pub struct Launcher {
     /// [ROLLBACK ailist-75] A bus the page shows instead of the chosen one (bus file, paint):
     /// the AI list page sets it every frame it is up, the next frame takes it.
     preview_other: Option<(String, String)>,
+    /// The stickers the preview shows instead of the saved ones (the livery editor's), and
+    /// the company's bus it shows (0: none), asked for every frame like `preview_other`.
+    preview_decals: Option<Vec<crate::decals::Decal>>,
+    preview_owner: u32,
     preview_tex: Option<usize>,
     preview_gen: u64,
     /// The chosen map's picture (see `mapview`): where it is this frame and its texture.
@@ -189,12 +220,17 @@ impl Launcher {
         drive: drive::DriveView::default(),
         phone: phone::PhoneView::default(),
         pages: pages::PagesView::default(),
+        career: career::CareerView::default(),
+        thumbs: thumbs::Thumbs::default(),
         mp: multiplayer::MultiplayerView::default(),
         icons: Default::default(),
         icons_pending: Vec::new(),
         last: Instant::now(),
         modifiers: ui::Modifiers::default(),
         dragging: None,
+        drag_pan: false,
+        cam_keys: [false; 6],
+        gizmo_hot: false,
         clipboard: Clipboard::new().ok(),
         // OMSI_LAUNCHER_EXIT=secs, OMSI_LAUNCHER_SHOT=secs:file.png, OMSI_LAUNCHER_PAGE=mods:
         // looking at the window without a person at it
@@ -215,6 +251,8 @@ impl Launcher {
         release_next: false,
         preview_rect: None,
         preview_other: None,
+        preview_decals: None,
+        preview_owner: 0,
         preview_tex: None,
         preview_gen: 0,
         mapview: mapview::MapView::new(),
@@ -423,7 +461,12 @@ impl ApplicationHandler for Launcher {
                 event_loop.exit();
             }
             WindowEvent::Touch(t) => self.touch(t, scale),
-            WindowEvent::Focused(f) => self.set_focus(f),
+            WindowEvent::Focused(f) => {
+                if !f {
+                    self.cam_keys = [false; 6];
+                }
+                self.set_focus(f)
+            }
             WindowEvent::Occluded(o) => {
                 self.occluded = o;
                 if o { self.pages.pads.cancel_feedback_test(); }
@@ -441,7 +484,11 @@ impl ApplicationHandler for Launcher {
                 let p = Vec2::new(position.x as f32, position.y as f32) / scale;
                 if let Some(last) = self.dragging {
                     let d = p - last;
-                    self.showroom.orbit(d.x, d.y);
+                    if self.drag_pan {
+                        self.showroom.pan(d.x, d.y);
+                    } else {
+                        self.showroom.orbit(d.x, d.y);
+                    }
                     self.dragging = Some(p);
                 }
                 self.ui.input.mouse = p;
@@ -454,7 +501,8 @@ impl ApplicationHandler for Launcher {
                             self.ui.input.pressed = true;
                             // a drag on the preview turns the bus (the panels lie over it:
                             // what the mouse is over is theirs, not the bus's)
-                            if !self.ui.over_ui && self.preview_rect.map(|r| r.contains(self.ui.input.mouse)).unwrap_or(false) {
+                            if !self.ui.over_ui && !self.gizmo_hot && self.preview_rect.map(|r| r.contains(self.ui.input.mouse)).unwrap_or(false) {
+                                self.drag_pan = false;
                                 self.dragging = Some(self.ui.input.mouse);
                             }
                         } else {
@@ -467,11 +515,18 @@ impl ApplicationHandler for Launcher {
                         self.ui.input.right_down = down;
                         if down {
                             self.ui.input.right_pressed = true;
-                            if self.preview_rect.map(|r| r.contains(self.ui.input.mouse)).unwrap_or(false) {
+                        }
+                    }
+                    // the wheel pressed in: the drag moves the camera instead of turning the bus
+                    MouseButton::Middle => {
+                        if down {
+                            if !self.ui.over_ui && self.preview_rect.map(|r| r.contains(self.ui.input.mouse)).unwrap_or(false) {
+                                self.drag_pan = true;
                                 self.dragging = Some(self.ui.input.mouse);
                             }
-                        } else {
+                        } else if self.drag_pan {
                             self.dragging = None;
+                            self.drag_pan = false;
                         }
                     }
                     _ => {}
@@ -491,10 +546,45 @@ impl ApplicationHandler for Launcher {
                         self.modifiers.apply(&mut self.ui.input);
                     }
                 }
+                // W, A, S, D move the camera while nothing is being typed
+                if let PhysicalKey::Code(code) = event.physical_key {
+                    let slot = match code {
+                        KeyCode::KeyW => Some(0),
+                        KeyCode::KeyA => Some(1),
+                        KeyCode::KeyS => Some(2),
+                        KeyCode::KeyD => Some(3),
+                        KeyCode::KeyQ => Some(4),
+                        KeyCode::KeyE => Some(5),
+                        _ => None,
+                    };
+                    if let Some(k) = slot {
+                        let on = event.state == ElementState::Pressed && self.ui.focus.is_none() && !self.modifiers.command();
+                        self.cam_keys[k] = on;
+                    }
+                }
                 if event.state != ElementState::Pressed {
                     return;
                 }
                 let cmd = self.modifiers.command();
+                // Ctrl+Shift+Alt+Backspace: Career Mode's debug window
+                if event.physical_key == PhysicalKey::Code(KeyCode::Backspace) {
+                    let m = self.modifiers.state();
+                    if m.control_key() && m.shift_key() && m.alt_key() {
+                        self.career.debug_open = !self.career.debug_open;
+                        return;
+                    }
+                }
+                // Ctrl+Alt+R: shows (or hides again) the ray tracing options of the Graphics page;
+                // until then ray tracing is off for everybody [ROLLBACK rtlock-1]
+                if event.physical_key == PhysicalKey::Code(KeyCode::KeyR) {
+                    let m = self.modifiers.state();
+                    if m.control_key() && m.alt_key() && !m.shift_key() {
+                        let on = !self.state.settings.get("rt_unlocked").and_then(|x| x.as_bool()).unwrap_or(false);
+                        self.state.settings["rt_unlocked"] = serde_json::json!(on);
+                        self.state.settings_dirty = 0.3;
+                        return;
+                    }
+                }
                 // a phone's back key: out of the storage browser, else like Escape
                 if event.physical_key == PhysicalKey::Code(KeyCode::BrowserBack) {
                     if self.browser.is_some() {
@@ -538,6 +628,15 @@ impl ApplicationHandler for Launcher {
                 }
             }
             WindowEvent::DroppedFile(path) => {
+                // a folder or zip with a `.asset` file is a pack of objects for the customize
+                // screen: it goes into the Assets folder
+                if crate::assets::is_pack(&path) {
+                    match crate::assets::install(&path) {
+                        Ok(m) => self.state.set_status(m, false),
+                        Err(e) => self.state.set_status(e, true),
+                    }
+                    return;
+                }
                 // a mod folder or supported archive dropped on the window is installed
                 self.page = Page::Mods;
                 self.state.install(path.to_string_lossy().to_string());
@@ -743,17 +842,27 @@ impl Launcher {
         // the preview shows the chosen bus in the chosen light
         let c = &self.state.choice;
         let (look_bus, look_paint) = self.preview_other.take().unwrap_or_else(|| (c.bus.clone(), c.paint.clone()));
-        let look = showroom::Look { root: std::path::PathBuf::from(&self.state.config.root), map: c.map.clone(), bus: look_bus, paint: look_paint, weather: c.weather.clone(), time: c.time, date: c.date.clone() };
+        let look = showroom::Look { root: std::path::PathBuf::from(&self.state.config.root), map: c.map.clone(), bus: look_bus, paint: look_paint, weather: c.weather.clone(), time: c.time, date: c.date.clone(), decals: self.preview_decals.take(), owner: std::mem::take(&mut self.preview_owner), rev: crate::decals::revision() };
         // (not while a game runs: the launcher looked at meanwhile loads no bus onto the card)
         if !look.bus.is_empty() && !look.map.is_empty() && !self.state.in_game() {
             self.showroom.want(look);
         }
+        if self.ui.focus.is_some() {
+            self.cam_keys = [false; 6];
+        }
+        let k = self.cam_keys;
+        if k.iter().any(|x| *x) {
+            self.showroom.pan_keys((k[3] as i32 - k[1] as i32) as f32, (k[0] as i32 - k[2] as i32) as f32, (k[5] as i32 - k[4] as i32) as f32, self.modifiers.state().shift_key(), dt);
+        }
         if let Some(r) = self.renderer.as_ref() {
             self.showroom.update(r, dt);
         }
+        self.thumbs_frame(dt);
+        career_jobs::tick(self, dt);
 
         // --- the interface
         self.preview_rect = None;
+        self.gizmo_hot = false;
         self.map_rect = None;
         self.ui.begin(size, scale, dt);
         self.draw_ui();
@@ -965,10 +1074,11 @@ impl Launcher {
         let disconnected = self.state.disconnected.is_some();
         let crash = !disconnected && self.state.crash.is_some();
         let reset = !crash && !disconnected && self.pages.confirm_reset;
-        if self.browser.is_some() || crash || reset || disconnected {
+        let debug = !crash && !disconnected && !reset && self.career.debug_open;
+        if self.browser.is_some() || crash || reset || disconnected || debug {
             self.pages.pads.cancel_feedback_test();
         }
-        let saved = (self.browser.is_some() || crash || reset || disconnected).then(|| {
+        let saved = (self.browser.is_some() || crash || reset || disconnected || debug).then(|| {
             let i = self.ui.input.clone();
             self.ui.input.mouse = Vec2::new(-1e4, -1e4);
             self.ui.input.pressed = false;
@@ -1003,6 +1113,8 @@ impl Launcher {
         let content = Rect::new(content.x + 8.0 * (1.0 - e), content.y, content.w, content.h);
         match self.page {
             Page::Drive => drive::draw(self, content),
+            Page::Career => career::draw(self, content),
+            Page::Catalog => career_catalog::draw_page(self, content),
             Page::Multiplayer => multiplayer::draw(self, content),
             Page::Profile => pages::profile(self, content),
             Page::Settings => pages::settings(self, content),
@@ -1026,6 +1138,8 @@ impl Launcher {
                 self.draw_crash_dialog();
             } else if reset {
                 pages::reset_dialog(self);
+            } else if debug {
+                career_debug::draw(self);
             } else {
                 self.draw_browser();
             }
@@ -1051,7 +1165,7 @@ impl Launcher {
             self.ui.p().arc(c, 6.0, 8.0, a, a + 4.2, TEXT_SOFT);
         }
         if self.ui.hover(r) && self.ui.input.wheel.y.abs() > 0.0 {
-            self.showroom.zoom_by((1.0 - self.ui.input.wheel.y * 0.08).clamp(0.8, 1.25));
+            self.showroom.wheel((1.0 - self.ui.input.wheel.y * 0.08).clamp(0.8, 1.25));
         }
         if self.ui.hover(r) {
             self.ui.cursor = winit::window::CursorIcon::Grab;
@@ -1124,7 +1238,7 @@ impl Launcher {
             return;
         }
         if self.ui.input.wheel.y.abs() > 0.0 {
-            self.showroom.zoom_by((1.0 - self.ui.input.wheel.y * 0.08).clamp(0.8, 1.25));
+            self.showroom.wheel((1.0 - self.ui.input.wheel.y * 0.08).clamp(0.8, 1.25));
         }
         self.ui.cursor = winit::window::CursorIcon::Grab;
     }

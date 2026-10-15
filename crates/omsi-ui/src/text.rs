@@ -280,9 +280,27 @@ impl Fonts {
 
     /// Rasterise one line.
     pub fn render(&self, text: &str, px: f32, weight: Weight) -> Bitmap {
+        self.render_with(self.face(weight), text, px)
+    }
+
+    /// The same in a font file of the system (a `.ttf` / `.otf`); None when it cannot be
+    /// read. The fonts read are kept, so a text typed into a field costs one read.
+    pub fn render_file(&self, path: &std::path::Path, text: &str, px: f32) -> Option<Bitmap> {
+        use std::collections::HashMap;
+        use std::sync::{Arc, Mutex, OnceLock};
+        static CACHE: OnceLock<Mutex<HashMap<std::path::PathBuf, Option<Arc<FontVec>>>>> = OnceLock::new();
+        let font = {
+            let mut c = CACHE.get_or_init(Default::default).lock().ok()?;
+            c.entry(path.to_path_buf())
+                .or_insert_with(|| std::fs::read(path).ok().and_then(|b| FontVec::try_from_vec(b).ok()).map(Arc::new))
+                .clone()?
+        };
+        Some(self.render_with(&font, text, px))
+    }
+
+    fn render_with(&self, font: &FontVec, text: &str, px: f32) -> Bitmap {
         let comp = composed(text);
         let text = &*comp;
-        let font = self.face(weight);
         let f = font.as_scaled(PxScale::from(px));
         let pad = PAD as f32;
         let asc = f.ascent();

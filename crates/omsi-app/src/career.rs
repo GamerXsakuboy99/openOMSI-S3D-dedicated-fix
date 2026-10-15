@@ -69,6 +69,11 @@ pub struct Career {
     pub worst_accel: f32,
     /// Seconds of simulation this session.
     pub seconds: f64,
+    /// Fuel (litres, the bus's `engine_tank_content`): the last reading, what burned and what was
+    /// filled up this session. Career Mode's company pays for what was filled.
+    fuel_prev: Option<f32>,
+    pub fuel_burned: f64,
+    pub fuel_added: f64,
     /// What `save` has already put into the personnel file.
     written: Written,
 }
@@ -113,6 +118,9 @@ impl Default for Career {
             harsh_cool: 0.0,
             worst_accel: 0.0,
             seconds: 0.0,
+            fuel_prev: None,
+            fuel_burned: 0.0,
+            fuel_added: 0.0,
             written: Written::default(),
         }
     }
@@ -161,6 +169,17 @@ impl Career {
     /// One simulation frame of the player's bus.
     pub fn tick(&mut self, dt: f32, bus: &VehicleInstance, riders: usize) {
         self.seconds += dt as f64;
+        if let Some(c) = bus.var("engine_tank_content") {
+            if let Some(p) = self.fuel_prev {
+                let d = (c - p) as f64;
+                if d < -1e-4 {
+                    self.fuel_burned -= d;
+                } else if d > 1e-4 {
+                    self.fuel_added += d;
+                }
+            }
+            self.fuel_prev = Some(c);
+        }
         let v = bus.physics.velocity_kmh() / 3.6;
         // (a jump no driving could make - the admin's teleport, the workshop, a host moving
         // the bus off an occupied spawn - is not distance driven)

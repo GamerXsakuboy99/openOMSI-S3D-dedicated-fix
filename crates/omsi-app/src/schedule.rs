@@ -73,6 +73,12 @@ struct RunningTrip {
     served: Vec<bool>,
 }
 
+/// [ROLLBACK waitstop-136] `[profile_otherstopping]` values at which a bus waits for the
+/// departure time ("always + wait for departure time"). The file says 3 and 4 for stops that
+/// are not a plain "always" (1); which of the two is the waiting one is not settled, so both
+/// are taken.
+pub const WAIT_KINDS: &[u8] = &[3, 4];
+
 /// When a trip's bus is at each of its stations, as OMSI's timetable has it: the profile
 /// gives the trip's duration and, for some stations, the minute the bus arrives or leaves
 /// (`[profile_man_arr_time]`, `[profile_man_dep_time]`, minutes after the trip's start);
@@ -1283,13 +1289,13 @@ impl Schedule {
     /// When departure `i`'s bus is at its trip's stations.
     /// The stations departure `i` serves whoever wants them or not (`[profile_otherstopping]`
     /// 1 or 4), and those it serves when it would be early (3), by object id.
-    fn special_stops(&self, i: usize) -> (Vec<i64>, Vec<i64>) {
+    fn special_stops(&self, i: usize) -> (Vec<i64>, Vec<i64>, Vec<i64>) {
         let stations = trip_stations(&self.data.trips[self.departures[i].trip]);
         let kinds = &self.times_of(i).kinds;
         let of = |want: &[u8]| -> Vec<i64> {
             stations.iter().zip(kinds).filter(|(_, k)| want.contains(k)).map(|(id, _)| *id).collect()
         };
-        (of(&[1, 4]), of(&[3]))
+        (of(&[1, 4]), of(&[3]), of(WAIT_KINDS))
     }
 
     fn times_of(&self, i: usize) -> &TripTimes {
@@ -1487,11 +1493,15 @@ impl Schedule {
         }
         self.fleet_check = day_time;
         let sets = self.upcoming_sets(world, traffic, day_time);
+        // the random traffic's sets stay on the GPU while the vehicles' textures leave the
+        // scenery room; past `VEHICLE_SHARE` of the budget the ones no car wears let go, as the
+        // timetable's do (a car that wears one later uploads it then)
+        let pool = !world.vehicle_pressure(scene, crate::traffic::VEHICLE_SHARE);
         let keep: HashSet<crate::scene::VehicleKey> = sets
             .iter()
             .map(|(t, s)| (t.def.path.clone(), *s))
             .chain(self.fleet_reading.keys().cloned())
-            .chain(traffic.random_sets().into_iter().map(|(t, s)| (t.def.path.clone(), s)))
+            .chain(traffic.random_sets().into_iter().filter(|_| pool).map(|(t, s)| (t.def.path.clone(), s)))
             .collect();
         // (OMSI_FLEET_IDLE=<s> shortens the wait, for tests)
         let idle = omsi_cfg::env::var("OMSI_FLEET_IDLE")
@@ -2457,7 +2467,7 @@ impl Schedule {
             let terminus = self.data.trips[self.departures[i].trip].terminus.clone();
             let names = self.trip_stop_names(self.departures[i].trip);
             let last_stop = trip_stations(&self.data.trips[self.departures[i].trip]).last().copied();
-            let (always, early) = self.special_stops(i);
+            let (always, early, waits) = self.special_stops(i);
             let car = &mut traffic.cars[ci];
             if let Some(k) = car.vehicle.ty.program.str_var("Linie") {
                 car.vehicle.state.str_vars[k as usize] = line.clone();
@@ -2471,6 +2481,7 @@ impl Schedule {
                 b.last_stop = last_stop;
                 b.always = always;
                 b.serve_early = early;
+                b.wait_stops = waits;
             }
             let id = car.id;
             self.car_departure.insert(id, i);
@@ -2652,7 +2663,7 @@ impl Schedule {
         let names = self.trip_stop_names(self.departures[i].trip);
         let names: Vec<&str> = names.iter().map(String::as_str).collect();
         let last_stop = trip_stations(&self.data.trips[self.departures[i].trip]).last().copied();
-        let (always, early) = self.special_stops(i);
+        let (always, early, waits) = self.special_stops(i);
         let car = &mut traffic.cars[ci];
         // on its layover only when it stands at its first stop now (the trip's first station
         // may lie on a part of the track that is not loaded): it waits there for its departure
@@ -2664,6 +2675,7 @@ impl Schedule {
             b.last_stop = last_stop;
             b.always = always;
             b.serve_early = early;
+            b.wait_stops = waits;
         }
         // the bus scripts read the line/terminus for their displays
         if let Some(i) = ty.program.str_var("Linie") {

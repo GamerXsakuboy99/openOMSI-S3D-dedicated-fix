@@ -65,6 +65,8 @@ zip.workspace = true
 [target.'cfg(not(target_os = "android"))'.dependencies]
 arboard = { version = "3", default-features = false }
 rfd.workspace = true
+# the allocator of the desktop builds (a phone's own is kept)
+mimalloc = { version = "0.1", default-features = false }
 
 # Steam's rich presence: only where `assets/steam_redist` has the library (the build script
 # sets `cfg(steam)` for the same targets and puts the library beside the binary)
