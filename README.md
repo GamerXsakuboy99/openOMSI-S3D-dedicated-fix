@@ -35,11 +35,24 @@ Do not assume an unverified or failed Actions run provides a working release.
 Extract the downloaded ZIP into a **new folder**. Do not run the executable
 directly from inside the ZIP.
 
-**Windows**, in the extracted server folder:
+**Windows:** Double-click **`start.cmd`** in the extracted ZIP folder.
+You do not need to write command-line arguments or manually use `--root`.
 
-```bat
-start.cmd "C:\Program Files (x86)\Steam\steamapps\common\OMSI 2"
-```
+On the first start the script checks common Steam installations. If it cannot
+find OMSI 2 automatically, a folder selection window opens: select the
+**original OMSI 2 game folder containing `Omsi.exe`** (not the `maps` folder
+and not the openOMSI server folder). It verifies that the original maps and
+other required files exist, saves your choice to `omsi-root.json`, and uses
+the same folder automatically next time. To change the selected folder later,
+double-click **`Change-OMSI-Folder.cmd`**.
+
+On Windows Server Core or without a desktop, the script asks you to **paste
+the OMSI 2 folder path** instead. Advanced users may still run
+`start.cmd "D:\SteamLibrary\steamapps\common\OMSI 2"` to choose a folder
+directly.
+
+`--root` is supplied to `openomsi-server.exe` **internally by the script**,
+not typed as a Windows command.
 
 **Linux**, in the extracted server folder:
 

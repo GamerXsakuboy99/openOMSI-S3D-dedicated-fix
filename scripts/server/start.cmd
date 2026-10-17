@@ -1,19 +1,29 @@
 @echo off
-rem Run from an extracted dedicated-server ZIP: start.cmd "C:\path\to\OMSI 2" [server.cfg]
 setlocal
+title openOMSI Dedicated Server
 set "HERE=%~dp0"
-if "%~1"=="" (
-  echo Usage: start.cmd "C:\path\to\OMSI 2" [server.cfg]
-  echo The folder must contain your original OMSI 2 content.
+cd /d "%HERE%"
+
+if not exist "%HERE%Start-Server.ps1" (
+  echo ERROR: Start-Server.ps1 is missing.
+  echo Extract the COMPLETE Windows Dedicated Server ZIP to a folder.
   pause
   exit /b 1
 )
-set "CFG=%~2"
-if "%CFG%"=="" set "CFG=%HERE%server.cfg"
-"%HERE%openomsi-server.exe" --root "%~1" --server "%CFG%"
-if errorlevel 1 (
+
+if not "%~1"=="" goto WITH_PATH
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -STA -File "%HERE%Start-Server.ps1"
+goto DONE
+
+:WITH_PATH
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -STA -File "%HERE%Start-Server.ps1" -RootPath "%~1" -ConfigPath "%~2"
+
+:DONE
+set "RESULT=%ERRORLEVEL%"
+if not "%RESULT%"=="0" (
   echo.
-  echo Dedicated server stopped with an error. Check the console messages.
+  echo Dedicated Server could not start. See the error above.
+  echo If the OMSI 2 folder has changed, run Change-OMSI-Folder.cmd.
   pause
-  exit /b 1
 )
+exit /b %RESULT%

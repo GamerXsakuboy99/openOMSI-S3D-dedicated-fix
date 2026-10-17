@@ -52,6 +52,8 @@ jobs:
           New-Item -ItemType Directory -Force -Path $out | Out-Null
           Copy-Item "$env:CARGO_TARGET_DIR/x86_64-pc-windows-msvc/release/openomsi-server.exe" "$out/openomsi-server.exe"
           Copy-Item 'scripts/server/start.cmd' "$out/start.cmd"
+          Copy-Item 'scripts/server/Start-Server.ps1' "$out/Start-Server.ps1"
+          Copy-Item 'scripts/server/Change-OMSI-Folder.cmd' "$out/Change-OMSI-Folder.cmd"
           Copy-Item 'docs/SERVER.md' "$out/README.md"
           Copy-Item 'LICENSE' "$out/LICENSE"
           Copy-Item 'assets/steam_redist/steam_api64.dll' "$out/steam_api64.dll"
@@ -74,6 +76,20 @@ jobs:
           if ((Test-Path "$out/openomsi.exe") -or (Test-Path "$out/openomsi-launcher.exe")) {
             throw 'Client binary was included accidentally'
           }
+      - name: Validate beginner-friendly Windows server startup
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tokens = $null
+          $errors = $null
+          [void][System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path 'scripts/server/Start-Server.ps1').Path, [ref]$tokens, [ref]$errors)
+          if ($errors.Count -gt 0) {
+            $errors | ForEach-Object { Write-Error $_.Message }
+            throw 'Server startup PowerShell syntax validation failed'
+          }
+          & "$env:WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" -NoLogo -NoProfile -ExecutionPolicy Bypass -STA -File scripts/server/Start-Server.ps1 -SelfTest
+          if ($LASTEXITCODE -ne 0) { throw 'Windows startup wizard self-test failed' }
       - name: Validate Windows management tools
         shell: pwsh
         run: |

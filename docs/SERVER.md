@@ -10,11 +10,17 @@ you administer; player mods must exist on the server too.
 
 ## Run
 
-Windows:
+Windows: **double-click `start.cmd`**. On first use the script looks for
+the original OMSI 2 automatically, otherwise it opens a folder picker.
+Choose the installation directory that **contains `Omsi.exe`, `maps`, and
+`Vehicles`**, not the downloaded server folder. It checks that the
+original game files are present and remembers the selected path in
+`omsi-root.json` beside the server. There is no need to type `--root`.
 
-```bat
-start.cmd "C:\Program Files (x86)\Steam\steamapps\common\OMSI 2"
-```
+To change the original game folder later, double-click
+`Change-OMSI-Folder.cmd`. If this PC has no desktop, paste the complete path
+when the startup script asks for it. Advanced use still accepts
+`start.cmd "D:\SteamLibrary\steamapps\common\OMSI 2"`.
 
 Linux:
 

@@ -110,7 +110,7 @@ jobs:
           winroot="$(dirname "$win_exe")"
           linroot="$(dirname "$lin_exe")"
 
-          for f in start.cmd README.md LICENSE steam_api64.dll \
+          for f in start.cmd Start-Server.ps1 Change-OMSI-Folder.cmd README.md LICENSE steam_api64.dll \
                    dxcompiler.dll dxil.dll msvcp140.dll vcruntime140.dll \
                    vcruntime140_1.dll AdminPlus/AdminPlus.ps1 \
                    AdminPlus/Start-AdminPlus.cmd \
