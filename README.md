@@ -34,6 +34,11 @@ Edit it, then restart. See [server documentation](docs/SERVER.md).
 
 ## Server administration and Discord monitoring
 
+Enable the optional private driving activity journal with \`duty_tracking = 1\` in
+\`server.cfg\` (disabled by default). It records duty starts, switches, the duty
+being cleared and disconnections; it does **not** falsely report successful trip
+completions that a stock 0.4.2 client never confirms to the host.
+
 The server supports a loopback-only, password-protected `POST /admin`
 endpoint and the public `/status` endpoint. Optional management tools
 can run separately on the same server machine. Do not expose `/admin`
