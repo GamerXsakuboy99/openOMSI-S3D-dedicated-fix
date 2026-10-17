@@ -130,10 +130,20 @@ activity watcher beside the server. It does not require the admin password.
 1. Run it once to create `DiscordBridge/config.json` from the included example.
 2. Set `webhook_url` to your own channel's secret Discord webhook URL.
 3. Set `server_web_port` to match your server.cfg.
-4. To receive duty events, set `duty_tracking = 1` in server.cfg and restart,
-   then enter the absolute location of `duty-events.jsonl` in
-   `duty_events_log_path`.
-5. Start the bridge again and use Test-Webhook.cmd if you need to test delivery.
+4. To receive duty events, set `duty_tracking = 1` in `server.cfg` and
+   restart the server. It creates `duty-events.jsonl` **beside server.cfg**
+   when the first player duty event occurs.
+5. In `DiscordBridge/config.json`, set
+   `"duty_events_log_path": "../duty-events.jsonl"` for the usual ZIP layout,
+   or provide the file's absolute path if `server.cfg` is elsewhere.
+   This is a path to the **server-generated file**, not a directory.
+   Leave it empty to disable only duty notifications; other alerts still work.
+6. Restart Discord Bridge, then use `Test-Webhook.cmd` to test delivery.
+
+The journal records a player's selected duty starting/ending/changing and
+disconnecting. It does not prove successful completion of a scheduled trip.
+For full examples and Windows/Linux path syntax, see
+[Discord Bridge README](../addons/DiscordBridge/README.md).
 
 Available messages include server online/offline, player count, weather,
 duty started, duty ended, changed duties and duty disconnects. A stock 0.4.2

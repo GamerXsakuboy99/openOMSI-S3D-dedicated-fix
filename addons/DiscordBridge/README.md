@@ -16,6 +16,60 @@ and posts configurable Discord webhook embeds. No admin password is needed.
 5. Run Start-DiscordBridge.cmd to watch the server. Test-Webhook.cmd sends
    one harmless test to Discord.
 
+## What does `duty_events_log_path` do?
+
+`duty_events_log_path` is **the path to a FILE, not a directory or a
+Discord URL**. Discord Bridge reads this private file to detect the start,
+change and end of a player's selected driving duty, as well as a disconnect
+while on duty. It sends the enabled `notify_duty_*` alerts to your Discord
+webhook. Other webhook notifications (server online/offline, player counts,
+weather) do **not** depend on this setting.
+
+**To enable duty alerts:**
+
+1. Open the dedicated server's **`server.cfg`**, set `duty_tracking = 1`,
+   save it and **restart the server**. The default is `0` (disabled).
+2. When a player first starts a duty, the server creates
+   **`duty-events.jsonl` in the SAME folder as `server.cfg`**. The file
+   is created by the game server, **not** by Discord Bridge.
+3. Open **`DiscordBridge/config.json`** and set `duty_events_log_path`
+   to that file. With the recommended directory layout below, a relative
+   path works on Windows **and** Linux:
+
+   ```json
+   "duty_events_log_path": "../duty-events.jsonl"
+   ```
+
+4. Restart Discord Bridge. It reads **new events only**, so it will not post
+   the entire history from an existing log.
+
+Default extracted release layout:
+
+```text
+DedicatedServer/
+├── openomsi-server.exe   (or openomsi-server on Linux)
+├── server.cfg
+├── duty-events.jsonl     <-- the server creates this when a duty event occurs
+└── DiscordBridge/
+    └── config.json       <-- put ../duty-events.jsonl here
+```
+
+If `server.cfg` is elsewhere, use the **actual** full file path instead,
+for example `"C:\\OMSI-Server\\duty-events.jsonl"` on Windows (JSON needs
+**double backslashes**) or `"/srv/openomsi/duty-events.jsonl"` on Linux.
+The path is resolved relative to the DiscordBridge folder when it is not
+absolute.
+
+**Leave `duty_events_log_path` empty (`""`) if you don't want duty
+messages.** Status, weather and player-count messages still work.
+
+**Privacy and accuracy:** The journal contains player names, IDs, selected
+lines/tours, vehicle names and timestamps, **not coordinates**. Keep it private
+and don't upload it to GitHub. `share_positions = 1` is **not required** for
+this journal. Stock 0.4.2 clients do not provide confirmed trip-completion
+events: `duty_ended` means the selected duty ended, **not** that every trip
+was successfully driven.
+
 ## Alert types
 
 Server online/offline, player count, weather changes, optional named player

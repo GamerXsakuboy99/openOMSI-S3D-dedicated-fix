@@ -276,9 +276,15 @@ if ($script:DutyLogFile) {
     if (Test-Path -LiteralPath $script:DutyLogFile -PathType Leaf) {
         $script:DutyCursor = (Get-Item -LiteralPath $script:DutyLogFile).Length
     }
-    Log "Duty Tracking enabled; reading local journal: $($script:DutyLogFile)"
+    if (Test-Path -LiteralPath $script:DutyLogFile -PathType Leaf) {
+        Log "Duty event log found: $($script:DutyLogFile)"
+    } else {
+        Log 'Duty event log not found yet. Set duty_tracking = 1 in server.cfg and restart the server.'
+        Log 'The server creates duty-events.jsonl beside server.cfg after the first duty event.'
+        Log "Waiting for the file: $($script:DutyLogFile)"
+    }
 } else {
-    Log 'Duty Tracking disabled until duty_events_log_path is configured.'
+    Log 'Duty alerts off: duty_events_log_path is empty. Server status and weather alerts still work.'
 }
 
 Log "Discord Bridge started. Reading local server status every $wait seconds."

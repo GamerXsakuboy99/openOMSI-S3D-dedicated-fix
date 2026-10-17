@@ -11,6 +11,7 @@
   "notify_player_count": true,
   "notify_weather_change": true,
   "summary_interval_minutes": 0,
+  "_help_duty_events_log_path": "Optional path to the duty-events.jsonl FILE beside server.cfg (not a folder). First set duty_tracking = 1 in server.cfg and restart the server. For the normal extracted ZIP layout use ../duty-events.jsonl. Leave empty to disable duty messages; server status and weather notifications still work.",
   "duty_events_log_path": "",
   "notify_duty_started": true,
   "notify_duty_disconnected": true,

@@ -248,7 +248,14 @@ class Bridge:
     def run(self):
         log("Discord Bridge started (Linux, Python 3). Ctrl+C stops it.")
         if self.journal.path:
-            log("Private duty tracking journal configured.")
+            if self.journal.path.is_file():
+                log("Duty event journal found (private local file).")
+            else:
+                log("Duty event log not found yet. Set duty_tracking = 1 in server.cfg, then restart the server.")
+                log("The server writes duty-events.jsonl beside server.cfg when a player starts a duty.")
+                log("Waiting for: " + str(self.journal.path))
+        else:
+            log("Duty alerts off: duty_events_log_path is empty. Server status and weather alerts still work.")
         while True:
             self.cycle()
             time.sleep(self.c["poll_interval_seconds"])
