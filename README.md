@@ -1,194 +1,46 @@
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/logos/openomsi-wordmark-light.svg">
-    <img alt="openOMSI" src="assets/logos/openomsi-wordmark-dark.svg" width="420">
-  </picture>
-</p>
+# openOMSI Sobol3D Edition – Dedicated Server Fork
 
-<p align="center">
-  <a href="https://github.com/sobolx30/openOMSI/releases/latest"><img alt="Version" src="https://img.shields.io/github/v/release/sobolx30/openOMSI?label=version&color=f47f30&style=for-the-badge"></a>
-  <a href="https://github.com/sobolx30/openOMSI/tree/main/docs"><img alt="Docs" src="https://img.shields.io/badge/docs-in%20the%20repo-2d3138?style=for-the-badge"></a>
-  <a href="https://discord.gg/FQpVKtVJxD"><img alt="Discord" src="https://img.shields.io/badge/discord-join%20us-5865F2?style=for-the-badge&logo=discord&logoColor=white"></a>
-  <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/sobolx30/openOMSI?style=for-the-badge"></a>
-</p>
+**This fork builds a dedicated multiplayer server, not a playable game client.**
 
-> [!WARNING]
-> **Early release. Expect bugs.** openOMSI is in an early stage of development: things may be
-> missing, broken or change between versions. Please report problems in
-> [Issues](https://github.com/sobolx30/openOMSI/issues) or on our
-> [Discord server](https://discord.gg/FQpVKtVJxD).
-
-**openOMSI** is a from-scratch recreation of the bus simulator **OMSI 2**, written in Rust:
-64-bit, multithreaded, with a modern renderer (Metal / Vulkan / DirectX 12 through wgpu),
-and fully compatible with the existing maps, buses, scenery and mods.
-
-> [!IMPORTANT]
-> **openOMSI needs an original copy of OMSI 2.** It contains no game content of its own: it
-> plays on the maps, vehicles and other files of an installed OMSI 2 and **will not start without one**.
-
+Based on **Sobol3D Edition 0.4.2**. The headless server simulates OMSI 2 maps,
+vehicles, timetables, traffic and passengers. You still need an original OMSI 2
+installation (including any map/vehicle mods that players use).
 
 ## Download
 
-Releases are built by hand and published on the
-[**Releases**](https://github.com/sobolx30/openOMSI/releases) page:
+Go to **Actions** and run either **Build Dedicated Server Windows** or
+**Build Dedicated Server Linux**. Download the matching workflow artifact,
+extract it and follow its README.
 
-| Platform | File |
-| --- | --- |
-| Windows x64 | `openOMSI-<version>-windows-x64.zip` - run `openomsi.exe` |
+There is one executable: `openomsi-server.exe` (Windows) or
+`openomsi-server` (Linux). **No playable game or launcher is packaged.**
+The source tree retains the simulation and client library modules that are
+required to compile the shared dedicated-host implementation.
 
-Other systems (macOS, Linux, the dedicated server): build from source, see
-[Building from source](#building-from-source) and [docs/BUILDING.md](docs/BUILDING.md).
+### Run on Windows
 
-Start the game, point the launcher to your OMSI 2 folder once, pick a map, a bus and a duty,
-and drive. Mods go into the folder next to the game (or through the launcher's **Mods**
-page); the original installation is never written to.
+```bat
+start.cmd "C:\Program Files (x86)\Steam\steamapps\common\OMSI 2"
+```
 
-**This build does not update itself.** It never looks for a newer version and downloads no
-program by itself. To update, download a newer release from the Releases page and unpack it
-over the old folder: your settings, mods and content stay.
-
-## Installation
-
-**You need an installed OMSI 2** (Steam or retail, any version) with its stock content -
-the maps Grundorf and Berlin-Spandau and the stock buses (MAN SD200/SD202, NL). openOMSI
-brings no game content of its own; it plays the original's maps, buses and mods.
-
-1. **Download** the file for your system from
-   [Releases](https://github.com/sobolx30/openOMSI/releases) and unpack it
-   into a folder of its own that you can write to - your Documents, a games folder, or the
-   OMSI 2 folder itself. Not `Program Files` (a normal user cannot write there).
-2. **Start it.**
-   * **Windows:** `openomsi.exe`. Windows SmartScreen may warn about an unknown app: *More
-     info* → *Run anyway*.
-   * **macOS:** open `openOMSI.app`. The first time, macOS may refuse an app from the
-     internet: right-click → *Open* → *Open*, or run
-     `xattr -dr com.apple.quarantine /path/to/openOMSI.app` once.
-   * **Linux:** `./openomsi` (run `chmod +x openomsi` if it does not start). It needs a
-     Vulkan or OpenGL driver (Mesa: `mesa-vulkan-drivers`, or your GPU vendor's driver).
-3. **Point it at OMSI 2.** The launcher usually finds the installation by itself (Steam
-   libraries, the usual folders). If not, open **Setup** and choose the OMSI 2 folder - the
-   one with `Omsi.exe`, `maps` and `Vehicles` in it (the folder, or `Omsi.exe` itself) - and
-   press **Save**. The Steam version is under
-   `…\Steam\steamapps\common\OMSI 2`.
-4. **Drive:** pick a bus, a map and a duty on the **Drive** page and press **Start the duty**.
-
-**Mods** are installed on the **Mods** page (a folder or a `.zip`, or dropped on the window) or
-by putting them into the `Mods` folder next to the game; the OMSI 2 folder is never written
-to.
-
-### When something goes wrong
-
-* **"The original OMSI 2 was not found"** - choose the folder under Setup (step 3); the
-  message says what the chosen folder lacks.
-* **The game closes after a few seconds, or "the graphics device was lost"** - update the
-  graphics driver (NVIDIA, AMD or Intel's own, not the one Windows installs). On Windows you
-  can also switch to DirectX 12: Settings → Graphics → Graphics API (the launcher offers it after such a
-  crash).
-* **An older graphics card** (no Vulkan): openOMSI falls back to DirectX 12 and then OpenGL by
-  itself; Settings → Graphics → Graphics API chooses one.
-* **Stuck at a bridge or an invisible wall** on a mod map: Esc → Options → *Collisions with
-  objects* switches collisions with the map's objects off (Settings has it too).
-* **Multiplayer: you do not meet the others** - both players need the host's map (a map in
-  the OMSI 2 folder is not passed on; one from the Mods page is). The joining game switches
-  to the host's map by itself and says in the HUD when it is not installed.
-* **Keys do not do what you set:** Controls - the page shows which driving keys are in use;
-  a key you change there takes effect at once.
-* **Anything else:** when the game ends on an error, the launcher shows it with *Copy report*
-  and *Report on GitHub*. The logs are in `~/.openomsi` (Windows: `C:\Users\<you>\.openomsi`),
-  `game.log` for the last game.
-
-## Network and privacy
-
-This build does not check for updates and sends no usage data or statistics anywhere. The
-network is used only by features you start or switch on:
-
-* **Multiplayer** (when you host or join): public STUN servers (Google, Cloudflare) to find your
-  address, an automatic port forward in your router (UPnP), and the public relay `ntfy.sh`
-  to exchange addresses with the other player. When you host, the game may fetch and run
-  Cloudflare's `cloudflared` for an internet tunnel (`OMSI_NO_TUNNEL=1` or `OMSI_NO_BRIDGE=1`
-  switch these off). The Multiplayer page asks the servers in your list for their status.
-* **Internet radio** (when you play a station) and **real weather** (METAR from
-  aviationweather.gov, off by default).
-* **Machine translation** of the interface (off by default): the language model (about 620 MB)
-  is downloaded once from Hugging Face.
-* **Discord Rich Presence**: talks only to the Discord program on your computer, which shows
-  the map, bus and duty on your profile; Settings → General switches it off.
-* **Voice chat** connects only to a GreenTeaSpeak plugin on your own computer (`127.0.0.1`).
-
-The crash window's *Report on GitHub* and the links in Settings only open a page in your own
-browser when you press them.
-
-## Goals
-
-1. **1:1 behaviour.** Every content format of the original - maps, splines, scenery objects,
-   vehicles, scripts, timetables, HOF files, fonts, weather, tickets, situations, plugins -
-   loads and behaves exactly as in OMSI 2.2.032. Existing maps and mods work unchanged.
-2. **No original code or assets.** Nothing from the original is copied; the formats are
-   described in [docs/FORMATS.md](docs/FORMATS.md).
-3. **A better engine.** 64-bit address space, streaming and texture loading on worker threads,
-   no 2 GB limit, no single-thread stalls, LAN multiplayer and a dedicated server.
-
-## Documentation
-
-The documentation lives in [`docs/`](docs):
-
-| Document | What is in it |
-| --- | --- |
-| [User guide](docs/USER_GUIDE.md) | running, controls, launcher, settings, mods, LAN play, debug switches |
-| [Virtual reality](docs/VR.md) | OpenXR setup, VR settings and controls on Windows |
-| [Modding](docs/MODDING.md) | limits lifted for modders: more interior lights, larger textures, additions OMSI 2 ignores |
-| [PBR materials](docs/PBR.md) | normal, roughness, metalness and occlusion maps for mods |
-| [Building](docs/BUILDING.md) | building from source on macOS, Windows and Linux |
-| [Content formats](docs/FORMATS.md) | every OMSI 2 file format |
-| [Architecture](docs/ARCHITECTURE.md) | crates, threading, renderer, roadmap |
-| [Routes](docs/ROUTES.md) | how the original runs timetables, chrono, HOF, IBIS |
-| [Plugins](docs/PLUGINS.md) | Lua plugins (API and examples), OMSI plugin DLLs and the 32-bit plugin host |
-| [Dedicated server](docs/SERVER.md) | hosting a session without a window |
-| [Versioning & releases](docs/VERSIONING.md) | the `MAJOR.MINOR.COMMIT` scheme and how releases are made |
-| [Changelog](CHANGELOG.md) | what changed in each version |
-
-## Building from source
+### Run on Linux
 
 ```sh
-git clone https://github.com/sobolx30/openOMSI.git && cd openOMSI
-scripts/build-macos.sh        # macOS   → dist/macos/openOMSI.app
-scripts\build-windows.cmd     # Windows → dist\windows\openomsi.exe
-scripts/build-linux.sh        # Linux   → dist/linux/openomsi
-scripts/build-server.sh       # server  → dist/server
+./start.sh "/srv/omsi2"
 ```
 
-Needs the latest [Rust stable](https://rustup.rs) and the platform's C toolchain; details in
-[docs/BUILDING.md](docs/BUILDING.md).
+On first start the server writes `server.cfg` next to the script.
+Edit it, then restart. See [server documentation](docs/SERVER.md).
 
-## Repository layout
+## Server administration and Discord monitoring
 
-```
-openOMSI/
-├── VERSION            MAJOR.MINOR of the next release (edited by hand)
-├── crates/            the engine, one crate per subsystem of the original
-│   ├── omsi-app/        the game binary `openomsi` (window, launcher, HUD, server mode)
-│   ├── omsi-launcher-core/  launcher data side + `openomsi-launcher` terminal tool
-│   ├── omsi-cfg/        text files, code pages, virtual file system, content roots
-│   ├── omsi-script/     the OMSI script language (compiler + VM)
-│   ├── omsi-o3d/ omsi-model/ omsi-texture/ omsi-geometry/   meshes, models, textures, splines
-│   ├── omsi-map/ omsi-scenery/ omsi-timetable/ omsi-vehicle/ omsi-content/   content formats
-│   ├── omsi-sim/        vehicles, AI traffic, people, physics
-│   ├── omsi-render/     the wgpu renderer
-│   ├── omsi-audio/ omsi-net/ omsi-plugin/ omsi-ui/   sound, multiplayer, plugins, UI toolkit
-├── tools/             developer tools: omsi-check (format coverage)
-├── scripts/           build scripts for every platform, version.sh, packaging files
-├── assets/            fonts, Material icons, app icons (assets/icons/app), logos (assets/logos)
-├── docs/              documentation
-└── site/              source of a website for the documentation
-```
+The server supports a loopback-only, password-protected `POST /admin`
+endpoint and the public `/status` endpoint. Optional management tools
+can run separately on the same server machine. Do not expose `/admin`
+through Cloudflare or a reverse proxy.
 
-## Contributing
+This fork is independent of the original **openOMSI Sobol3D Edition** and is
+not an official upstream server distribution. Original project:
+https://github.com/sobolx30/openOMSI-Sobol3D-Edition
 
-Issues and pull requests are welcome - see [CONTRIBUTING.md](CONTRIBUTING.md).
-
-## License
-
-openOMSI is a fork. The original code is MIT-licensed (Copyright (c) 2026 usonskyyyy); the changes
-and additions made in this repository are **All Rights Reserved** and may be used only as part of
-this program. See [LICENSE](LICENSE) for the exact terms. OMSI and OMSI 2 are trademarks of their
-respective owners. openOMSI is an independent project and is not affiliated with them.
+License: [MIT](LICENSE).

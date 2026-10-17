@@ -13,8 +13,8 @@ name = "openomsi_game"
 path = "src/lib.rs"
 
 [[bin]]
-name = "openomsi"
-path = "src/main.rs"
+name = "openomsi-server"
+path = "src/server_main.rs"
 
 [build-dependencies]
 winresource.workspace = true

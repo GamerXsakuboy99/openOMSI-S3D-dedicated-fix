@@ -1,103 +1,45 @@
-name: Build openOMSI Linux
+name: Build Dedicated Server Linux
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - 'crates/**'
+      - 'scripts/server/**'
+      - 'scripts/build-linux.sh'
+      - '.github/workflows/linux.yml'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
 
 permissions:
   contents: read
 
 jobs:
-  build-linux:
-    name: Linux x86_64 Release
+  linux-server:
     runs-on: ubuntu-22.04
-
+    timeout-minutes: 120
     steps:
-      # Use this repository's selected branch, including local fixes
-      - name: Checkout local openOMSI source
-        uses: actions/checkout@v4
-
-      # Install Linux build dependencies
-      - name: Install dependencies
+      - uses: actions/checkout@v4
+      - name: Install Linux native dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            build-essential \
-            pkg-config \
-            libasound2-dev \
-            libudev-dev \
-            libgtk-3-dev \
-            libxkbcommon-dev \
-            libwayland-dev \
-            libssl-dev
-
-      # Install latest stable Rust
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      # Cache Rust dependencies
-      - name: Cache Rust
-        uses: Swatinem/rust-cache@v2
-
-      # Build Linux release using original script
-      - name: Build openOMSI Linux
+          sudo apt-get install -y build-essential pkg-config libasound2-dev libudev-dev libgtk-3-dev libxkbcommon-dev libwayland-dev libssl-dev
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Check server-only Rust binary
+        run: cargo check --locked -p omsi-app --bin openomsi-server
+      - name: Build Linux dedicated server
+        run: sh scripts/build-linux.sh
+      - name: Confirm release contains no playable client
         run: |
-          sh scripts/build-linux.sh
-
-      # Include the extra content from the Windows release in the same directory layout.
-      # Keep a capital A: paths are case-sensitive on Linux.
-      - name: Copy release Assets
-        run: |
-          test -d assets/Infobox
-          test -d assets/TM-Summertime
-          mkdir -p dist/linux/Assets
-          cp -a assets/Infobox assets/TM-Summertime dist/linux/Assets/
-
-      # Verify required files exist
-      - name: Verify Linux build
-        run: |
-          test -f dist/linux/openomsi
-          test -f dist/linux/openomsi-launcher
-          test -f dist/linux/libsteam_api.so
-          test -f dist/linux/openomsi.desktop
-          test -f dist/linux/openomsi.png
-          test -f dist/linux/Assets/Infobox/FIB.o3d
-          test -f dist/linux/Assets/Infobox/FIB.png
-          test -f dist/linux/Assets/Infobox/model.asset
-          test -f dist/linux/Assets/TM-Summertime/model.o3d
-          test -f dist/linux/Assets/TM-Summertime/TMSummertime.png
-          test -f dist/linux/Assets/TM-Summertime/model.asset
-
-          echo "Linux build files:"
-          ls -lh dist/linux/
-          find dist/linux/Assets -type f -print | sort
-
-      # Create clean Linux archive
-      # No extra ./ directory entries
-      - name: Package Linux release
-        run: |
-          tar -czf Sobols-openOMSI-0.4.2-linux-x64.tar.gz \
-            -C dist/linux \
-            openomsi \
-            openomsi-launcher \
-            libsteam_api.so \
-            openomsi.desktop \
-            openomsi.png \
-            Assets
-
-      # Verify archive contents
-      - name: Verify archive
-        run: |
-          echo "Archive contents:"
-          entries="$(tar -tzf Sobols-openOMSI-0.4.2-linux-x64.tar.gz)"
-          printf '%s\n' "$entries"
-          printf '%s\n' "$entries" | grep -Fxq 'Assets/Infobox/model.asset'
-          printf '%s\n' "$entries" | grep -Fxq 'Assets/TM-Summertime/model.asset'
-
-      # Upload downloadable build
-      - name: Upload Linux release
-        uses: actions/upload-artifact@v4
+          test -f dist/linux-server/openomsi-server
+          test -f dist/linux-server/start.sh
+          test -f dist/linux-server/README.md
+          test ! -f dist/linux-server/openomsi
+          test ! -f dist/linux-server/openomsi-launcher
+      - uses: actions/upload-artifact@v4
         with:
-          name: Sobols-openOMSI-0.4.2-linux-x64
-          path: Sobols-openOMSI-0.4.2-linux-x64.tar.gz
-          retention-days: 7
+          name: openOMSI-DedicatedServer-0.4.2-linux-x64
+          path: dist/linux-server/
+          retention-days: 14
           if-no-files-found: error
