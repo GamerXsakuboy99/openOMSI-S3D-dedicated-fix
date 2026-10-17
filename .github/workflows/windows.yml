@@ -1,0 +1,153 @@
+name: Build openOMSI Windows
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    name: Windows x64 Release
+    runs-on: windows-2022
+    timeout-minutes: 90
+    env:
+      # Use the GitHub Actions Rust build cache; local builds still clean by default.
+      OPENOMSI_SKIP_CLEAN: "1"
+    steps:
+      # Build from this private repository, including its passenger and other fixes.
+      - name: Checkout local openOMSI source
+        uses: actions/checkout@v4
+
+      - name: Configure short Cargo build directory
+        shell: pwsh
+        run: |
+          # RUNNER_TEMP is an environment variable available during a running step.
+          # It cannot be referenced as runner.temp in the job's env block.
+          $targetDir = Join-Path $env:RUNNER_TEMP 't'
+          New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
+          "CARGO_TARGET_DIR=$targetDir" >> $env:GITHUB_ENV
+          Write-Host "Cargo target directory: $targetDir"
+
+      - name: Read version
+        id: version
+        shell: pwsh
+        run: |
+          $version = (Get-Content -LiteralPath VERSION -Raw).Trim()
+          if ($version -notmatch '^\d+\.\d+(?:\.\d+)?$') {
+            throw "Invalid VERSION file: $version"
+          }
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "OPENOMSI_VERSION=$version" >> $env:GITHUB_ENV
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+
+      # windows-2022 provides Visual Studio C++ Build Tools, Windows SDK and CMake.
+      - name: Check build tools
+        shell: pwsh
+        run: |
+          cmake --version
+          rustc --version
+          cargo --version
+
+      - name: Build openOMSI Windows x64
+        shell: cmd
+        run: call scripts\build-windows.cmd x86_64-pc-windows-msvc
+
+      # Ship the same DX12 shader compiler and Microsoft C++ runtime DLLs
+      # as the official release of this exact version. Keep our own built EXEs.
+      - name: Copy required Windows runtime DLLs
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $version = $env:OPENOMSI_VERSION
+          $url = "https://github.com/sobolx30/openOMSI-Sobol3D-Edition/releases/download/v$version/openOMSI-$version-windows-x64.zip"
+          $archive = Join-Path $env:RUNNER_TEMP 'openomsi-upstream-windows.zip'
+          $unpacked = Join-Path $env:RUNNER_TEMP 'openomsi-upstream-windows'
+          Write-Host "Downloading official Windows support files for v$version"
+          Invoke-WebRequest -Uri $url -OutFile $archive
+          Expand-Archive -LiteralPath $archive -DestinationPath $unpacked -Force
+
+          $libraries = @(
+            'dxcompiler.dll'
+            'dxil.dll'
+            'msvcp140.dll'
+            'vcruntime140.dll'
+            'vcruntime140_1.dll'
+          )
+          foreach ($library in $libraries) {
+            $source = Join-Path $unpacked $library
+            if (-not (Test-Path -LiteralPath $source -PathType Leaf)) {
+              throw "Required Windows runtime library is missing from official release: $library"
+            }
+            Copy-Item -LiteralPath $source -Destination "dist/windows/$library" -Force
+          }
+
+      # Include the fork's license and readme beside the game.
+      - name: Copy license and README
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Copy-Item -LiteralPath @('LICENSE', 'README.md') -Destination 'dist/windows/' -Force
+
+      # Keep the uppercase Assets directory from the Windows release.
+      - name: Copy release Assets
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $destination = 'dist/windows/Assets'
+          New-Item -ItemType Directory -Path $destination -Force | Out-Null
+          foreach ($folder in @('Infobox', 'TM-Summertime')) {
+            $source = "assets/$folder"
+            if (-not (Test-Path -LiteralPath $source -PathType Container)) {
+              throw "Missing release assets folder: $source"
+            }
+            Copy-Item -LiteralPath $source -Destination $destination -Recurse -Force
+          }
+
+      - name: Verify Windows release
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $required = @(
+            'dist/windows/openomsi.exe'
+            'dist/windows/openomsi-launcher.exe'
+            'dist/windows/steam_api64.dll'
+            'dist/windows/dxcompiler.dll'
+            'dist/windows/dxil.dll'
+            'dist/windows/msvcp140.dll'
+            'dist/windows/vcruntime140.dll'
+            'dist/windows/vcruntime140_1.dll'
+            'dist/windows/LICENSE'
+            'dist/windows/README.md'
+            'dist/windows/Assets/Infobox/FIB.o3d'
+            'dist/windows/Assets/Infobox/FIB.png'
+            'dist/windows/Assets/Infobox/model.asset'
+            'dist/windows/Assets/TM-Summertime/model.o3d'
+            'dist/windows/Assets/TM-Summertime/TMSummertime.png'
+            'dist/windows/Assets/TM-Summertime/model.asset'
+          )
+          foreach ($file in $required) {
+            if (-not (Test-Path -LiteralPath $file -PathType Leaf)) {
+              throw "Missing Windows release file: $file"
+            }
+          }
+          Write-Host 'Windows release files:'
+          Get-ChildItem -LiteralPath 'dist/windows' -Recurse -File |
+            ForEach-Object { Write-Host $_.FullName }
+
+      # Upload the release directory directly. GitHub creates ONE ZIP with these
+      # files at its root: no nested .zip or .tar.gz.
+      - name: Upload Windows release
+        uses: actions/upload-artifact@v4
+        with:
+          name: Sobols-openOMSI-${{ steps.version.outputs.version }}-windows-x64
+          path: dist/windows/
+          retention-days: 7
+          if-no-files-found: error
