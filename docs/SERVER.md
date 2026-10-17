@@ -32,10 +32,15 @@ If the configuration file is missing, the server generates its full commented
 restart the server to apply configuration changes. The binary **requires**
 `--server` and refuses to start a game or graphical launcher.
 
-Build workflows: **Build Dedicated Server Windows** and
-**Build Dedicated Server Linux**. They publish one downloadable artifact
-containing the server executable and its start script. The Windows package
-also includes Admin Plus and Discord Bridge under separate folders.
+Download verified ZIP packages from the
+[Dedicated Server Releases page](https://github.com/GamerXsakuboy99/openOMSI-Sobol3D-Edition-dedicatedserver/releases).
+The release workflow only publishes when **both** Windows and Linux workflows
+succeed on the same commit and validates the archives. Each release includes
+`SHA256SUMS.txt` to verify your downloaded files.
+
+Actions artifacts are temporary build outputs, not permanent release downloads.
+The Windows package includes Admin Plus and Discord Bridge, while the Linux
+package includes the separate Python 3 Discord Bridge.
 
 ## Config examples
 

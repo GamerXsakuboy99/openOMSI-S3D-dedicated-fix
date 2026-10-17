@@ -1,0 +1,194 @@
+# Publishes proper release ZIPs only when both independently-tested server
+# build workflows complete successfully for the exact same main-branch commit.
+# No publishing on failed builds or mismatched source revisions.
+name: Publish Dedicated Server Releases
+
+on:
+  workflow_run:
+    workflows:
+      - Build Dedicated Server Windows
+      - Build Dedicated Server Linux
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: dedicated-server-release-${{ github.event.workflow_run.head_sha || github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' ||
+          (github.event.workflow_run.conclusion == 'success' &&
+           github.event.workflow_run.head_branch == 'main' &&
+           github.event.workflow_run.head_repository.full_name == github.repository) }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact source revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Locate matching successful builds
+        id: candidates
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          main_sha="$(gh api "repos/$REPO/branches/main" --jq '.commit.sha')"
+          if [[ "$main_sha" != "$SHA" ]]; then
+            echo "A newer main commit exists. Skipping stale release for $SHA."
+            echo 'ready=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          run_for() {
+            local workflow="$1"
+            gh api "repos/$REPO/actions/workflows/$workflow/runs?per_page=100" \
+              | jq -r --arg sha "$SHA" '[.workflow_runs[] |
+                  select(.head_sha == $sha and .conclusion == "success" and
+                  (.event == "push" or .event == "workflow_dispatch")) |
+                  .id] | first // empty'
+          }
+          windows_run="$(run_for windows.yml)"
+          linux_run="$(run_for linux.yml)"
+          if [[ -z "$windows_run" || -z "$linux_run" ]]; then
+            echo "Both verified builds are required at $SHA; Windows: ${windows_run:-pending}, Linux: ${linux_run:-pending}."
+            echo 'ready=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "Both Windows run $windows_run and Linux run $linux_run succeeded at $SHA."
+          echo 'ready=true' >> "$GITHUB_OUTPUT"
+          echo "windows_run=$windows_run" >> "$GITHUB_OUTPUT"
+          echo "linux_run=$linux_run" >> "$GITHUB_OUTPUT"
+          echo "target_sha=$SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Download and verify build artifacts
+        if: steps.candidates.outputs.ready == 'true'
+        id: package
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ steps.candidates.outputs.target_sha }}
+          WINDOWS_RUN: ${{ steps.candidates.outputs.windows_run }}
+          LINUX_RUN: ${{ steps.candidates.outputs.linux_run }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(tr -d '[:space:]' < VERSION)"
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Invalid VERSION: $version"; exit 1; }
+          tag="v${version}-ds-${SHA:0:8}"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          if gh release view "$tag" --repo "$REPO" >/dev/null 2>&1; then
+            echo "Release $tag already exists; not overwriting it."
+            echo 'exists=true' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo 'exists=false' >> "$GITHUB_OUTPUT"
+
+          mkdir -p "$RUNNER_TEMP/work/windows" "$RUNNER_TEMP/work/linux" "$RUNNER_TEMP/out"
+          gh run download "$WINDOWS_RUN" --repo "$REPO" \
+            --name "openOMSI-DedicatedServer-${version}-windows-x64" \
+            --dir "$RUNNER_TEMP/work/windows"
+          gh run download "$LINUX_RUN" --repo "$REPO" \
+            --name "openOMSI-DedicatedServer-${version}-linux-x64" \
+            --dir "$RUNNER_TEMP/work/linux"
+
+          # Tolerate an optional directory prefix in GitHub artifact contents.
+          win_exe="$(find "$RUNNER_TEMP/work/windows" -type f -name openomsi-server.exe -print -quit)"
+          lin_exe="$(find "$RUNNER_TEMP/work/linux" -type f -name openomsi-server -print -quit)"
+          test -n "$win_exe" && test -s "$win_exe"
+          test -n "$lin_exe" && test -s "$lin_exe"
+          winroot="$(dirname "$win_exe")"
+          linroot="$(dirname "$lin_exe")"
+
+          for f in start.cmd README.md LICENSE steam_api64.dll \
+                   dxcompiler.dll dxil.dll msvcp140.dll vcruntime140.dll \
+                   vcruntime140_1.dll AdminPlus/AdminPlus.ps1 \
+                   AdminPlus/Start-AdminPlus.cmd \
+                   DiscordBridge/DiscordBridge.ps1 \
+                   DiscordBridge/Start-DiscordBridge.cmd \
+                   DiscordBridge/config.example.json; do
+            test -s "$winroot/$f" || { echo "Windows package missing $f"; exit 1; }
+          done
+          for f in start.sh README.md LICENSE libsteam_api.so \
+                   DiscordBridge/DiscordBridge.py \
+                   DiscordBridge/Start-DiscordBridge.sh \
+                   DiscordBridge/config.example.json; do
+            test -s "$linroot/$f" || { echo "Linux package missing $f"; exit 1; }
+          done
+          for root in "$winroot" "$linroot"; do
+            test ! -f "$root/openomsi.exe"
+            test ! -f "$root/openomsi"
+            test ! -f "$root/openomsi-launcher.exe"
+            test ! -f "$root/openomsi-launcher"
+            test -d "$root/Assets/Infobox"
+            test -d "$root/Assets/TM-Summertime"
+          done
+
+          # GitHub artifacts can reset executable bits to 0644. Restore them.
+          chmod +x "$linroot/openomsi-server" "$linroot/start.sh" \
+            "$linroot/DiscordBridge/DiscordBridge.py" \
+            "$linroot/DiscordBridge/Start-DiscordBridge.sh"
+
+          # Smoke test the released Linux binary without requiring OMSI 2 data.
+          set +e
+          usage="$(cd "$linroot" && ./openomsi-server 2>&1)"
+          exit_code=$?
+          set -e
+          if [[ "$exit_code" -ne 2 || "$usage" != *'Dedicated server only'* ]]; then
+            echo "Linux dedicated-server CLI smoke test failed (exit $exit_code): $usage"
+            exit 1
+          fi
+
+          (cd "$winroot" && zip -q -r "$RUNNER_TEMP/out/openOMSI-DedicatedServer-${version}-windows-x64.zip" .)
+          (cd "$linroot" && zip -q -r "$RUNNER_TEMP/out/openOMSI-DedicatedServer-${version}-linux-x64.zip" .)
+          (cd "$RUNNER_TEMP/out" && sha256sum *.zip > SHA256SUMS.txt)
+
+          cat > "$RUNNER_TEMP/out/RELEASE_NOTES.md" <<EOF
+          ## openOMSI Sobol3D Dedicated Server ${version}
+
+          Dedicated **server-only** downloads for Windows x64 and Linux x64.
+          Built from commit \`${SHA}\`.
+
+          - Windows: openOMSI-DedicatedServer-${version}-windows-x64.zip
+            (includes the separate Admin Plus and Discord Bridge tools)
+          - Linux: openOMSI-DedicatedServer-${version}-linux-x64.zip
+            (includes the standalone Python 3 Discord Bridge)
+          - SHA256SUMS.txt: file-integrity checksums
+
+          Both server builds passed their CI checks on the exact same source
+          revision. Package contents were verified, and the Linux server
+          CLI passed a no-argument smoke test. This is **not** a full
+          multiplayer gameplay test; test your OMSI 2 maps and clients.
+
+          Extract the ZIP first and run start.cmd or start.sh with your
+          original OMSI 2 installation path. See README.md in the repository.
+          EOF
+
+      - name: Publish checked ZIPs to GitHub Releases
+        if: steps.candidates.outputs.ready == 'true' && steps.package.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ steps.candidates.outputs.target_sha }}
+          TAG: ${{ steps.package.outputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/out"
+          gh release create "$TAG" \
+            openOMSI-DedicatedServer-*.zip SHA256SUMS.txt \
+            --repo "$REPO" \
+            --target "$SHA" \
+            --title "openOMSI Dedicated Server ${TAG#v}" \
+            --notes-file RELEASE_NOTES.md \
+            --latest

@@ -10,6 +10,9 @@ on:
       - '.github/workflows/windows.yml'
       - 'Cargo.toml'
       - 'Cargo.lock'
+      - 'README.md'
+      - 'docs/SERVER.md'
+      - '.github/workflows/release.yml'
       - 'addons/**'
 
 permissions:
