@@ -21,12 +21,7 @@ fn main() {
     windows_icon();
     steam();
     thunder_assets();
-    // (the executable exports the two switchable-graphics hints of main.rs, see there)
-    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") && std::env::var("CARGO_CFG_TARGET_ENV").as_deref() == Ok("msvc") {
-        for sym in ["NvOptimusEnablement", "AmdPowerXpressRequestHighPerformance"] {
-            println!("cargo:rustc-link-arg-bin=openomsi=/EXPORT:{sym},DATA");
-        }
-    }
+    // No graphics driver exports in the dedicated server executable.
 }
 
 /// Steam's rich presence (`src/steam.rs`) on the targets `assets/steam_redist` has the library
@@ -46,7 +41,7 @@ fn steam() {
     };
     println!("cargo:rustc-cfg=steam");
     if os == "linux" {
-        println!("cargo:rustc-link-arg-bin=openomsi=-Wl,-rpath,$ORIGIN");
+        println!("cargo:rustc-link-arg-bin=openomsi-server=-Wl,-rpath,$ORIGIN");
     }
     let src = std::path::Path::new("../../assets/steam_redist").join(lib);
     println!("cargo:rerun-if-changed={}", src.display());

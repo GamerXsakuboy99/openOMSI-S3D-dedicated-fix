@@ -10,6 +10,7 @@ on:
       - '.github/workflows/windows.yml'
       - 'Cargo.toml'
       - 'Cargo.lock'
+      - 'addons/**'
 
 permissions:
   contents: read
@@ -69,6 +70,36 @@ jobs:
           }
           if (Test-Path "$out/openomsi.exe" -or Test-Path "$out/openomsi-launcher.exe") {
             throw 'Client binary was included accidentally'
+          }
+      - name: Validate Windows management tools
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          foreach ($file in @('addons/AdminPlus/AdminPlus.ps1','addons/DiscordBridge/DiscordBridge.ps1')) {
+            $errors = $null
+            $tokens = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $file).Path, [ref]$tokens, [ref]$errors)
+            if ($errors.Count -ne 0) {
+              $errors | ForEach-Object { Write-Error $_.Message }
+              throw "PowerShell parse failure in $file"
+            }
+          }
+          $ps = "$env:WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe"
+          & $ps -NoLogo -NoProfile -ExecutionPolicy Bypass -STA -File addons/AdminPlus/AdminPlus.ps1 -ValidateXaml
+          if ($LASTEXITCODE -ne 0) { throw 'Admin Plus validation failed' }
+          & $ps -NoLogo -NoProfile -ExecutionPolicy Bypass -File addons/DiscordBridge/DiscordBridge.ps1 -SelfTest
+          if ($LASTEXITCODE -ne 0) { throw 'Discord Bridge validation failed' }
+      - name: Include optional Windows server tools
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force 'dist/windows-server/AdminPlus','dist/windows-server/DiscordBridge' | Out-Null
+          foreach ($file in @('AdminPlus.ps1','Start-AdminPlus.cmd','README.md')) {
+            Copy-Item "addons/AdminPlus/$file" "dist/windows-server/AdminPlus/$file"
+          }
+          foreach ($file in @('DiscordBridge.ps1','Start-DiscordBridge.cmd','Test-Webhook.cmd','config.example.json','README.md')) {
+            Copy-Item "addons/DiscordBridge/$file" "dist/windows-server/DiscordBridge/$file"
           }
       - uses: actions/upload-artifact@v4
         with:
