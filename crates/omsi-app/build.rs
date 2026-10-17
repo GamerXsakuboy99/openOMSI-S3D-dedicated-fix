@@ -21,7 +21,8 @@ fn main() {
     windows_icon();
     steam();
     thunder_assets();
-    // No graphics driver exports in the dedicated server executable.
+    // Server-only builds do not need client graphics exports; Linux game
+    // and server are declared as separate Cargo binary targets.
 }
 
 /// Steam's rich presence (`src/steam.rs`) on the targets `assets/steam_redist` has the library
@@ -41,7 +42,9 @@ fn steam() {
     };
     println!("cargo:rustc-cfg=steam");
     if os == "linux" {
+        // Both separate executables look for Steam's runtime in their own folder.
         println!("cargo:rustc-link-arg-bin=openomsi-server=-Wl,-rpath,$ORIGIN");
+        println!("cargo:rustc-link-arg-bin=openomsi=-Wl,-rpath,$ORIGIN");
     }
     let src = std::path::Path::new("../../assets/steam_redist").join(lib);
     println!("cargo:rerun-if-changed={}", src.display());

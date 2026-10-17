@@ -1,9 +1,10 @@
 # openOMSI Sobol3D Edition — Dedicated Server
 
-**Dedicated server only • based on Sobol3D Edition 0.4.2 • Windows x64 & Linux x64**
+**Dedicated server releases • based on Sobol3D Edition 0.4.2 • Windows x64 & Linux x64**
 
-This fork builds the headless openOMSI multiplayer server, **not** the playable
-game client or launcher. It can host existing OMSI 2 maps, timetables, AI
+The **Dedicated Server releases** contain the headless multiplayer server,
+**not** the playable client or launcher. A separately built Linux game client
+is available from its own workflow (details below). It can host existing OMSI 2 maps, timetables, AI
 traffic and passengers. An **original OMSI 2 installation** and any content
 used by the server are still required.
 
@@ -67,6 +68,25 @@ Discord `config.json` when updating from an older release.
 
 See **[Dedicated Server setup and configuration](docs/SERVER.md)** for all
 available settings, ports, METAR, weather, and administration.
+
+## Linux playable game client (separate download)
+
+This repository also provides an **independent Linux x64 game-client builder**
+based on Sobol3D Edition. It compiles the actual `openomsi` graphical game
+and `openomsi-launcher`, not the Dedicated Server.
+
+**[Build / download Linux Game Client](https://github.com/GamerXsakuboy99/openOMSI-Sobol3D-Edition-dedicatedserver/actions/workflows/linux-client.yml)**
+
+Select a successful run and download the artifact
+`openOMSI-Sobol3D-0.4.2-linux-client-x64`. After extracting it, run
+`./start-client.sh` on a graphical Linux desktop. The game still needs
+your original OMSI 2 installation and the corresponding maps/vehicle content.
+
+See the full [Linux game client installation guide](docs/LINUX-CLIENT.md).
+
+**Important:** Client builds are published as **separate GitHub Actions
+artifacts**. They are **not** included in the Dedicated Server Releases ZIPs;
+the server-only build workflows and their release requirements are unchanged.
 
 ## Administration and Discord
 

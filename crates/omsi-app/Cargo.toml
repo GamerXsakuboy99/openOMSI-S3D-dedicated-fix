@@ -13,6 +13,12 @@ description = "The openOMSI application: loads a map and renders it"
 name = "openomsi_game"
 path = "src/lib.rs"
 
+# Playable game with in-game launcher; built only by the separate Linux client workflow.
+[[bin]]
+name = "openomsi"
+path = "src/main.rs"
+
+# The dedicated-server-only executable remains an independent target.
 [[bin]]
 name = "openomsi-server"
 path = "src/server_main.rs"
