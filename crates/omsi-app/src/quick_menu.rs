@@ -6,7 +6,10 @@
 //!
 //! It is an overlay: the game goes on under it (nothing is paused), the keys stay the game's
 //! and a click on a tile is the only thing it takes from the mouse. Alt tapped alone (down and up
-//! with nothing else pressed or clicked between) shows and hides it; Esc hides it. Every tile
+//! with nothing else pressed or clicked between) shows and hides it. [ROLLBACK altstay-1] Esc and
+//! the tiles that open a list leave it showing: it stays under the game menu or the list,
+//! faint and not clickable while they are on top, and is the same again when they go (the
+//! timetable view and the minimap are not on top of it: it stays clickable beside them). Every tile
 //! does what its line in the game menu does (`App::page_action`); the tiles that choose
 //! something (a vehicle, a line, a destination, the weather ...) open the game menu on that list
 //! straight away, without its pause, and the menu closes when the list is done (`session`).
@@ -90,6 +93,8 @@ pub(crate) struct QuickMenu {
     pub(crate) session: bool,
     /// The question "end the timetable?" is shown over the menu.
     pub(crate) confirm: bool,
+    /// Another menu is on top of it: it is drawn faint and takes no click.
+    covered: bool,
     /// The press of a click that a tile (or the question) took; its release is taken too.
     consumed: bool,
     pressed: Option<usize>,
@@ -113,6 +118,7 @@ impl QuickMenu {
             alt_armed: false,
             session: false,
             confirm: false,
+            covered: false,
             consumed: false,
             pressed: None,
             hover: None,
@@ -151,7 +157,9 @@ impl QuickMenu {
         let Some((gpu, _)) = self.gpu.as_mut() else { return };
         gpu.upload(&r.device, &r.queue, 0, &self.painter.verts);
         gpu.upload_atlas(&r.queue, &mut self.atlas);
-        let layers = [Layer::flat([0.0, 0.0, w as f32, h as f32], 0.0, 1.0)];
+        // (under another menu the whole panel is faint: nothing there can be clicked now, and the
+        // menu it is drawn behind - the picture is painted in one pass - shows through)
+        let layers = [Layer::flat([0.0, 0.0, w as f32, h as f32], 0.0, if self.covered { 0.32 } else { 1.0 })];
         let draws = [Draw { buffer: 0, range: 0..self.painter.len(), layer: 0, texture: 0 }];
         let mut enc = r.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("quick menu") });
         gpu.render(&r.device, &r.queue, &mut enc, view, (w, h), None, &layers, &draws);
@@ -164,6 +172,13 @@ fn is_alt(code: KeyCode) -> bool {
 }
 
 impl App {
+    /// Another menu with things to click is on top of the quick menu (the game menu, a list, a
+    /// chooser, the editor): it stays showing, faint, and takes no click. The timetable view
+    /// (Ins) and the minimap are not such menus.
+    fn quick_covered(&self) -> bool {
+        self.menu.is_some() || self.game_menu.is_some() || self.chooser.is_some() || self.list_kind.is_some() || self.editor.is_some()
+    }
+
     /// Whether the menu may be shown now: a world is loaded and nothing else holds the keys.
     fn quick_menu_allowed(&self) -> bool {
         self.world.is_some() && self.menu.is_none() && self.game_menu.is_none() && self.chooser.is_none() && self.list_kind.is_none() && self.editor.is_none() && !self.input_away
@@ -186,10 +201,6 @@ impl App {
                     }
                     _ => {}
                 }
-            }
-            if code == KeyCode::Escape && self.quick.open {
-                self.quick.open = false;
-                return true;
             }
             // (armed only by an Alt that went down with no other key held: `self.keys` has it already)
             self.quick.alt_armed = is_alt(code) && self.keys.iter().all(|k| is_alt(*k));
@@ -217,6 +228,13 @@ impl App {
             self.quick.alt_armed = false;
         }
         if !self.quick.open {
+            return false;
+        }
+        // (under another menu: its click, not ours)
+        if self.quick_covered() {
+            self.quick.consumed = false;
+            self.quick.pressed = None;
+            self.quick.confirm_pressed = None;
             return false;
         }
         let p = Vec2::new(self.cursor.0, self.cursor.1);
@@ -321,9 +339,8 @@ impl App {
             return;
         }
         match def.id {
-            // what is chosen from a list: the menu goes, the list comes, the game runs on
+            // what is chosen from a list: the list comes over the menu (which stays, faint), the game runs on
             "place" | "switch" | "dest" | "tplist" => {
-                self.quick.open = false;
                 self.quick_open_session();
                 self.page_action(def.id);
             }
@@ -334,18 +351,15 @@ impl App {
                     self.quick.confirm_pressed = None;
                     return;
                 }
-                self.quick.open = false;
                 self.quick_open_session();
                 self.open_list(crate::game_lists::ListKind::Lines);
             }
             "time" | "weather" => {
-                self.quick.open = false;
                 self.quick_open_session();
                 let tab = crate::game_lists::world_tab(self, def.label);
                 self.open_list(crate::game_lists::ListKind::World(tab));
             }
             "controllers" => {
-                self.quick.open = false;
                 self.quick_open_session();
                 self.open_list(crate::game_lists::ListKind::ControllerDevices(0));
             }
@@ -366,13 +380,18 @@ impl App {
     /// Lay the menu out for a picture of `w` x `h` physical pixels and paint it (drawn by
     /// `QuickMenu::render` once the game's picture is in the frame).
     pub(crate) fn quick_prepare(&mut self, w: u32, h: u32) {
-        if !self.quick.open || self.game_menu.is_some() {
-            self.quick.open = self.quick.open && self.game_menu.is_none();
+        if !self.quick.open {
             self.quick.confirm = false;
             self.quick.painter.clear();
             self.quick.rects.clear();
             self.quick.hover = None;
             return;
+        }
+        // (under another menu: shown faint, with no hover and no question)
+        let covered = self.quick_covered();
+        self.quick.covered = covered;
+        if covered {
+            self.quick.confirm = false;
         }
         let (wf, hf) = (w as f32, h as f32);
         let dpi = self.window.as_ref().map(|win| win.scale_factor() as f32).unwrap_or(1.0).max(0.5);
@@ -393,7 +412,7 @@ impl App {
         let q = &mut self.quick;
         q.panel = panel;
         q.rects = rects.clone();
-        q.hover = q.tile_at(cursor);
+        q.hover = if covered { None } else { q.tile_at(cursor) };
         let hover = q.hover;
         let fonts = q.fonts.get_or_insert_with(Fonts::new);
         let pt = &mut q.painter;

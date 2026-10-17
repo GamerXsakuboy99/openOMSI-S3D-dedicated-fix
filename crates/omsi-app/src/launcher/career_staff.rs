@@ -5,7 +5,7 @@
 //! timetable gives the courses and pays when it is over (`Company::collect_jobs`, called every
 //! frame from `career_jobs::tick`). Hiring costs money, a driver takes a share of what a job
 //! brings (at least a minimum for every course) and a retainer for every session the player
-//! books, rests after a shift, and the number of drivers is limited by the company's level.
+//! books, rests after a shift, and the number of drivers is not limited (career-staff-1).
 //! Training raises a skill.
 
 use super::career::{date_time, save};
@@ -43,11 +43,10 @@ pub(super) fn draw(l: &mut Launcher, r: Rect) {
     let drivers_p = Rect::new(left.x, left.y, left.w, (left.h - log_h - gap).max(140.0));
     let log_p = Rect::new(left.x, drivers_p.bottom() + gap, left.w, (left.bottom() - drivers_p.bottom() - gap).max(0.0));
     let mut ops: Vec<Op> = Vec::new();
-    let limit = c.staff_limit();
 
     // --- the drivers
     l.ui.panel(drivers_p);
-    let inner = l.ui.heading(Rect::new(drivers_p.x + 16.0, drivers_p.y + 14.0, drivers_p.w - 32.0, drivers_p.h - 28.0), &format!("Drivers · {} of {limit}", c.drivers.len()), Some("groups"));
+    let inner = l.ui.heading(Rect::new(drivers_p.x + 16.0, drivers_p.y + 14.0, drivers_p.w - 32.0, drivers_p.h - 28.0), &format!("Drivers · {}", c.drivers.len()), Some("groups"));
     if c.drivers.is_empty() {
         l.ui.paragraph(
             "No drivers yet. A driver takes a job without you at the wheel: their skill, the bus's condition, the weather and their traits decide how it goes. Hire one from the applicants on the right, then send them out on the Jobs page.",
@@ -156,7 +155,7 @@ pub(super) fn draw(l: &mut Launcher, r: Rect) {
     let foot_h = ROW + 38.0;
     let list = Rect::new(inner.x, inner.y, inner.w, (inner.h - foot_h).max(80.0));
     let pool = c.applicants();
-    let full = c.drivers.len() >= limit;
+    let full = false; // [ROLLBACK career-staff-1] hire as many as you like
     let cw = ((inner.w - 10.0) - 150.0).max(80.0);
     let card_h = 112.0;
     let widths: Vec<Vec<f32>> = pool.iter().map(|(_, d)| d.traits.iter().map(|t| l.ui.width(t.label(), 10.0, Weight::Bold) + 10.0).collect()).collect();
@@ -201,7 +200,7 @@ pub(super) fn draw(l: &mut Launcher, r: Rect) {
     });
     let foot = Rect::new(inner.x, list.bottom() + 6.0, inner.w, foot_h - 6.0);
     l.ui.text_in(
-        &format!("Level {} companies employ up to {limit} driver(s) ({} now) · a better reputation draws better applicants", c.level(), c.drivers.len()),
+        &format!("{} driver(s) now, as many as you like · a better reputation draws better applicants", c.drivers.len()),
         Rect::new(foot.x, foot.y, foot.w, 18.0),
         11.5,
         Weight::Regular,

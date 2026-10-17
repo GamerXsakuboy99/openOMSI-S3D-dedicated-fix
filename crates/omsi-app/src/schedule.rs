@@ -21,10 +21,17 @@ struct Departure {
     ai_group: String,
     tour: String,
     /// The tour's validity mask (bits 0-6 Monday..Sunday, 7 public holiday, 8 school
-    /// holidays, 9 school days): every tour's departures are kept, and which run is decided
+    /// days ("No Hols"), 9 school holidays ("Hols")): every tour's departures are kept, and which run is decided
     /// by the day (`Schedule::runs`), so a session carries on past midnight.
     mask: i32,
     spawned: bool,
+    /// [ROLLBACK nighttt-1] A night tour's trip past 24:00 is kept twice: once as the timetable has it
+    /// (`time` of a day and more: it never comes up on a clock that starts again at midnight, so
+    /// `wrapped` marks it as not to run, only to keep the tour's order) and once as the early
+    /// morning of the next day it happens on (`time` less a day, `prev_day`: its mask is the one of the
+    /// day *before*, the service day the tour belongs to).
+    prev_day: bool,
+    wrapped: bool,
 }
 
 /// One step of a trip's route: a lane in map terms (None when the tile index is not in the
@@ -453,8 +460,8 @@ pub struct Schedule {
     /// school); `set_day` moves them on at midnight.
     day: i32,
     day_bits: (i32, i32),
-    /// The weekday bit of the next day (night tours run on into it).
-    next_day_bit: i32,
+    /// [ROLLBACK nighttt-1] The bits of the day before (the service day of the trips after midnight).
+    prev_day_bits: (i32, i32),
     /// Where today's midnight lies on the traffic's clock (`Traffic::day_time` counts on past
     /// 24:00): a departure leaves at `day_base + time` (`dep_time`), and the date moves on
     /// when the clock passes the next midnight.
@@ -469,6 +476,17 @@ pub struct Schedule {
     /// hashing each tour to a number put the same fleet number on two buses at once.
     tour_vehicle: HashMap<u64, (usize, usize)>,
     used_numbers: HashSet<(String, String)>,
+    /// [ROLLBACK careerhired-1] The courses the company's hired drivers are out on (Career Mode): their
+    /// buses are the company's own.
+    hired: Vec<HiredBus>,
+}
+
+/// A hired driver's job in the timetable: the courses' departures (s of the day) and the
+/// company's bus loaded for them (the outer None: not tried yet; the inner: it did not load).
+struct HiredBus {
+    job: crate::career_hired::Hired,
+    times: Vec<f64>,
+    bus: Option<Option<(Arc<VehicleType>, Option<Arc<omsi_vehicle::Hof>>)>>,
 }
 
 /// A tour's bus waits at the end of a trip for the next one of its tour when that leaves
@@ -495,7 +513,7 @@ const LAYOVER_SHARED: f64 = 60.0;
 
 impl Schedule {
     /// `clock` gives the date: tours carry a validity mask (bits 0-6 Monday…Sunday, 7 public
-    /// holiday, 8 school holidays, 9 school days) that selects which run today.
+    /// holiday, 8 school days, 9 school holidays) that selects which run today.
     pub fn new(root: &Path, world: &World, clock: &omsi_sim::SimClock) -> Schedule {
         Schedule::build(root, world, clock, true)
     }
@@ -550,12 +568,13 @@ impl Schedule {
         let holiday = calendar.is_holiday(date);
         let school_holiday = calendar.in_holiday_range(date);
         let (day_bit, school_bit) = day_bits(&calendar, clock);
+        let prev_bits = prev_day_bits(&calendar, clock);
         let mut departures = Vec::new();
         let mut skipped_tours = 0;
         for line in &data.lines {
             for tour in &line.tours {
                 let mask = tour.extra.trim().parse::<i32>().unwrap_or(1023);
-                if mask & day_bit == 0 || mask & school_bit == 0 {
+                if !omsi_map::mask_runs(mask, day_bit, school_bit) {
                     skipped_tours += 1;
                 }
                 for t in &tour.trips {
@@ -567,8 +586,10 @@ impl Schedule {
                         let profile = usize::try_from(t.profile)
                             .unwrap_or(0)
                             .min(times[ti].len() - 1);
+                        let time = t.departure as f64 * 60.0;
+                        let night = time >= DAY && time < 2.0 * DAY;
                         departures.push(Departure {
-                            time: t.departure as f64 * 60.0,
+                            time,
                             trip: ti,
                             profile,
                             line: line.name.clone(),
@@ -576,7 +597,24 @@ impl Schedule {
                             tour: tour.number.clone(),
                             mask,
                             spawned: false,
+                            prev_day: false,
+                            wrapped: night,
                         });
+                        // [ROLLBACK nighttt-1] 25:10 is ten past one in the morning of the next day
+                        if night {
+                            departures.push(Departure {
+                                time: time - DAY,
+                                trip: ti,
+                                profile,
+                                line: line.name.clone(),
+                                ai_group: tour.ai_group.clone(),
+                                tour: tour.number.clone(),
+                                mask,
+                                spawned: false,
+                                prev_day: true,
+                                wrapped: false,
+                            });
+                        }
                     }
                 }
             }
@@ -718,7 +756,13 @@ impl Schedule {
                 bytes as f64 / 1e6
             );
         }
-        let today = departures.iter().filter(|d| d.mask & day_bit != 0 && d.mask & school_bit != 0).count();
+        let today = departures
+            .iter()
+            .filter(|d| {
+                let (db, sb) = if d.prev_day { prev_bits } else { (day_bit, school_bit) };
+                !d.wrapped && omsi_map::mask_runs(d.mask, db, sb)
+            })
+            .count();
         log::info!("timetable: {} lines, {} trips, {} tracks, {} departures today (weekday {weekday}, holiday {holiday}, school holidays {school_holiday}; {skipped_tours} tours not today), {} depot groups", data.lines.len(), data.trips.len(), data.tracks.len(), today, depots.len());
         let served = data
             .trips
@@ -764,12 +808,13 @@ impl Schedule {
             calendar,
             day: date,
             day_bits: (day_bit, school_bit),
-            next_day_bit: 1 << ((clock.weekday() + 1) % 7),
+            prev_day_bits: prev_bits,
             day_base: 0.0,
             date_clock: clock.clone(),
             car_use,
             tour_vehicle: HashMap::new(),
             used_numbers: HashSet::new(),
+            hired: Vec::new(),
         };
         s.assign_car_use();
         s
@@ -865,22 +910,26 @@ impl Schedule {
         }
     }
 
-    /// Whether a tour is offered on the current day (the lists of lines and tours): its day
-    /// mask has the day (and school day or holiday), or - for a night tour with trips after
-    /// 24:00 - the next day's weekday, as the night belongs to both.
-    pub(crate) fn tour_available(&self, tour: &omsi_timetable::Tour) -> bool {
+    /// [ROLLBACK tourlist-2] On which days a tour is on offer now: `(today, yesterday)`. Today when its
+    /// day mask has the day (and the school day or holiday); yesterday for a night tour (trips after 24:00)
+    /// whose mask has the day before, whose trips of 25:00 and later are the early hours of this day.
+    /// (The night does not "belong to" the next day as well: that listed on a Thursday the tours
+    /// of Friday, and on a Saturday those of the weekdays, at 1 in the morning.)
+    pub(crate) fn tour_day_kinds(&self, tour: &omsi_timetable::Tour) -> (bool, bool) {
         let m = tour.extra.trim().parse::<i32>().unwrap_or(1023);
-        if m & self.day_bits.0 != 0 && m & self.day_bits.1 != 0 {
-            return true;
-        }
         let night = tour.trips.iter().any(|t| t.departure >= 24.0 * 60.0);
-        night && m & self.next_day_bit != 0 && m & self.day_bits.1 != 0
+        (omsi_map::mask_runs(m, self.day_bits.0, self.day_bits.1), night && omsi_map::mask_runs(m, self.prev_day_bits.0, self.prev_day_bits.1))
     }
 
     /// Whether departure `i`'s tour runs on the current day.
     fn runs(&self, i: usize) -> bool {
-        let m = self.departures[i].mask;
-        m & self.day_bits.0 != 0 && m & self.day_bits.1 != 0
+        let d = &self.departures[i];
+        // [ROLLBACK nighttt-1] (a trip past 24:00 runs as its copy of the next morning, on the day before's mask)
+        if d.wrapped {
+            return false;
+        }
+        let (day, school) = if d.prev_day { self.prev_day_bits } else { self.day_bits };
+        omsi_map::mask_runs(d.mask, day, school)
     }
 
     /// Move the timetable on to the clock's date when it has changed (midnight): the day's
@@ -895,7 +944,7 @@ impl Schedule {
         }
         self.day = date;
         self.day_bits = day_bits(&self.calendar, clock);
-        self.next_day_bit = 1 << ((clock.weekday() + 1) % 7);
+        self.prev_day_bits = prev_day_bits(&self.calendar, clock);
         let busy: HashSet<usize> = self
             .pending
             .iter()
@@ -1309,8 +1358,72 @@ impl Schedule {
         tour_key_of(&d.ai_group.to_ascii_lowercase(), &d.line, &d.tour)
     }
 
+    /// [ROLLBACK careerhired-1] The jobs of the company's hired drivers on this map (Career Mode): their
+    /// courses are run with the company's buses. Departures already spawned stay as they are.
+    pub fn set_hired(&mut self, jobs: Vec<crate::career_hired::Hired>) {
+        self.hired.clear();
+        for job in jobs {
+            let Some(line) = self.data.lines.iter().find(|l| l.name.eq_ignore_ascii_case(&job.line)) else { continue };
+            let Some(tour) = line.tours.iter().find(|t| t.number.eq_ignore_ascii_case(&job.tour)) else { continue };
+            let last = job.last.min(tour.trips.len().saturating_sub(1));
+            let first = job.first.min(last);
+            let times: Vec<f64> = tour.trips.get(first..=last).unwrap_or(&[]).iter().map(|t| t.departure as f64 * 60.0).collect();
+            if times.is_empty() {
+                continue;
+            }
+            log::info!("career: {} is out with #{} on line {} tour {} ({} courses): that bus runs them on the road", job.driver, job.fleet_no, job.line, job.tour, times.len());
+            self.hired.push(HiredBus { job, times, bus: None });
+        }
+    }
+
+    /// The company's bus for departure `i` when a hired driver has that course.
+    fn choose_hired(&mut self, i: usize, world: &World) -> Option<Choice> {
+        if self.hired.is_empty() {
+            return None;
+        }
+        let d = &self.departures[i];
+        let k = self.hired.iter().position(|h| {
+            h.job.line.eq_ignore_ascii_case(&d.line)
+                && h.job.tour.eq_ignore_ascii_case(&d.tour)
+                && h.times.iter().any(|t| (d.time - t).abs() < 30.0 || (d.prev_day && (d.time + DAY - t).abs() < 30.0))
+        })?;
+        if self.hired[k].bus.is_none() {
+            let job = self.hired[k].job.clone();
+            let path = omsi_cfg::resolve_path(&world.root, &job.bus_file);
+            let loaded = match VehicleType::load_ai(&world.root, &path) {
+                Ok(t) => {
+                    let ty = Arc::new(t);
+                    // the depot file the map's own buses use (the destinations on the displays)
+                    let want = self.depots.values().flatten().find_map(|(_, _, h)| h.as_ref().map(|h| h.name.clone()));
+                    let hof = want.and_then(|n| depot_file(&mut HashMap::new(), ty.def.dir(), &n));
+                    Some((ty, hof))
+                }
+                Err(e) => {
+                    log::warn!("career: the hired driver's bus {} did not load: {e}", job.bus_file);
+                    None
+                }
+            };
+            self.hired[k].bus = Some(loaded);
+        }
+        let job = &self.hired[k].job;
+        let (ty, hof) = self.hired[k].bus.clone().flatten()?;
+        let plate = if !job.plate.trim().is_empty() { job.plate.clone() } else { ty.def.plate_of_number(&job.fleet_no) };
+        let number = (!job.fleet_no.trim().is_empty()).then(|| (job.fleet_no.clone(), plate));
+        let scheme = if ty.paint_schemes.is_empty() {
+            None
+        } else if job.paint.trim().is_empty() {
+            (ty.def.default_paint.trim() == "<nouse>").then_some(0)
+        } else {
+            ty.paint_schemes.iter().position(|s| s.name.trim_end().eq_ignore_ascii_case(job.paint.trim_end()))
+        };
+        Some(Choice { ty, number, hof, scheme, train: None })
+    }
+
     /// The vehicle departure `i` is driven with (see [`Choice`]).
     fn choose(&mut self, i: usize, world: &World) -> Option<Choice> {
+        if let Some(c) = self.choose_hired(i, world) {
+            return Some(c);
+        }
         let group = self.departures[i].ai_group.to_ascii_lowercase();
         let h = self.tour_key(i);
         // trains: the group lists .zug files instead of depot vehicles
@@ -3936,7 +4049,7 @@ impl Schedule {
             (Some((line, tour)), Some(d)) => {
                 d.line.eq_ignore_ascii_case(line)
                     && d.tour.eq_ignore_ascii_case(tour)
-                    && self.player_departure.map(|t| (d.time - t).abs() < 30.0).unwrap_or(true)
+                    && self.player_departure.map(|t| (d.time - t).abs() < 30.0 || (d.prev_day && (d.time + DAY - t).abs() < 30.0)).unwrap_or(true)
             }
             _ => false,
         }
@@ -4401,6 +4514,11 @@ fn chosen_trip(trips: &[PlannedTrip], pick: &str) -> Option<usize> {
     if let Some((h, m)) = pick.split_once(':') {
         let (h, m) = (h.trim().parse::<f64>().ok()?, m.trim().parse::<f64>().ok()?);
         let at = h * 3600.0 + m * 60.0;
+        // [ROLLBACK nighttt-1] "01:10" is the 25:10 trip of a night tour (a list that shows the hour
+        // of the day, not of the timetable, names it so)
+        if let Some(i) = trips.iter().position(|t| (t.departure - at).abs() < 30.0 || (t.departure - at - DAY).abs() < 30.0) {
+            return Some(i);
+        }
         return trips.iter().position(|t| t.departure >= at - 30.0);
     }
     let n = pick.parse::<usize>().ok()?;
@@ -4410,6 +4528,18 @@ fn chosen_trip(trips: &[PlannedTrip], pick: &str) -> Option<usize> {
 /// The trip of a duty that fits the time of day: the one under way, else the next to leave
 /// (the last one once all are over).
 fn starting_trip(trips: &[PlannedTrip], now: f64) -> usize {
+    // [ROLLBACK nighttt-1] A night tour (trips of 25:00, 26:00) picked at 1 in the morning is the
+    // night of the day before: its times are those of the clock plus a day. Without this the
+    // first trip, 23:00 of the evening, was "the one under way" at 1:00.
+    let now = if now < DAY / 2.0
+        && trips.iter().any(|t| t.departure >= DAY)
+        && (trips.first().is_some_and(|f| f.departure >= DAY / 2.0)
+            || trips.iter().any(|t| t.departure <= now + DAY && t.end > now + DAY))
+    {
+        now + DAY
+    } else {
+        now
+    };
     trips.iter().position(|t| t.end > now).unwrap_or_else(|| {
         // every trip over for today: a tour after midnight (the night line 13N's runs from
         // 0:49) picked in the evening is tonight's, and starts at its first trip
@@ -4437,6 +4567,30 @@ fn mix(mut h: u64) -> u64 {
     h ^ (h >> 33)
 }
 
+/// [ROLLBACK nighttt-1] The date code (YYYYMMDD) of the day before `code`.
+fn prev_date_code(code: i32) -> i32 {
+    let (y, m, d) = (code / 10000, code / 100 % 100, code % 100);
+    if d > 1 {
+        return code - 1;
+    }
+    let (py, pm) = if m > 1 { (y, m - 1) } else { (y - 1, 12) };
+    let len = match pm {
+        2 if (py % 4 == 0 && py % 100 != 0) || py % 400 == 0 => 29,
+        2 => 28,
+        4 | 6 | 9 | 11 => 30,
+        _ => 31,
+    };
+    py * 10000 + pm * 100 + len
+}
+
+/// [ROLLBACK nighttt-1] The mask bits of the day before `clock`'s date (see `Departure::prev_day`).
+fn prev_day_bits(calendar: &omsi_map::Calendar, clock: &omsi_sim::SimClock) -> (i32, i32) {
+    let date = prev_date_code(clock.date_code());
+    let day_bit = if calendar.is_holiday(date) { 1 << 7 } else { 1 << ((clock.weekday() + 6) % 7) };
+    let school_bit = omsi_map::school_bit(calendar.in_holiday_range(date)); // [ROLLBACK schoolbits-2]
+    (day_bit, school_bit)
+}
+
 /// A vehicle file path compared as `car_use` writes it (`vehicles\MAN_SD200\MAN_SD77.bus`):
 /// lower case with forward slashes.
 fn norm_vehicle_path(p: &str) -> String {
@@ -4444,12 +4598,12 @@ fn norm_vehicle_path(p: &str) -> String {
 }
 
 /// The tour mask bits `clock`'s date selects: (the weekday's or public holiday's, the school
-/// holidays' or school days'). the original: bit 8 = runs in the school holidays,
-/// bit 9 = runs on school days.
+/// holidays' or school days'). the original (Omsi.exe, `docs/ROUTES.md`): bit 8 = "No Hols" = runs on
+/// school days, bit 9 = "Hols" = runs in the school holidays.
 fn day_bits(calendar: &omsi_map::Calendar, clock: &omsi_sim::SimClock) -> (i32, i32) {
     let date = clock.date_code();
     let day_bit = if calendar.is_holiday(date) { 1 << 7 } else { 1 << clock.weekday() };
-    let school_bit = if calendar.in_holiday_range(date) { 1 << 8 } else { 1 << 9 };
+    let school_bit = omsi_map::school_bit(calendar.in_holiday_range(date)); // [ROLLBACK schoolbits-2]
     (day_bit, school_bit)
 }
 
@@ -6324,6 +6478,22 @@ pub(crate) mod tests {
         assert_eq!(trip.line, "5E");
         assert_eq!(trip.terminus, "T");
         assert_eq!(stop, 0);
+    }
+
+    /// [ROLLBACK nighttt-1] A night tour with trips timed 25:10 and 26:10, picked at 1 in the morning.
+    #[test]
+    fn a_night_tour_picked_after_midnight_starts_with_the_trip_under_way() {
+        let trips = vec![
+            planned(82800.0, &[(0.0, 82800.0, 82800.0), (500.0, 84600.0, 84600.0)]),
+            planned(90600.0, &[(0.0, 90600.0, 90600.0), (500.0, 92400.0, 92400.0)]),
+            planned(94200.0, &[(0.0, 94200.0, 94200.0), (500.0, 96000.0, 96000.0)]),
+        ];
+        assert_eq!(starting_trip(&trips, 3600.0), 1, "1:00: the 25:10 one is next");
+        assert_eq!(starting_trip(&trips, 3600.0 + 1800.0), 1, "1:30: the 25:10 one is under way");
+        assert_eq!(starting_trip(&trips, 22.0 * 3600.0 + 1800.0), 0, "22:30: tonight's first");
+        assert_eq!(chosen_trip(&trips, "01:10"), Some(1));
+        assert_eq!(chosen_trip(&trips, "25:10"), Some(1));
+        assert_eq!(chosen_trip(&trips, "02:10"), Some(2));
     }
 
     #[test]

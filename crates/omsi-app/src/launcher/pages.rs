@@ -17,6 +17,8 @@ pub struct PagesView {
     pub confirm_delete: Option<std::time::Instant>,
     /// The "reset every setting" dialog is open.
     pub confirm_reset: bool,
+    /// [ROLLBACK thumbsall-1] The "Bus pictures" dialog (every picture at once) is open.
+    pub thumbs_dialog: bool,
     pub kb_filter: [String; 2],
     /// The OMSI-style "Add event..." browser is open for a keyboard section.
     pub kb_events: [bool; 2],
@@ -306,7 +308,8 @@ fn toggle_setting(ui: &mut Ui, s: &mut Value, dirty: &mut f32, r: Rect, label: &
 }
 
 /// The settings page's tabs: what one has come to change.
-pub const SETTINGS_TABS: [&str; 6] = ["Graphics", "Driving", "Camera", "Sound", "Gameplay", "General"];
+// [ROLLBACK rollbands-1] "Rollbands" is the last tab (the others keep their numbers); before: six tabs, no "Rollbands".
+pub const SETTINGS_TABS: [&str; 7] = ["Graphics", "Driving", "Camera", "Sound", "Gameplay", "General", "Rollbands"];
 
 /// What the tabs ask of the launcher (they see only the settings): "Reset all settings",
 /// the Controls page at one of its tabs.
@@ -331,15 +334,10 @@ pub fn settings(l: &mut Launcher, area: Rect) {
     let body = l.page_title(area, "Settings", "Every change is saved at once; the game reads them when it starts.");
     // (one tab at a time: the whole page in three columns was taller than two screens, and a
     // setting was found by reading all of it)
-    let bar = Rect::new(body.x, body.y, body.w.min(660.0), 36.0);
+    let bar = Rect::new(body.x, body.y, body.w.min(760.0), 36.0);
     let mut tab = l.pages.settings_tab;
     if l.ui.segmented("settings-tab", bar, &mut tab, &SETTINGS_TABS) {
         l.pages.settings_tab = tab;
-    }
-    // the bus catalogue's editor (how the buses are named and sorted)
-    if body.w >= bar.w + 230.0 && l.ui.button("settings-catalogue", Rect::new(body.right() - 210.0, bar.y, 210.0, bar.h), "Bus catalogue", Some("directions_bus"), ButtonKind::Normal) {
-        l.go(Page::Catalog);
-        return;
     }
     let body = Rect::new(body.x, bar.bottom() + 18.0, body.w, (body.bottom() - bar.bottom() - 18.0).max(0.0));
     let s = &mut l.state.settings;
@@ -348,6 +346,9 @@ pub fn settings(l: &mut Launcher, area: Rect) {
     // (two columns side by side; where they would be too narrow to read - a phone - one
     // under the other, each as high as it was the frame before)
     let stacked = body.w < 900.0;
+    // [ROLLBACK rollbands-1] the Rollbands tab's preview picture: its texture, once the frame that
+    // drew the picture has put it on the GPU
+    rollbands_texture(l.icons.get(RB_KEY).copied());
     // (each tab scrolled where it was left, not where another one was)
     l.ui.scroll_area(&format!("settings-page-{tab}"), body, &mut |ui, v| {
         let hs = SETTINGS_COL_H.with(|c| c.get())[tab];
@@ -367,6 +368,9 @@ pub fn settings(l: &mut Launcher, area: Rect) {
         });
         h
     });
+    if let Some(p) = rollbands_pending() {
+        l.icons_pending.push(p);
+    }
     if out.choice_changed {
         l.state.choice.traffic = out.traffic;
         l.state.choice.passengers = out.passengers;
@@ -455,8 +459,241 @@ fn settings_tab(ui: &mut Ui, tab: usize, s: &mut Value, dirty: &mut f32, out: &m
         2 => camera_tab(ui, s, dirty, out, cols),
         3 => sound_tab(ui, s, dirty, cols),
         4 => gameplay_tab(ui, s, dirty, out, cols),
-        _ => general_tab(ui, s, dirty, out, cols),
+        5 => general_tab(ui, s, dirty, out, cols),
+        _ => rollbands_tab(ui, cols),
     }
+}
+
+// --- the Rollbands tab -----------------------------------------------------------------------
+
+/// [ROLLBACK rollbands-1] The key the preview's picture is kept under in `Launcher::icons`.
+pub const RB_KEY: &str = "rollband-preview";
+
+/// What the Rollbands tab keeps between frames: the folder being edited, the colours as they
+/// are typed, the sample texts and the preview's picture.
+struct RbUi {
+    style: usize,
+    line: String,
+    dest: String,
+    sub: String,
+    /// The typed ground and lettering colours, and the folder they were filled in for.
+    hex: [String; 2],
+    hex_for: Option<usize>,
+    /// What the picture shown was drawn from, and what is wanted since when.
+    sig: String,
+    wanted: String,
+    wanted_at: Option<std::time::Instant>,
+    pending: Option<(String, image::RgbaImage)>,
+    tex: Option<usize>,
+    had_tex: bool,
+    size: (u32, u32),
+    err: String,
+}
+
+thread_local! {
+    static RB: std::cell::RefCell<RbUi> = std::cell::RefCell::new(RbUi {
+        style: 0,
+        line: "76".into(),
+        dest: "Zehlendorf".into(),
+        sub: "Sachtlebenstr.".into(),
+        hex: [String::new(), String::new()],
+        hex_for: None,
+        sig: String::new(),
+        wanted: String::new(),
+        wanted_at: None,
+        pending: None,
+        tex: None,
+        had_tex: false,
+        size: (0, 0),
+        err: String::new(),
+    });
+}
+
+/// The texture the preview has on the GPU (None: none yet, or the GPU was given up and the
+/// picture is drawn again).
+fn rollbands_texture(tex: Option<usize>) {
+    RB.with(|rb| {
+        let mut rb = rb.borrow_mut();
+        if tex.is_none() && rb.had_tex {
+            rb.sig.clear();
+        }
+        rb.had_tex = tex.is_some();
+        rb.tex = tex;
+    });
+}
+
+/// The picture the tab drew this frame, to go to the GPU.
+fn rollbands_pending() -> Option<(String, image::RgbaImage)> {
+    RB.with(|rb| rb.borrow_mut().pending.take())
+}
+
+fn rollbands_file() -> std::path::PathBuf {
+    core::data_dir().join("rollbands.cfg")
+}
+
+/// A colour field: the colour as `#RRGGBB` (empty: the folder's own), and a swatch of what is drawn.
+fn rb_colour_row(ui: &mut Ui, c: &mut Col, id: &str, label: &str, text: &mut String, value: &mut Option<[u8; 3]>, default: [u8; 3]) {
+    use omsi_sim::blindtex as bt;
+    let r = c.row();
+    ui.label(Rect::new(r.x, r.y, r.w * 0.32, r.h), label);
+    let field = Rect::new(r.x + r.w * 0.32, r.y, r.w * 0.68 - 40.0, r.h);
+    if ui.text_input(id, field, text, &bt::hex_of(default), None) {
+        let t = text.trim();
+        *value = if t.is_empty() { None } else { bt::parse_hex(t).or(*value) };
+    }
+    let shown = value.unwrap_or(default);
+    let sw = Rect::new(field.right() + 8.0, r.y + 3.0, 32.0, r.h - 6.0);
+    ui.p().rounded(sw, 5.0, Color::rgba(shown[0], shown[1], shown[2], 1.0));
+    ui.p().rounded_border(sw, 5.0, 1.0, EDGE);
+}
+
+/// A slider over a factor shown in percent (`scale` 100) or in its own unit.
+#[allow(clippy::too_many_arguments)]
+fn rb_slider(ui: &mut Ui, c: &mut Col, id: &str, label: &str, v: &mut f32, scale: f32, lo: f32, hi: f32, step: f32, fmt: &dyn Fn(f32) -> String) {
+    let mut x = *v * scale;
+    if ui.slider(id, c.row(), &mut x, lo, hi, step, label, fmt) {
+        *v = x / scale;
+    }
+}
+
+/// How the roller blinds' and plug-in signs' pictures are drawn, per folder of `Anzeigen`:
+/// the look of every folder `omsi_sim::blindtex` knows, and a preview of the one being edited.
+fn rollbands_tab(ui: &mut Ui, cols: [Rect; 2]) -> [f32; 2] {
+    use omsi_sim::blindtex as bt;
+    RB.with(|rb| {
+        let mut rb = rb.borrow_mut();
+        let rb = &mut *rb;
+        bt::ensure_loaded(rollbands_file);
+        let styles = bt::STYLES;
+        let mut c = Col::new(ui, cols[0], "Look of the pictures");
+        c.y += ui.paragraph(
+            "A roller blind or a plug-in sign whose picture the map does not have is drawn by openOMSI from the destination's texts, in the look of the folder of Anzeigen it asks its picture from. Every folder has its own look here. Pictures that came with the map are never changed. The game reads the looks when it starts.",
+            Vec2::new(c.inner.x, c.y - 4.0),
+            c.inner.w,
+            12.0,
+            Weight::Regular,
+            TEXT_FAINT,
+        ) + 8.0;
+        let names: Vec<String> = styles.iter().map(|s| s.folder().to_string()).collect();
+        let r = c.row();
+        ui.label(Rect::new(r.x, r.y, r.w * 0.32, r.h), "Folder");
+        ui.select("rb-style", Rect::new(r.x + r.w * 0.32, r.y, r.w * 0.68, r.h), &mut rb.style, &names);
+        rb.style = rb.style.min(styles.len() - 1);
+        let st = styles[rb.style];
+        let before = bt::tweak(st);
+        let mut t = before;
+        if rb.hex_for != Some(rb.style) {
+            rb.hex = [t.bg.map(bt::hex_of).unwrap_or_default(), t.ink.map(bt::hex_of).unwrap_or_default()];
+            rb.hex_for = Some(rb.style);
+        }
+        let (dbg, dink) = st.colours();
+        c.section(ui, "Colours");
+        let [hb, hi] = &mut rb.hex;
+        rb_colour_row(ui, &mut c, "rb-bg", "Ground", hb, &mut t.bg, dbg);
+        rb_colour_row(ui, &mut c, "rb-ink", "Lettering", hi, &mut t.ink, dink);
+        c.y += ui.paragraph("Leave a colour empty for the folder's own. Paper keeps its grain and its shading.", Vec2::new(c.inner.x, c.y - 4.0), c.inner.w, 11.5, Weight::Regular, TEXT_FAINT) + 4.0;
+        c.section(ui, "Lettering");
+        // [ROLLBACK rollbands-2] the face: Roboto (built in), or a font of this machine (`.ttf` / `.otf` of the system's
+        // font folders, the user's and `~/.openomsi/fonts`; type in the list to find one)
+        {
+            let fonts = bt::local_fonts();
+            let mut names: Vec<String> = vec!["Roboto (built in)".to_string()];
+            names.extend(fonts.iter().map(|f| f.0.clone()));
+            let mut at = t.font.and_then(|cur| fonts.iter().position(|f| f.1 == cur)).map(|i| i + 1).unwrap_or(0);
+            let r = c.row();
+            ui.label(Rect::new(r.x, r.y, r.w * 0.32, r.h), "Font");
+            if ui.select("rb-font", Rect::new(r.x + r.w * 0.32, r.y, r.w * 0.68, r.h), &mut at, &names) {
+                t.font = if at == 0 { None } else { fonts.get(at - 1).map(|f| bt::intern_font(&f.1)) };
+            }
+        }
+        rb_slider(ui, &mut c, "rb-size", "Size", &mut t.size, 100.0, 40.0, 200.0, 5.0, &|v| format!("{v:.0}%"));
+        rb_slider(ui, &mut c, "rb-second", "Second line", &mut t.second, 100.0, 40.0, 200.0, 5.0, &|v| format!("{v:.0}%"));
+        rb_slider(ui, &mut c, "rb-width", "Widest line", &mut t.width, 100.0, 40.0, 150.0, 5.0, &|v| format!("{v:.0}%"));
+        rb_slider(ui, &mut c, "rb-letters", "Letter width", &mut t.letters, 100.0, 40.0, 180.0, 5.0, &|v| format!("{v:.0}%"));
+        rb_slider(ui, &mut c, "rb-weight", "Weight", &mut t.weight, 1.0, -300.0, 300.0, 25.0, &|v| format!("{v:+.0}"));
+        rb_slider(ui, &mut c, "rb-track", "Letter spacing", &mut t.track, 100.0, -5.0, 30.0, 1.0, &|v| format!("{v:+.0}%"));
+        rb_slider(ui, &mut c, "rb-shift", "Up / down", &mut t.shift, 100.0, -20.0, 20.0, 0.5, &|v| format!("{v:+.1}%"));
+        ui.toggle("rb-caps", c.row(), &mut t.caps, "All capitals");
+        c.y += ui.paragraph("Weight and letter width act on variable fonts (Roboto); a font put into ~/.openomsi/fonts is found on every system.", Vec2::new(c.inner.x, c.y - 4.0), c.inner.w, 11.5, Weight::Regular, TEXT_FAINT) + 4.0;
+        let r = c.row();
+        let half = (r.w - GAP) * 0.5;
+        let mut reset_all = false;
+        if ui.button("rb-reset", Rect::new(r.x, r.y, half, r.h), "Reset this folder", Some("restart_alt"), ButtonKind::Normal) {
+            t = bt::Tweak::default();
+            rb.hex_for = None;
+        }
+        if ui.button("rb-reset-all", Rect::new(r.x + half + GAP, r.y, half, r.h), "Reset all folders", Some("delete"), ButtonKind::Danger) {
+            reset_all = true;
+        }
+        if reset_all {
+            for s in styles {
+                bt::set_tweak(s, bt::Tweak::default());
+            }
+            t = bt::Tweak::default();
+            rb.hex_for = None;
+        }
+        if t != before || reset_all {
+            bt::set_tweak(st, t);
+            rb.err = match bt::save_file(&rollbands_file()) {
+                Ok(()) => String::new(),
+                Err(e) => format!("The looks could not be saved: {e}"),
+            };
+        }
+        if !rb.err.is_empty() {
+            c.y += ui.paragraph(&rb.err, Vec2::new(c.inner.x, c.y), c.inner.w, 12.0, Weight::Regular, DANGER) + 6.0;
+        }
+        let left = c.used();
+
+        // the preview and the texts it is drawn from
+        let mut c = Col::new(ui, cols[1], "Preview");
+        let r = c.row();
+        ui.text_input("rb-line", r, &mut rb.line, "Line number", None);
+        let r = c.row();
+        ui.text_input("rb-dest", r, &mut rb.dest, "Destination", None);
+        let r = c.row();
+        ui.text_input("rb-sub", r, &mut rb.sub, "Second line", None);
+        let tw = bt::tweak(st);
+        let sig = format!("{}|{:?}|{}|{}|{}", rb.style, tw, rb.line, rb.dest, rb.sub);
+        if sig != rb.sig {
+            // (drawn when the sliders have rested a moment: a picture is some tens of milliseconds)
+            if rb.wanted != sig {
+                rb.wanted = sig.clone();
+                rb.wanted_at = Some(std::time::Instant::now());
+            }
+            if rb.sig.is_empty() || rb.wanted_at.is_some_and(|at| at.elapsed() >= std::time::Duration::from_millis(150)) {
+                let lines = bt::Lines { line: rb.line.clone(), big: rb.dest.clone(), small: rb.sub.clone() };
+                let img = bt::render_with(st, &lines, &tw);
+                if let Some(mut buf) = image::RgbaImage::from_raw(img.width, img.height, img.rgba) {
+                    if buf.width() > 1100 {
+                        let h = (buf.height() as f32 * 1100.0 / buf.width() as f32).round().max(1.0) as u32;
+                        buf = image::imageops::resize(&buf, 1100, h, image::imageops::FilterType::Triangle);
+                    }
+                    rb.size = buf.dimensions();
+                    rb.pending = Some((RB_KEY.to_string(), buf));
+                }
+                rb.sig = sig;
+            }
+        }
+        c.y += 6.0;
+        let w = c.inner.w;
+        let h = if rb.size.0 > 0 { (w * rb.size.1 as f32 / rb.size.0 as f32).clamp(24.0, 360.0) } else { 90.0 };
+        let area = Rect::new(c.inner.x, c.y, w, h);
+        match rb.tex {
+            Some(tex) => ui.image(area, tex, 6.0),
+            None => ui.p().rounded(area, 6.0, FIELD),
+        }
+        ui.p().rounded_border(area, 6.0, 1.0, EDGE);
+        c.y += h + 10.0;
+        c.y += ui.paragraph(
+            "Drawn as the game would draw it for the folder and the texts above. A map that has its own pictures shows those instead.",
+            Vec2::new(c.inner.x, c.y),
+            c.inner.w,
+            11.5,
+            Weight::Regular,
+            TEXT_FAINT,
+        ) + 4.0;
+        [left, c.used()]
+    })
 }
 
 /// The saved graphics profiles' part of the Graphics tab: the list, the name being typed.
@@ -2559,6 +2796,27 @@ pub fn setup(l: &mut Launcher, area: Rect) {
             Err(e) => l.state.set_status(format!("{e:#}"), true),
         }
     }
+    // [ROLLBACK setupbuses-1] the buses' names and pictures (they were in the Settings page's header)
+    let r2 = Rect::new(r.x, r.bottom() + 16.0, r.w, 176.0);
+    l.ui.panel(r2);
+    let inner = l.ui.heading(Rect::new(r2.x + 20.0, r2.y + 16.0, r2.w - 40.0, r2.h - 32.0), "Buses", Some("directions_bus"));
+    let half = (inner.w - 16.0) * 0.5;
+    let texts = [
+        "How the buses are named, sorted and sized (manufacturer, model, class, years), and which the dealership leaves out.",
+        "The pictures of the buses the lists show. Take them all at once, with the time and the room they need.",
+    ];
+    let mut ph = 0.0f32;
+    for (k, text) in texts.iter().enumerate() {
+        ph = ph.max(l.ui.paragraph(text, Vec2::new(inner.x + k as f32 * (half + 16.0), inner.y), half, 12.5, Weight::Regular, TEXT_DIM));
+    }
+    let by = inner.y + ph.max(40.0) + 14.0;
+    if l.ui.button("setup-catalogue", Rect::new(inner.x, by, half.min(240.0), 38.0), "Bus catalogue", Some("directions_bus"), ButtonKind::Normal) {
+        l.go(Page::Catalog);
+        return;
+    }
+    if l.ui.button("setup-pictures", Rect::new(inner.x + half + 16.0, by, half.min(240.0), 38.0), "Bus pictures", Some("photo_camera"), ButtonKind::Normal) {
+        l.pages.thumbs_dialog = true;
+    }
 }
 
 
@@ -2783,7 +3041,9 @@ mod settings_tests {
             "set-navigator", "set-nav_arrows", "set-nav_arrows_auto", "set-nav_ai", "corner-top-left", "corner-top-right", "corner-bottom-left", "corner-bottom-right",
             "s-upd-github", "s-reset",
         ];
-        vec![graphics, driving, camera, sound, gameplay, general]
+        // ([ROLLBACK rollbands-1] the Rollbands tab)
+        let rollbands = vec!["rb-style", "rb-bg", "rb-ink", "rb-font", "rb-size", "rb-second", "rb-width", "rb-letters", "rb-weight", "rb-track", "rb-shift", "rb-caps", "rb-reset", "rb-reset-all", "rb-line", "rb-dest", "rb-sub"];
+        vec![graphics, driving, camera, sound, gameplay, general, rollbands]
     }
 
     /// Settings that show every row: Enhanced (Vanilla hides the shadows and effects), VR on.

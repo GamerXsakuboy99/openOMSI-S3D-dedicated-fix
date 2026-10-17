@@ -43,9 +43,15 @@ For k = last active scenario … 0, then the map's own `TTData` (k = −1):
   bytes at tour +0x20…+0x29.
 * Validity: on a public holiday (`[holiday]` date) only bit 7 counts;
   otherwise the weekday bit (0 Monday … 5 Saturday, 6 Sunday). In addition, in the school
-  holidays (a `[holidays]` range) bit **8** must be set, otherwise bit **9**. The printed
-  timetable confirms it: bit 8 clear → "% : Not on school holidays",
-  bit 9 clear → "~ : Only on school holidays".
+  holidays (a `[holidays]` range) bit **9** (512, the editor's "Hols") must be set, otherwise
+  bit **8** (256, "No Hols"). Read from Omsi.exe: the TTTTourValid record lists its fields
+  Mon … Sun, Hol, Hols, NoHols (bytes +0x20 … +0x29 of the tour), but the `.ttl` writer
+  (0x730cfa) and reader (0x72c281) store NoHols (+0x29) as bit 8 (0x100) and Hols (+0x28) as
+  bit 9 (0x200); the validity check (0x73c1f1) wants +0x29 while the school-holiday name
+  of the day (set from the `[holidays]` ranges, 0x7a6324) is empty and +0x28 while it is not.
+  (Round 7 had them the other way round, taking the order the fields are listed in for the
+  order of the bits; a map made in the editor, with lines for "school days" and "school
+  holidays", showed it.)
 * A tour started the previous day and running past midnight is checked against that day.
 
 ## `car_use/*.ocu`
@@ -88,5 +94,5 @@ ignored with "has no valid [line] entry for the current chrono scenario".
 * Chrono validity inclusive at both ends; no dates → never; folders in the game's order.
 * `TimetableData::load_with_chrono`: lines from the last folder back, taken off only by
   later scenarios.
-* Tour masks: bit 8 = school holidays, bit 9 = school days (they were swapped, so tours
-  marked for one ran on the other and showed as "not on this date" in the launcher).
+* Tour masks: bit 8 = school days ("No Hols"), bit 9 = school holidays ("Hols"); see above
+  (Round 7 had them swapped, and the fix of schoolbits-2 puts them back).

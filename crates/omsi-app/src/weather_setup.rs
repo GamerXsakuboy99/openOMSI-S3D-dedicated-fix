@@ -105,6 +105,7 @@ pub(crate) fn relative_humidity(temp_c:f32,absolute:f32)->f32{
     let vapour=absolute.max(0.0)*(temp_c+273.15).max(1.0)/216.7;
     (vapour/saturation_vapour_pressure(temp_c).max(0.001)*100.0).clamp(0.0,100.0)
 }
+#[allow(dead_code)] // (no slider writes it any more, [ROLLBACK humlabel-1])
 pub(crate) fn dew_point_c(temp_c:f32,relative:f32)->f32{
     let rh=(relative.clamp(0.1,100.0)/100.0).ln();
     let g=rh+17.67*temp_c/(243.5+temp_c); 243.5*g/(17.67-g)
@@ -416,11 +417,50 @@ pub(crate) fn cloud_drift_step(d: &mut [f32; 2], w: &omsi_content::weather::Weat
 
 /// How wet the roads are: rain soaks them in a few minutes, sunshine dries them in about
 /// twenty. `secs` is how long this weather has been running.
+#[allow(dead_code)]
 pub(crate) fn road_wetness(rate: f32, secs: f64, start: f32) -> f32 {
     if rate > 0.0 {
         (start + secs as f32 * rate / 180.0).clamp(0.0, 1.0)
     } else {
         (start - secs as f32 / 1200.0).clamp(0.0, 1.0)
+    }
+}
+
+/// [ROLLBACK roaddry-1] How fast the roads dry (the share of wetness lost a second) once the rain has
+/// stopped: a hot sunny afternoon with a wind takes about half an hour, a cold overcast day or a
+/// night several hours, and a fog hardly dries them at all - not the same twenty minutes
+/// whatever the weather. `sun_alt_deg` is the sun's height above the horizon.
+pub(crate) fn road_dry_rate(w: &omsi_content::weather::Weather, sun_alt_deg: f32) -> f32 {
+    if w.snow {
+        // (snow on the ground melts on its own account, not as a wet road dries)
+        return 0.0;
+    }
+    let kind = w.clouds.0.trim().to_ascii_lowercase();
+    let cover = if kind.is_empty() || kind.starts_with("-1") {
+        0.0
+    } else if kind.starts_with("overcast") {
+        1.0
+    } else if let Some(n) = kind.strip_prefix("cumulus") {
+        0.15 + 0.2 * n.trim().parse::<f32>().unwrap_or(1.0).clamp(1.0, 3.0)
+    } else {
+        0.5
+    };
+    let sun = sun_alt_deg.to_radians().sin().max(0.0) * (1.0 - 0.75 * cover);
+    let heat = ((w.temp.0 + 5.0) / 25.0).clamp(0.08, 1.5);
+    let wind = 1.0 + (w.wind.1 / 10.0).clamp(0.0, 1.0);
+    let vis = w.fog.0;
+    let damp = if vis.is_finite() && vis < 1000.0 { 0.4 + 0.6 * (vis / 1000.0).clamp(0.0, 1.0) } else { 1.0 };
+    (0.25 + 0.75 * sun) * heat * wind * damp / 1500.0
+}
+
+/// [ROLLBACK roaddry-1] The roads' wetness after `secs` of real time of this weather (`game_secs` of the game's
+/// own clock, which runs faster with the time speed: the roads dry by that): rain wets them as in
+/// `road_wetness`, anything lighter than a drizzle lets them dry by `road_dry_rate`.
+pub(crate) fn road_wetness_step(w: &omsi_content::weather::Weather, rate: f32, sun_alt_deg: f32, secs: f64, game_secs: f64, start: f32) -> f32 {
+    if rate > 0.01 {
+        (start + secs as f32 * rate / 180.0).clamp(0.0, 1.0)
+    } else {
+        (start - game_secs as f32 * road_dry_rate(w, sun_alt_deg)).clamp(0.0, 1.0)
     }
 }
 
@@ -627,4 +667,52 @@ pub(crate) fn from_report(s: &str) -> Option<omsi_content::weather::Weather> {
     let mut w = omsi_content::weather::from_metar(icao, raw);
     w.path = std::path::PathBuf::from(format!("metar:{icao}"));
     Some(w)
+}
+
+// [ROLLBACK roaddry-1]
+#[cfg(test)]
+mod roaddry_tests {
+    use super::*;
+    use omsi_content::weather::Weather;
+
+    fn weather(temp: f32, clouds: &str, wind: f32, vis: f32) -> Weather {
+        Weather { temp: (temp, 5.0), clouds: (clouds.into(), 1400.0), wind: (0.0, wind), fog: (vis, 0.0), ..Default::default() }
+    }
+
+    #[test]
+    fn roads_dry_by_the_sun_the_warmth_and_the_wind() {
+        let hot = road_dry_rate(&weather(25.0, "Cumulus 1", 4.0, 50000.0), 55.0);
+        let grey = road_dry_rate(&weather(8.0, "Overcast 1", 2.0, 50000.0), 20.0);
+        let night = road_dry_rate(&weather(15.0, "-1", 0.0, 50000.0), -30.0);
+        let fog = road_dry_rate(&weather(15.0, "-1", 0.0, 200.0), 40.0);
+        let clear = road_dry_rate(&weather(15.0, "-1", 0.0, 50000.0), 40.0);
+        // a sunny afternoon: dry in under an hour, a grey cold day: hours, the night in between
+        assert!(1.0 / hot < 3600.0 && 1.0 / hot > 900.0, "{}", 1.0 / hot);
+        assert!(1.0 / grey > 1.5 * 3600.0, "{}", 1.0 / grey);
+        assert!(night > 0.0 && night < clear && grey < clear && hot > clear);
+        assert!(fog < clear);
+        let mut snow = weather(-2.0, "Overcast 1", 0.0, 50000.0);
+        snow.snow = true;
+        assert_eq!(road_dry_rate(&snow, 30.0), 0.0);
+    }
+
+    #[test]
+    fn rain_wets_and_a_dry_spell_dries_them() {
+        let w = weather(20.0, "Cumulus 1", 2.0, 50000.0);
+        let mut wet = 0.0;
+        for _ in 0..600 {
+            wet = road_wetness_step(&w, 0.5, 40.0, 1.0, 1.0, wet);
+        }
+        assert_eq!(wet, 1.0);
+        let mut t = 0;
+        while wet > 0.0 && t < 20_000 {
+            wet = road_wetness_step(&w, 0.0, 40.0, 1.0, 1.0, wet);
+            t += 1;
+        }
+        assert!(wet == 0.0 && t > 600 && t < 4000, "{t}");
+        // a drizzle too light to wet lets them dry, the game's clock speed dries them faster
+        let a = road_wetness_step(&w, 0.005, 40.0, 1.0, 1.0, 0.5);
+        let b = road_wetness_step(&w, 0.005, 40.0, 1.0, 10.0, 0.5);
+        assert!(a < 0.5 && b < a);
+    }
 }

@@ -77,6 +77,11 @@ struct Shown {
     /// [ROLLBACK showroom-119] the widest and the tallest of the sections (m)
     width: f32,
     height: f32,
+    /// [ROLLBACK showfit-1] what is really drawn: the box round the meshes of the bus (and its
+    /// trailers) as they stand, `(centre, length, width, height)` - the live preview is framed on
+    /// this, not on `[boundingbox]` (a mod's box is often off the model, so the bus stood to one side).
+    /// `None` when the meshes are not to be trusted; the thumbnails keep using `centre` & co.
+    drawn: Option<(glam::Vec3, f32, f32, f32)>,
     weather: omsi_content::weather::Weather,
     lighting: Lighting,
     /// The decal editor's stickers, drawn over the bus without reading it again.
@@ -85,6 +90,104 @@ struct Shown {
     live_tex: std::collections::HashMap<String, usize>,
     /// Instances of removed stickers, to be used again (one material slot each).
     live_free: Vec<usize>,
+}
+
+/// [ROLLBACK seatview-1] The cameras of a seat, the front part's first, then the coupled parts' (the part
+/// each hangs on: None the front). The driver's start at the bus's own `camera_std`.
+fn seat_cameras(v: &omsi_sim::VehicleInstance, seat: Seat) -> Vec<(Option<usize>, omsi_vehicle::Camera)> {
+    let pick = |d: &omsi_vehicle::Vehicle| -> Vec<omsi_vehicle::Camera> {
+        match seat {
+            Seat::Driver => d.cameras_driver.clone(),
+            Seat::Passenger => d.cameras_pax.clone(),
+        }
+    };
+    let mut out: Vec<(Option<usize>, omsi_vehicle::Camera)> = pick(&v.ty.def).into_iter().map(|c| (None, c)).collect();
+    if seat == Seat::Driver && !out.is_empty() {
+        let k = v.ty.def.camera_std % out.len();
+        out.rotate_left(k);
+    }
+    for (i, t) in v.trailers.iter().enumerate() {
+        out.extend(pick(&t.ty.def).into_iter().map(|c| (Some(i), c)));
+    }
+    out
+}
+
+/// [ROLLBACK seatview-1] The picture's camera for the `idx`-th camera of a seat, the head turned by `look`.
+fn seat_camera(v: &omsi_sim::VehicleInstance, seat: Seat, idx: usize, look: (f32, f32), zoom: f32) -> Option<Camera> {
+    let list = seat_cameras(v, seat);
+    if list.is_empty() {
+        return None;
+    }
+    let (part, c) = &list[idx % list.len()];
+    let turned = omsi_vehicle::Camera { yaw: c.yaw + look.0, pitch: (c.pitch + look.1).clamp(-89.0, 89.0), ..c.clone() };
+    let (eye, yaw, pitch, roll) = match part {
+        Some(i) => v.trailers.get(*i)?.camera_world_full(&turned),
+        None => v.camera_world_full(&turned),
+    };
+    let fov = if c.fov > 1.0 { c.fov } else { 60.0 };
+    Some(Camera { position: eye, yaw, pitch: pitch.clamp(-89.0, 89.0), roll, fov_deg: (fov * zoom).clamp(12.0, 110.0), near: 0.1, far: 6000.0 })
+}
+
+/// [ROLLBACK showfit-1] Grows `acc` (min, max) by the box `lo..hi` seen through `m`: its eight corners.
+fn grow_box(acc: &mut Option<(glam::Vec3, glam::Vec3)>, lo: glam::Vec3, hi: glam::Vec3, m: glam::Mat4) {
+    for i in 0..8u32 {
+        let c = glam::Vec3::new(if i & 1 == 0 { lo.x } else { hi.x }, if i & 2 == 0 { lo.y } else { hi.y }, if i & 4 == 0 { lo.z } else { hi.z });
+        let p = m.transform_point3(c);
+        if !(p.x.is_finite() && p.y.is_finite() && p.z.is_finite()) {
+            continue;
+        }
+        *acc = Some(match *acc {
+            Some((a, b)) => (a.min(p), b.max(p)),
+            None => (p, p),
+        });
+    }
+}
+
+/// [ROLLBACK showfit-1] The box round what is drawn of the bus and its trailers, in the frame of the
+/// bus (x right, y forward, z up): `(centre, length, width, height)`. The boxes of the meshes are
+/// taken (not their vertices: a bus has hundreds of thousands), without the shadow blobs, the
+/// stickers and the wheels (which turn: their boxes would swell), and without the hidden meshes.
+fn drawn_box(v: &omsi_sim::VehicleInstance) -> Option<(glam::Vec3, f32, f32, f32)> {
+    let mut acc: Option<(glam::Vec3, glam::Vec3)> = None;
+    let skip = |ty: &omsi_sim::VehicleType, i: usize| {
+        let vm = &ty.meshes[i];
+        let Some(def) = ty.model.meshes.get(vm.def_index) else { return true };
+        vm.overlay || def.is_shadow || def.animations.iter().any(|a| a.variable.to_ascii_lowercase().starts_with("wheel"))
+    };
+    for i in 0..v.ty.meshes.len() {
+        if !v.mesh_props.get(i).map(|p| p.visible).unwrap_or(true) || skip(&*v.ty, i) {
+            continue;
+        }
+        let Some(&(lo, hi)) = v.ty.mesh_boxes.get(i) else { continue };
+        if hi.x < lo.x || (hi - lo).length_squared() == 0.0 {
+            continue;
+        }
+        grow_box(&mut acc, lo, hi, v.mesh_local_transform(i));
+    }
+    for t in &v.trailers {
+        let off = glam::Mat4::from_translation((t.position - v.position).as_vec3());
+        for i in 0..t.ty.meshes.len() {
+            if !t.mesh_props.get(i).map(|p| p.visible).unwrap_or(true) || skip(&*t.ty, i) {
+                continue;
+            }
+            let Some(&(lo, hi)) = t.ty.mesh_boxes.get(i) else { continue };
+            if hi.x < lo.x || (hi - lo).length_squared() == 0.0 {
+                continue;
+            }
+            grow_box(&mut acc, lo, hi, off * t.mesh_local_transform(i));
+        }
+    }
+    let (lo, hi) = acc?;
+    let s = hi - lo;
+    Some(((lo + hi) * 0.5, s.y, s.x, s.z))
+}
+
+/// [ROLLBACK showfit-1] Whether a drawn box can be believed against the `[boundingbox]` size
+/// `[width, length, height]`: a stray mesh far from the bus (or most of it missing) is not framed on.
+fn sane_box(b: (glam::Vec3, f32, f32, f32), bb: [f32; 3]) -> Option<(glam::Vec3, f32, f32, f32)> {
+    let (_, l, w, h) = b;
+    let ok = |got: f32, want: f32| got > 1.0 && got >= want * 0.4 && got <= want * 1.6 + 1.0;
+    (ok(l, bb[1]) && ok(w, bb[0].max(1.5)) && ok(h, bb[2].max(2.0))).then_some(b)
 }
 
 /// One sticker of the live layer.
@@ -148,6 +251,20 @@ pub struct Showroom {
     /// The editor's field of view (degrees) - the wheel changes it - and the free-flight camera.
     fov: f32,
     free: Option<FreeCam>,
+    /// [ROLLBACK seatview-1] A look from a seat of the bus instead of the turntable: the driver's
+    /// or a passenger's camera of its `.bus` (the `idx`-th), the head turned by `look` (degrees)
+    /// and zoomed by `seat_zoom` (a share of the camera's own field of view).
+    seat: Option<Seat>,
+    seat_idx: usize,
+    seat_look: (f32, f32),
+    seat_zoom: f32,
+}
+
+/// [ROLLBACK seatview-1] Which seat the preview looks from.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Seat {
+    Driver,
+    Passenger,
 }
 
 /// A camera that flies anywhere: where it is and where it looks (degrees; pitch down positive).
@@ -216,6 +333,10 @@ impl Showroom {
             cam_preview: None,
             fov: 30.0,
             free: None,
+            seat: None,
+            seat_idx: 0,
+            seat_look: (0.0, 0.0),
+            seat_zoom: 1.0,
         }
     }
 
@@ -228,6 +349,14 @@ impl Showroom {
 
     /// The mouse dragged over the empty part of the window (degrees), or turned the wheel.
     pub fn orbit(&mut self, dx: f32, dy: f32) {
+        if self.seat.is_some() {
+            // [ROLLBACK seatview-1] from a seat the mouse turns the head
+            self.seat_look.0 = (self.seat_look.0 + dx * 0.25 + 180.0).rem_euclid(360.0) - 180.0;
+            self.seat_look.1 = (self.seat_look.1 - dy * 0.25).clamp(-85.0, 85.0);
+            self.idle = 0.0;
+            self.dirty = true;
+            return;
+        }
         if let Some(f) = self.free.as_mut() {
             // free flight: the mouse turns the head
             f.yaw += dx * 0.25;
@@ -248,6 +377,13 @@ impl Showroom {
     /// The wheel: in the editor it changes the field of view (a longer lens zooms in, without
     /// the camera moving), elsewhere it moves the camera nearer or farther.
     pub fn wheel(&mut self, k: f32) {
+        if self.seat.is_some() {
+            // [ROLLBACK seatview-1] from a seat the wheel narrows or widens the lens
+            self.seat_zoom = (self.seat_zoom * k).clamp(0.3, 1.8);
+            self.idle = 0.0;
+            self.dirty = true;
+            return;
+        }
         if self.min_dist < 1.0 {
             self.fov = (self.fov * k).clamp(8.0, 100.0);
             self.idle = 0.0;
@@ -289,6 +425,9 @@ impl Showroom {
     /// Move the camera (and what it aims at) sideways and up by a mouse drag of `dx`, `dy`
     /// pixels: the bus follows the cursor.
     pub fn pan(&mut self, dx: f32, dy: f32) {
+        if self.seat.is_some() {
+            return;
+        }
         let Some(cam) = self.last_cam else { return };
         let (right, up, _) = cam.axes();
         if let Some(f) = self.free.as_mut() {
@@ -333,6 +472,41 @@ impl Showroom {
         self.aim = p;
         self.idle = 0.0;
         self.dirty = true;
+    }
+
+    /// [ROLLBACK seatview-1] Look from the driver's or a passenger's seat (`None`: the turntable again).
+    /// The bus's inside is shown for it; the head starts straight ahead.
+    pub fn set_seat(&mut self, seat: Option<Seat>) {
+        if self.seat == seat {
+            return;
+        }
+        self.seat = seat;
+        self.seat_idx = 0;
+        self.seat_look = (0.0, 0.0);
+        self.seat_zoom = 1.0;
+        self.idle = 0.0;
+        self.set_inside(seat.is_some());
+        self.dirty = true;
+    }
+
+    pub fn seat(&self) -> Option<Seat> {
+        self.seat
+    }
+
+    /// How many cameras of this seat the bus (and its coupled parts) has.
+    pub fn seat_count(&self, seat: Seat) -> usize {
+        self.shown.as_ref().and_then(|s| s.vehicle.as_ref()).map(|v| seat_cameras(v, seat).len()).unwrap_or(0)
+    }
+
+    /// The next camera of the seat (a bus has several passenger cameras, some drivers' ones).
+    pub fn seat_next(&mut self) {
+        if let Some(seat) = self.seat {
+            let n = self.seat_count(seat).max(1);
+            self.seat_idx = (self.seat_idx + 1) % n;
+            self.seat_look = (0.0, 0.0);
+            self.seat_zoom = 1.0;
+            self.dirty = true;
+        }
     }
 
     /// Look from inside the bus (or from outside again).
@@ -561,7 +735,11 @@ impl Showroom {
         }
         let lighting = lighting_for(&args, &weather);
         log::info!("showroom: {} ({} meshes, {:.1} m long) placed in {:.2} s", r.look.bus, render.instances.len(), length, t0.elapsed().as_secs_f64());
-        Shown { look: r.look, scene, world: Some(world), vehicle: Some(vehicle), render: Some(render), trailers, centre, length, width, height, weather, lighting, live: Vec::new(), live_tex: Default::default(), live_free: Vec::new() }
+        let drawn = drawn_box(&vehicle).and_then(|b| sane_box(b, [width, length, height]));
+        if let Some((c, l, w, h)) = drawn {
+            log::info!("showroom: {} drawn box centre ({:.2}, {:.2}, {:.2}), {:.1} x {:.1} x {:.1} m; [boundingbox] centre ({:.2}, {:.2}, {:.2}), {:.1} x {:.1} x {:.1} m", r.look.bus, c.x, c.y, c.z, w, l, h, centre.x, centre.y, centre.z, width, length, height);
+        }
+        Shown { look: r.look, scene, world: Some(world), vehicle: Some(vehicle), render: Some(render), trailers, centre, length, width, height, drawn, weather, lighting, live: Vec::new(), live_tex: Default::default(), live_free: Vec::new() }
     }
 
     /// The picture of the bus at `w` x `h` pixels, drawn again when something changed.
@@ -597,6 +775,19 @@ impl Showroom {
         let (yaw, pitch, zoom, focus) = (self.yaw, self.pitch, self.zoom, self.focus_now);
         let aim = self.aim;
         let Some(s) = self.shown.as_mut() else { return };
+        // [ROLLBACK seatview-1] from a seat: the camera of the bus's `.bus` file, hung on the body
+        if let (Some(seat), Some(v)) = (self.seat, s.vehicle.as_ref()) {
+            if let Some(cam) = seat_camera(v, seat, self.seat_idx, self.seat_look, self.seat_zoom) {
+                let half_v = (cam.fov_deg.to_radians() * 0.5).tan();
+                self.last_cam = Some(CamInfo { pos: cam.position, yaw: cam.yaw, pitch: -cam.pitch, half_v, aspect: w as f32 / h.max(1) as f32 });
+                s.scene.overlays.clear();
+                let mut l = s.lighting.clone();
+                // (inside the bus's box, as in the game: the light of a cab)
+                l.inside = v.ty.def.bounding_box.map(|bb| (v.position, v.heading, bb));
+                renderer.render(&mut s.scene, target, w, h, &cam, &l);
+                return;
+            }
+        }
         // (the fit of the bus is worked out for 30 degrees; the picture itself uses the editor's lens)
         let fov = 30.0f32;
         let lens = self.fov;
@@ -612,7 +803,13 @@ impl Showroom {
         // to spare, so a three-quarter view put the nearer end past the edge. The distance does not change
         // as the camera turns.
         let (sx, sz) = (s.width * 0.5, s.height * 0.5 + s.centre.z * 0.25);
-        let radius = ((s.length * 0.5).powi(2) + sx * sx + sz * sz).sqrt() + 0.5;
+        let mut radius = ((s.length * 0.5).powi(2) + sx * sx + sz * sz).sqrt() + 0.5;
+        // [ROLLBACK showfit-1] the live preview turns on the middle of what is drawn, and the sphere
+        // round it is the box's own half diagonal
+        let live_box = if self.studio { None } else { s.drawn };
+        if let Some((_, l, w, h)) = live_box {
+            radius = 0.5 * (l * l + w * w + h * h).sqrt() + 0.3;
+        }
         let half_h = (half_v * aspect * free).atan();
         let half_limit = half_h.min(half_v.atan()).max(0.05);
         let fit = radius / half_limit.sin();
@@ -620,6 +817,45 @@ impl Showroom {
         let (sp, cp) = pitch.to_radians().sin_cos();
         let mut dist = (fit * 1.04 * zoom).max(self.min_dist);
         let mut target_pt = DVec3::new(s.centre.x as f64, s.centre.y as f64, (s.centre.z * 0.75) as f64);
+        if let Some((c, _, _, _)) = live_box {
+            // [ROLLBACK showfit-3] across the bus the turning point is the middle of the body (the
+            // [boundingbox]'s): the box of the meshes also holds what sticks out on one side
+            // (mirrors, the door side), which pulled the bus off the middle of the picture
+            target_pt = DVec3::new(s.centre.x as f64, c.y as f64, c.z as f64);
+        }
+        // [ROLLBACK showfit-2] Near enough that the bus fills the picture, as the thumbnails of the dealership
+        // do: the distance at which the eight corners of the box round what is drawn just fit the
+        // free part of the window, from the side it is looked at from now (the sphere that keeps the
+        // distance the same all the way round left the bus small, with a third of the picture empty).
+        // Not for the decal editor's close-up, which has its own distances.
+        if let (Some((c, l, wd, ht)), true) = (live_box, self.min_dist >= 1.0) {
+            // [ROLLBACK showfit-3] The distance is the same from every side: the largest over a sweep
+            // of the angles the camera can take (before, it was worked out for the angle of the moment,
+            // so turning the bus pulled the camera in and out). The box is taken as it lies about the point
+            // the camera turns on.
+            let shift = c - glam::Vec3::new(target_pt.x as f32, target_pt.y as f32, target_pt.z as f32);
+            let (tan_v, tan_h) = (half_v * 0.94, (half_v * aspect * free).max(0.05) * 0.94);
+            let mut need = 0.0f32;
+            for yi in 0..24 {
+                let (sy2, cy2) = (yi as f32 * 15.0).to_radians().sin_cos();
+                for pd in [0.0f32, 20.0, 40.0, 55.0] {
+                    let (sp2, cp2) = pd.to_radians().sin_cos();
+                    let fwd = glam::Vec3::new(sy2 * cp2, cy2 * cp2, -sp2);
+                    let right = glam::Vec3::new(cy2, -sy2, 0.0);
+                    let up = right.cross(fwd);
+                    for ix in [-0.5f32, 0.5] {
+                        for iy in [-0.5f32, 0.5] {
+                            for iz in [-0.5f32, 0.5] {
+                                let o = glam::Vec3::new(ix * wd, iy * l, iz * ht) + shift;
+                                let (x, y, z) = (o.dot(right), o.dot(up), o.dot(fwd));
+                                need = need.max(x.abs() / tan_h - z).max(y.abs() / tan_v - z);
+                            }
+                        }
+                    }
+                }
+            }
+            dist = (need * zoom).max(self.min_dist);
+        }
         if self.studio {
             // the box of the whole vehicle, looked at through the picture: the distance at which
             // its eight corners just fit (a margin of 6 % round it)
@@ -649,12 +885,20 @@ impl Showroom {
         let dir = DVec3::new((sy * cp) as f64, (cy * cp) as f64, -sp as f64);
         let mut pos = target_pt - dir * dist as f64;
         self.cam_dist = dist;
-        pos.z = pos.z.max(0.6);
+        // [ROLLBACK showfit-3] a camera that the ground would hold down still looks at the bus's
+        // middle (it kept its angle before and so looked past it: the bus stood low in the picture)
+        let mut aim_pitch = pitch;
+        if pos.z < 0.6 {
+            pos.z = 0.6;
+            if !self.studio {
+                aim_pitch = (pos.z - target_pt.z).atan2((dist * cp) as f64).to_degrees() as f32;
+            }
+        }
         // the bus stands in the free part of the window: the camera looks past it to the
         // side by as much
         let side = (focus - 0.5) * 2.0 * half_v * aspect;
         let mut look_yaw = yaw - side.atan().to_degrees();
-        let mut look_pitch = pitch;
+        let mut look_pitch = aim_pitch;
         if let Some(f) = free_cam {
             pos = f.pos;
             look_yaw = f.yaw;
@@ -1088,4 +1332,34 @@ fn add_floor(renderer: &Renderer, scene: &mut Scene) {
     let mesh = renderer.add_mesh(scene, &data);
     let mat = renderer.add_material(scene, None, omsi_render::AlphaMode::Opaque, [0.12, 0.125, 0.135, 1.0], false);
     renderer.add_instance(scene, mesh, DVec3::new(0.0, 0.0, -0.005), glam::Mat4::IDENTITY, vec![mat]);
+}
+
+// [ROLLBACK showfit-1]
+#[cfg(test)]
+mod showfit_tests {
+    use super::*;
+    use glam::{Mat4, Vec3};
+    #[test]
+    fn grows_and_judges() {
+        let mut acc = None;
+        grow_box(&mut acc, Vec3::new(-1.25, -6.0, 0.0), Vec3::new(1.25, 6.0, 3.0), Mat4::IDENTITY);
+        // a mirror to the right, an offset mesh
+        grow_box(&mut acc, Vec3::new(-0.1, -0.1, -0.1), Vec3::new(0.1, 0.1, 0.1), Mat4::from_translation(Vec3::new(1.5, 5.0, 1.5)));
+        let (lo, hi) = acc.unwrap();
+        assert_eq!(lo, Vec3::new(-1.25, -6.0, 0.0));
+        assert!((hi.x - 1.6).abs() < 1e-5 && hi.y == 6.0);
+        let b = ((lo + hi) * 0.5, hi.y - lo.y, hi.x - lo.x, hi.z - lo.z);
+        assert!(sane_box(b, [2.5, 12.0, 3.0]).is_some());
+        // a stray mesh 60 m away: refused
+        let mut acc = None;
+        grow_box(&mut acc, Vec3::new(-1.25, -6.0, 0.0), Vec3::new(1.25, 6.0, 3.0), Mat4::IDENTITY);
+        grow_box(&mut acc, Vec3::splat(-0.1), Vec3::splat(0.1), Mat4::from_translation(Vec3::new(0.0, 60.0, 0.0)));
+        let (lo, hi) = acc.unwrap();
+        let b = ((lo + hi) * 0.5, hi.y - lo.y, hi.x - lo.x, hi.z - lo.z);
+        assert!(sane_box(b, [2.5, 12.0, 3.0]).is_none());
+        // NaN corner skipped
+        let mut acc = None;
+        grow_box(&mut acc, Vec3::ZERO, Vec3::ONE, Mat4::from_scale(Vec3::splat(f32::NAN)));
+        assert!(acc.is_none());
+    }
 }

@@ -211,6 +211,8 @@ pub(crate) struct App {
     pub(crate) center_cursor: bool,
     /// The cursor hidden while a controller drives: where it stood.
     pub(crate) cursor_hidden: Option<(f32, f32)>,
+    /// [ROLLBACK mousegrab-1] The cursor is held inside the window (mouse steering on, driving a bus).
+    pub(crate) cursor_confined: bool,
     /// The wheel's place when it last counted as moved.
     pub(crate) last_ctl_steer: Option<f32>,
     /// The mouse's throttle and brake (eased in with the steering).
@@ -377,6 +379,8 @@ pub(crate) struct App {
     pub(crate) touch: crate::touch::Touch,
     /// The quick menu (Alt): the tiles for what is wanted often (see `quick_menu.rs`).
     pub(crate) quick: crate::quick_menu::QuickMenu,
+    /// The hint over the minimap: the line and route to set for the course (see `route_hint.rs`).
+    pub(crate) route_hint: crate::route_hint::RouteHint,
     /// The summary of the trip just driven (see `trip_summary.rs`).
     pub(crate) summary: crate::trip_summary::SummaryWindow,
     /// A Career Mode session (`--career <file>`): the courses driven are reported into it.
@@ -796,6 +800,10 @@ impl App {
                     if self.args.schedule {
                         let mut sch =
                             schedule::Schedule::new(&self.args.root, &w, &start_clock(&self.args));
+                        // [ROLLBACK careerhired-1] Career Mode: the buses of the hired drivers out meanwhile
+                        if self.career_session.is_some() {
+                            sch.set_hired(crate::career_hired::read());
+                        }
                         sch.precache(
                             &w,
                             &renderer,

@@ -79,8 +79,15 @@ game controllers. While a timetable is active the line-and-tour tile turns red w
 the timetable instead: a click asks "You have an active timetable - cancel it?" (Enter or Y: yes, Esc
 or N: keep it) and, on yes, the game drives free as *Free drive* in the list of lines does. A tile
 that chooses something opens that list at once, again without a pause, and
-the menu closes when the choice is made or the list is left with Esc. Esc also hides the quick
-menu; Alt+Enter, Alt+S and the other Alt chords work as before.
+the list closes when the choice is made or it is left with Esc. The quick menu itself stays showing
+under Esc and under those lists - faint, and with no click taken while another menu is on top - and
+is the same again when they go; only Alt hides it. The timetable view (Insert) and the minimap do not
+cover it. Alt+Enter, Alt+S and the other Alt chords work as before.
+
+With a timetable active, a small hint over the minimap says which line and route to set on the IBIS
+for the course under way (for a roller blind: the destination to turn it to). It goes by itself once
+the IBIS shows it, comes back with the next course that needs another, and its cross puts it away for
+that course.
 
 **O** switches mouse steering on and off, as in OMSI (Omsi.exe's own formula): the cursor's
 place across the whole window is the steering from full left to full right lock
@@ -92,6 +99,49 @@ Settings → Driving → *Mouse steering sensitivity* makes it more or less sens
 Mouse steering works in the driver's, the passenger and the outside view; the wheel follows
 the cursor smoothly (a short easing, no steps). With *Smooth mouse steering* off (Settings →
 Driving) the wheel and the pedals are where the cursor says at once, as in OMSI.
+
+While mouse steering is on the driving keys (WSAD, the numpad, the arrows) are not heard: throttle,
+brake and steering come from the cursor alone (the other keys - lights, doors, gears - work as ever).
+
+While mouse steering is on (and the game window is in front, no menu open) the cursor cannot leave
+the game window - on a setup with several monitors it no longer wanders off to the other screen.
+Switch mouse steering off, open a menu, pause or click away, and the cursor is free again.
+
+With the keyboard the wheel stays where you put it when the bus stands still; it eases back
+towards the middle only once you drive (fully by about 5 km/h), and **numpad 5** (the
+"neutral" key) centres it at once. Wheels, joysticks and the touch wheel are unchanged.
+
+Roads dry after the rain: a hot sunny day takes a quarter of an hour to an hour of game time,
+a grey cold one hours, and snow stays. Wind helps; the game's clock speed counts.
+
+The Drive page's picture of the bus has *Outside / Cockpit / Interior* buttons (the driver's seat,
+a passenger's seat and a button for the next camera of the bus); drag to look round, wheel to
+zoom. The Tour list shows the tours of the chosen date. Night tours with trips timed 25:00, 26:00 are offered
+in the early hours of the day after they start as well (and only then), so at 1 o'clock in the morning you find them and begin
+with the trip under way.
+
+A tour's "Hols" / "No Hols" flags (the school holidays and the school days of the map's `Holidays.txt`) are read as Omsi.exe reads them.
+
+Wandering AI cars leave a roundabout after one lap. In Career Mode there is no limit on
+the drivers; a bus can be moved to another depot on the Fleet page; and the courses a driver
+is out on are greyed on the Jobs page.
+
+Before a course the Jobs page has a weather choice beside the start button (the natural weather of the
+date, the cycling weather, a METAR station or a weather file), as the Drive page has. A hired driver's
+bus is not only in the books: when you start a session on the map the driver works on, that bus - the
+company's own, with its livery and fleet number - runs the driver's courses of the tour on the road, at
+the times of the timetable, so you meet it as the timetable has it. (The job is paid as before; the bus
+on the road is only the picture of it.)
+
+**The livery on the Drive page** is chosen from tiles with the bus's pictures, the ones the dealership
+shows: the button under the bus list (with the arrows beside it to step through the liveries one by
+one) opens them over the bus's picture; a click on a tile chooses it and closes them. The pictures are
+taken once, kept in `~/.openomsi/cache/bus_thumbs`, and need a map chosen (they are taken in front of
+it). **Setup → Buses → Bus pictures** (with the Bus catalogue beside it) takes the pictures of every bus in every livery at once: the window
+says how many there are, how much room the missing ones will take on the disk and how long it will
+take (about; it learns the pace from a run), and while it runs it shows a bar, the time left and each
+picture as it is made. It goes on in the background (Hide window), a bus that does not load is
+skipped and counted, and Stop keeps what is taken and ends the work at once (shutting the livery picker likewise drops the pictures it was still waiting for).
 
 Two switches there change the steering keys (both off by default): *Steering linearity* turns
 the wheel at OMSI's own steady pace (the curvature grows by the same amount every millisecond
@@ -117,7 +167,7 @@ the keyboard, and Shift+right-drag zooms - this is OMSI's `[altView]` mode, the 
 (up: the outside camera backs away, the view inside widens up to the seat's own) and only the
 wheel button turns the view; each view keeps its own
 direction (turning the outside camera leaves the driver's head where it was), **Space** looks
-ahead again in every view (OMSI's `view_reset_all_directions`), Home recentres the view shown
+ahead again in every view (OMSI's `view_reset_all_directions`; if a keyboard.cfg gives that key to `view_reset_direction` as well, this one wins), Home recentres the view shown
 where keyboard.cfg does not make it the ticket desk camera.
 The mouse wheel zooms (the keys for it are on the Controls page, "Zoom the view in / out", unassigned at first): outside the camera comes closer,
 inside the bus the view narrows, as in OMSI; **Ctrl**+wheel outside narrows the view instead
@@ -168,11 +218,11 @@ dropdowns, a calendar, a time picker, text fields, segmented buttons), Material 
 icons and Roboto (`crates/omsi-ui`). The Drive page shows the chosen bus in a card, as a
 picture **drawn by the game's renderer** - its model, paint, materials, reflections and
 shadows exactly as in the game, under the light of the chosen time and weather - drawn
-again only when something changes; drag on it to turn the bus, scroll to zoom. Its pages:
+again only when something changes; drag on it to turn the bus, scroll to zoom (the same in the dealership and the fleet; the bus is framed on the box round what is drawn of it). Its pages:
 
 * **Drive** - four steps: the bus (search, liveries, depot file, number plate), the route (map, start
   point, line and tour - the lines that run on the chosen date), time and weather (time,
-  date, season, traffic, passengers, timetable buses, autostart, *LAN play: host / join*,
+  date, season, traffic, passengers, timetable buses, *LAN play: host / join*,
   the weather presets that suit the season), and the roadbook with the IBIS codes; the
   summary and **Start the duty** bottom right.
 * **Profile** - hours, experience and level, from OMSI's own `.odr` personnel files plus
@@ -181,9 +231,21 @@ again only when something changes; drag on it to turn the bus, scroll to zoom. I
   does not manage are kept as they are. One tab for each thing one comes to change:
   *Graphics* (the quality preset first, the screen, distances and memory), *Driving* (keys,
   mouse, wheel and pedals, with the way to the Controls page), *Camera* (the seat, the views,
-  head tracking, VR), *Sound*, *Gameplay* (passengers, traffic, collisions, the clock) and
+  head tracking, VR), *Sound*, *Gameplay* (passengers, traffic, collisions, the clock),
   *General* (language, the game's interface size, navigator, Discord Rich Presence,
-  and resetting every setting).
+  and resetting every setting) and *Rollbands* (how the pictures of roller blinds and plug-in
+  signs that the map does not have are drawn - see below).
+  **Rollbands:** a roller blind (`Rollband_SD79`, `_O307*`, `_Phantom`, `_Mirage`, `_N40*`,
+  `PR110`) or a plug-in sign (`Steckschild*`, `Dykty_Juzek`) shows a picture the map brings;
+  where the map has none, openOMSI draws one from the destination's texts in the look of the
+  folder the bus asked it from. The *Rollbands* tab has one look for each of these folders:
+  the colour of the ground and of the lettering (`#RRGGBB`, empty = the folder's own), the
+  font (the built-in Roboto, or any `.ttf` / `.otf` on this machine - the system's font
+  folders, the user's, or one put into `~/.openomsi/fonts`), the size of the lettering, the second line's size, the widest a line may be, the width and the
+  weight of the letters, their spacing, the lettering moved up or down, and all capitals.
+  A preview under the texts you type shows the folder being edited. The looks are kept in
+  `~/.openomsi/rollbands.cfg` and read when the game starts; pictures that came with a map
+  are never changed.
   **Discord Rich Presence** shows the launcher while preparing a drive, then the map and
   line above the vehicle type and tour while playing. The full vehicle name is in the logo's
   tooltip. The launcher status returns when the game ends.
@@ -514,6 +576,9 @@ Depot files can also be placed in a top-level `HOFs/` folder. Every vehicle can 
 `.hof` files without keeping a separate copy in each `Vehicles/<bus>/` folder. If a
 vehicle folder and `HOFs/` contain the same file name, the vehicle's own copy takes
 priority (the launcher's depot list shows the shared ones after the bus's own).
+A bus that has no depot file for the map at all takes one from elsewhere, always after its own
+folder: a `.hof` lying loose in `Vehicles/` (or in a folder of it with no vehicle in it), then the
+one of another vehicle that has the map's file, then the installed one that fits the map's name best.
 
 Installing a mod: the launcher's **Mods** page opens the system's folder / file picker
 (Finder, Explorer, GTK) for a mod folder or a `.zip`, `.7z` or `.rar` archive and sorts it
@@ -626,6 +691,10 @@ and the like) are taken over: every line with an http(s) address in the text fil
 
 **Shift+R** moves the whole list one station on, so that the buttons reach the stations
 behind the first ones.
+
+**A bus without a radio of its own.** In the Esc menu *Radio...* appears when the bus you drive has
+no radio that sets the variables above (and in any other bus too): it lists the stations (a click on *Play* plays one, a slider sets the volume, *Off* stops it; the radio goes on playing while the menu is open), so the stream plays in a bus that has no radio at all. A
+bus with its own radio keeps it until a station or *Off* is picked here; *Use vehicle radio* gives it back to the cab's buttons.
 
 **A map's stations.** A map may bring a `radio.cfg` of its own beside its `global.cfg`: its
 stations come first on the buttons while you drive on that map, yours after them. It may

@@ -309,7 +309,15 @@ pub fn depot_in(dir: &Path, name: &str) -> Option<Hof> {
     if name.is_empty() {
         return None;
     }
-    let files = depot_files(dir);
+    pick_named(&depot_files(dir), name)
+}
+
+/// Of the depot files `files`, the one called `name`: by its file name, else by its `[name]`.
+fn pick_named(files: &[PathBuf], name: &str) -> Option<Hof> {
+    let name = name.trim();
+    if name.is_empty() {
+        return None;
+    }
     if let Some(f) = files.iter().find(|f| f.file_stem().map(|s| s.to_string_lossy().trim().eq_ignore_ascii_case(name)).unwrap_or(false)) {
         if let Ok(h) = Hof::load(f) {
             return Some(h);
@@ -370,21 +378,70 @@ pub fn depot_like(dir: &Path, hints: &[&str]) -> Option<Hof> {
     closest_name(&refs, hints).and_then(|i| Hof::load(&files[i]).ok())
 }
 
-/// The depot file called `name` in the shared `HOFs/` folder or any vehicle folder of any content root (`Vehicles/*/`).
-///
-/// A depot file belongs to a map, not to a bus model: it lists the map's termini, stops and
-/// IBIS codes. A mod bus brings only the depot of the map it was made on (the O530 Citaro
-/// pack has Grundorf.hof alone), and on another map every code of the timetable was then
-/// unknown to its IBIS - no line and no destination on any display. OMSI players copy the
-/// map's .hof into such a folder; this finds the copy that is already installed with
-/// another bus.
-pub fn depot_anywhere(name: &str) -> Option<Hof> {
-    // (asked for every type of AI bus without the map's depot: the file found is kept for
-    // the session, and a big installation's thousands of folders are gone through once)
+/// The depot files lying about in `Vehicles/` of every content root, in two groups tried in
+/// this order: those lying loose - in `Vehicles/` itself or in a folder of it that holds no
+/// vehicle (no `.bus`; a player's own `Vehicles/Depots/`, up to three folders deep) - and
+/// those in the folders of vehicles. [ROLLBACK hoffall-1]
+fn installed_depots() -> std::sync::Arc<(Vec<PathBuf>, Vec<PathBuf>)> {
+    type Lists = std::sync::Arc<(Vec<PathBuf>, Vec<PathBuf>)>;
+    static LISTS: std::sync::OnceLock<std::sync::Mutex<(u64, Option<Lists>)>> = std::sync::OnceLock::new();
+    let cell = LISTS.get_or_init(Default::default);
+    let generation = omsi_cfg::content_generation();
+    {
+        let mut c = cell.lock().unwrap_or_else(|e| e.into_inner());
+        if c.0 != generation {
+            *c = (generation, None);
+        }
+        if let Some(l) = &c.1 {
+            return l.clone();
+        }
+    }
+    fn lower(p: &Path) -> String {
+        p.file_name().unwrap_or_default().to_string_lossy().to_ascii_lowercase()
+    }
+    fn is_hof(p: &Path) -> bool {
+        p.extension().is_some_and(|e| e.eq_ignore_ascii_case("hof"))
+    }
+    fn entries(d: &Path) -> Vec<PathBuf> {
+        let mut v: Vec<PathBuf> = omsi_cfg::mirrored_dirs(d).iter().flat_map(|m| omsi_cfg::vfs::read_dir_paths(m)).collect();
+        v.sort_by_key(|p| lower(p));
+        v.dedup();
+        v
+    }
+    fn walk(d: &Path, depth: u32, loose: &mut Vec<PathBuf>, own: &mut Vec<PathBuf>) {
+        let all = entries(d);
+        let vehicle = all.iter().any(|p| p.extension().is_some_and(|e| e.eq_ignore_ascii_case("bus")));
+        let hofs = all.iter().filter(|p| is_hof(p)).cloned();
+        if vehicle {
+            own.extend(hofs);
+        } else {
+            loose.extend(hofs);
+            if depth < 3 {
+                for sub in all.iter().filter(|p| omsi_cfg::vfs::is_dir(p)) {
+                    walk(sub, depth + 1, loose, own);
+                }
+            }
+        }
+    }
+    let mut top = omsi_cfg::read_dir_merged("Vehicles");
+    top.sort_by_key(|p| lower(p));
+    let mut loose: Vec<PathBuf> = top.iter().filter(|p| is_hof(p)).cloned().collect();
+    let mut own: Vec<PathBuf> = Vec::new();
+    for d in top.iter().filter(|d| omsi_cfg::vfs::is_dir(d)) {
+        walk(d, 1, &mut loose, &mut own);
+    }
+    let lists: Lists = std::sync::Arc::new((loose, own));
+    cell.lock().unwrap_or_else(|e| e.into_inner()).1 = Some(lists.clone());
+    lists
+}
+
+/// A search over the installed depot files, kept for the session (asked for every type of AI
+/// bus without the map's depot: a big installation's thousands of folders are gone through
+/// once): `key` says what is asked, `find` finds the file.
+fn remembered(key: String, find: impl FnOnce() -> Option<PathBuf>) -> Option<Hof> {
     type Found = std::collections::HashMap<String, Option<PathBuf>>;
     static FOUND: std::sync::OnceLock<std::sync::Mutex<(u64, Found)>> = std::sync::OnceLock::new();
     let found = FOUND.get_or_init(Default::default);
-    let key = name.trim().to_ascii_lowercase();
     let generation = omsi_cfg::content_generation();
     let known = {
         let mut f = found.lock().unwrap_or_else(|e| e.into_inner());
@@ -396,12 +453,66 @@ pub fn depot_anywhere(name: &str) -> Option<Hof> {
     if let Some(path) = known {
         return path.and_then(|p| Hof::load(&p).ok());
     }
-    // every vehicle folder once over all roots (depot_in looks at each root's copy)
-    let mut dirs: Vec<PathBuf> = omsi_cfg::read_dir_merged("Vehicles").into_iter().filter(|d| omsi_cfg::vfs::is_dir(d)).collect();
-    dirs.sort_by_key(|d| d.file_name().unwrap_or_default().to_string_lossy().to_ascii_lowercase());
-    let h = dirs.iter().find_map(|d| depot_in(d, name));
+    let h = find().and_then(|p| Hof::load(&p).ok());
     found.lock().unwrap_or_else(|e| e.into_inner()).1.insert(key, h.as_ref().map(|h| h.path.clone()));
     h
+}
+
+/// The depot file called `name` anywhere in the installation, for a bus that has none of its
+/// own: first one lying loose in `Vehicles/` (or in a folder of it that holds no vehicle),
+/// then the shared `HOFs/` folder or the folder of any vehicle of any content root.
+///
+/// A depot file belongs to a map, not to a bus model: it lists the map's termini, stops and
+/// IBIS codes. A mod bus brings only the depot of the map it was made on (the O530 Citaro
+/// pack has Grundorf.hof alone), and on another map every code of the timetable was then
+/// unknown to its IBIS - no line and no destination on any display. OMSI players copy the
+/// map's .hof into such a folder; this finds the copy that is already installed with
+/// another bus.
+pub fn depot_anywhere(name: &str) -> Option<Hof> {
+    let wanted = name.trim().to_string();
+    remembered(format!("name:{}", wanted.to_ascii_lowercase()), || {
+        let lists = installed_depots();
+        if let Some(h) = pick_named(&lists.0, &wanted) {
+            return Some(h.path);
+        }
+        // every vehicle folder once over all roots (depot_in looks at each root's copy)
+        let mut dirs: Vec<PathBuf> = omsi_cfg::read_dir_merged("Vehicles").into_iter().filter(|d| omsi_cfg::vfs::is_dir(d)).collect();
+        dirs.sort_by_key(|d| d.file_name().unwrap_or_default().to_string_lossy().to_ascii_lowercase());
+        if let Some(h) = dirs.iter().find_map(|d| depot_in(d, &wanted)) {
+            return Some(h.path);
+        }
+        pick_named(&lists.1, &wanted).map(|h| h.path)
+    })
+}
+
+/// The installed depot file that belongs to the place `hints` name (the map's depot names, its
+/// title, its folder - see [`closest_name`]), for a bus whose own folder has none: among the
+/// files lying loose in `Vehicles/` first, else among those of the other vehicles' folders.
+/// None when no file shares a word of the place.
+pub fn depot_like_anywhere(hints: &[&str]) -> Option<Hof> {
+    let key = format!("like:{}", hints.iter().map(|h| h.to_ascii_lowercase()).collect::<Vec<_>>().join("|"));
+    remembered(key, || {
+        let lists = installed_depots();
+        for files in [&lists.0, &lists.1] {
+            let names: Vec<String> = files
+                .iter()
+                .map(|f| {
+                    let stem = f.file_stem().unwrap_or_default().to_string_lossy().into_owned();
+                    match Hof::read_name(f) {
+                        Some(n) => format!("{stem} {n}"),
+                        None => stem,
+                    }
+                })
+                .collect();
+            let refs: Vec<&str> = names.iter().map(|s| s.as_str()).collect();
+            if let Some(i) = closest_name(&refs, hints) {
+                if Hof::load(&files[i]).is_ok() {
+                    return Some(files[i].clone());
+                }
+            }
+        }
+        None
+    })
 }
 
 #[cfg(test)]
@@ -449,6 +560,42 @@ mod tests {
         assert!(local_i < shared_i);
         assert_eq!(duplicate, &bus.join(&same_name));
         assert_eq!(depot_in(&bus, "Shared").map(|h| h.name), Some("Shared".into()));
+
+        omsi_cfg::remove_content_root(&root);
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    /// [hoffall-1] A bus without the map's depot: the one lying loose in a folder of `Vehicles/`
+    /// first, else the one in another vehicle's folder - by name, or the closest to the place.
+    #[test]
+    fn a_missing_depot_is_found_loose_in_vehicles_first() {
+        let stamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("openomsi-loose-hof-{stamp}"));
+        let loose = root.join("Vehicles/Depots");
+        let other = root.join("Vehicles/OtherBus");
+        let bare = root.join("Vehicles/BareBus");
+        for d in [&loose, &other, &bare] {
+            std::fs::create_dir_all(d).unwrap();
+        }
+        std::fs::write(other.join("other.bus"), "").unwrap();
+        std::fs::write(bare.join("bare.bus"), "").unwrap();
+        let both = format!("Both{stamp}");
+        let only_in_bus = format!("Hamburgensia{stamp}");
+        std::fs::write(loose.join(format!("{both}.hof")), "[name]\nLoose copy\n").unwrap();
+        std::fs::write(other.join(format!("{both}.hof")), "[name]\nBus copy\n").unwrap();
+        std::fs::write(other.join(format!("{only_in_bus}.hof")), "[name]\nHamburgensia depot\n").unwrap();
+
+        omsi_cfg::add_content_root(root.clone());
+        let h = depot_anywhere(&both).unwrap();
+        assert!(h.path.starts_with(&loose), "the loose copy wins: {}", h.path.display());
+        let h = depot_anywhere(&only_in_bus).unwrap();
+        assert!(h.path.starts_with(&other), "else the one in a vehicle's folder: {}", h.path.display());
+        let h = depot_like_anywhere(&[&format!("Map {only_in_bus} Linie 20")]).unwrap();
+        assert!(h.path.starts_with(&other), "the closest to the map's place: {}", h.path.display());
+        assert!(depot_like_anywhere(&["Nothing alike here"]).is_none());
 
         omsi_cfg::remove_content_root(&root);
         let _ = std::fs::remove_dir_all(root);

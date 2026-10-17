@@ -2153,6 +2153,13 @@ impl Humans {
             if o_task == Some(Task::ToBus) && me.task == Task::WalkingToBus {
                 continue;
             }
+            // [ROLLBACK paxwait-1] Outside, those waiting short of a shut door (states 2, 6) stand in a
+            // queue: nobody turns away from them. Held head-on by one of them, the one behind
+            // turned left in place (state 1, block 2, free to the right) and back again for as
+            // long as the door stayed shut.
+            if me.inside.is_none() && matches!(o_st, 2 | 6) {
+                continue;
+            }
             if !(o_bus == me.bus || (o_stop.is_some() && o_stop == me.stop)) {
                 continue;
             }
@@ -2998,13 +3005,17 @@ impl Humans {
                         // walking: on from the point walked to, towards the new door (Omsi.exe
                         // changes only the target and the door)
                         pp.pt_target = target;
-                    } else if pp.st == 7
+                    } else if (pp.st == 7 || pp.st == 6)
                         && target.is_some()
                         && (target == pp.pt || target == pp.pt_target)
                     {
                         // [ROLLBACK exitstay-95] already standing at that exit's point: they stay
                         // (nearest to where they stood was the point before it at times, and
                         // they walked back to it and round to the point they had left)
+                        // [ROLLBACK paxwait-1] Waiting 0.7 m short of it (state 6, a shut door) is standing there
+                        // as well: the second's search found the point *before* it nearest to
+                        // where they stood, and they walked back to it and on again as the door
+                        // opened
                         pp.pt_target = target;
                     } else if target != pp.pt_target || pp.st != 7 {
                         // [ROLLBACK exitstay-95] from the point they stand at, when they stand at one

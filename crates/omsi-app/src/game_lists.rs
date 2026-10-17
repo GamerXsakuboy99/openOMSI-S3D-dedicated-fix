@@ -53,6 +53,9 @@ pub(crate) enum ListKind {
     /// [ROLLBACK takeover-122] The vehicles standing in the world that can be driven: the ones the
     /// player placed or left (and, on foot, the own one), nearest first.
     Takeover,
+    /// [ROLLBACK radiomenu-1] The internet radio for a vehicle with no radio of its own: off and the
+    /// stations (`radio.cfg` and the map's), the loudness.
+    Radio,
 }
 
 /// A vehicle file of the menu's list (`Vehicles/...`) as its definition.
@@ -738,6 +741,23 @@ pub(crate) fn items(app: &App, kind: &ListKind) -> Vec<(String, String)> {
                 out.push((tr("This bus has no depot files (.hof)"), "back".into()));
             }
         }
+        ListKind::Radio => {
+            // [ROLLBACK radiomenu-3] buttons for the stations and a slider for the volume
+            let now = app.radio.manual();
+            let own = app.player.as_ref().is_some_and(|p| crate::radio::Radio::has_built_in(&p.vehicle));
+            let pick = |on: bool| tr(if on { "Selected" } else { "Select" });
+            if own {
+                out.push(button(&tr("Use vehicle radio"), &pick(now.is_none()), "The radio of the cab, with its own buttons", "radio cab"));
+            }
+            out.push(button(&tr("Off"), &pick(now == Some(None) || (now.is_none() && !own)), "", "radio off"));
+            for (i, name) in app.radio.station_names().into_iter().enumerate() {
+                out.push(button(&format!("{}. {name}", i + 1), &tr(if now == Some(Some(i)) { "Playing" } else { "Play" }), "", &format!("radio {i}")));
+            }
+            if app.radio.station_names().is_empty() {
+                out.push((tr("No radio stations (see ~/.openomsi/radio.cfg)"), "back".into()));
+            }
+            out.extend(slider_row(app, "radio_vol", &tr("Volume"), "How loud the radio plays", &|v| format!("{:.0} %", v * 100.0)));
+        }
         ListKind::Spots => {
             if let Some(w) = app.world.as_ref() {
                 // (the map's entry points, as the launcher's "Start at" lists them)
@@ -992,6 +1012,7 @@ pub(crate) fn menu_extras(
         ListKind::Destinations => (MenuKind::List, head("Destination display..."), None),
         ListKind::RouteNumbers => (MenuKind::List, Some((tr("Route number"), String::new())), None),
         ListKind::Hofs => (MenuKind::List, head("Depot file (HOF)..."), None),
+        ListKind::Radio => (MenuKind::Options, head("Radio..."), None),
         ListKind::Spots => (MenuKind::List, head("Teleport to a start point..."), None),
         ListKind::PlaceMaker | ListKind::PlaceType(_) | ListKind::PlaceLivery(_) | ListKind::PlaceHof(..) => (MenuKind::List, head("Place a vehicle..."), None),
         ListKind::Admin => (MenuKind::List, Some((tr("Administration"), String::new())), None),
@@ -1224,6 +1245,32 @@ pub(crate) fn run_move(app: &mut App, kind: &ListKind, action: &str, mv: Move) -
             }
             None
         }
+        ListKind::Radio => {
+            if verb == "radio_vol" {
+                let steps = steps_of("radio_vol").unwrap_or_default();
+                let now = app.radio.volume();
+                let to = step_move(&steps, now, mv);
+                if (to - now).abs() > 1e-6 {
+                    app.radio.set_volume(to);
+                    LIST_DIRTY.store(true, std::sync::atomic::Ordering::Relaxed);
+                }
+                return Some(ListKind::Radio);
+            }
+            // (the arrows and a click beside a button do nothing)
+            if !matches!(mv, Move::Next) {
+                return Some(ListKind::Radio);
+            }
+            match arg.trim() {
+                "off" => app.radio.set_manual(Some(None)),
+                "cab" => app.radio.set_manual(None),
+                n => {
+                    if let Ok(i) = n.parse::<usize>() {
+                        app.radio.set_manual(Some(Some(i)));
+                    }
+                }
+            }
+            Some(ListKind::Radio)
+        }
         ListKind::Takeover => {
             app.close_game_menu();
             if verb == "own" {
@@ -1386,6 +1433,7 @@ fn steps_of(verb: &str) -> Option<Vec<f32>> {
         "pax" => PAX.to_vec(),
         "pax_sit" => PAX_SIT.to_vec(),
         "volume" => VOLUME.to_vec(),
+        "radio_vol" => (1..=20).map(|v| v as f32 * 0.05).collect(),
         "led_glow" => (0..16).map(|v| v as f32).collect(),
         "radio_fx_speaker" | "radio_fx_noise" | "radio_fx_dropouts" => (0..=20).map(|v| v as f32 * 0.05).collect(),
         "led_mips" => (0..=80).map(|v| v as f32 * 0.05).collect(),
@@ -1546,6 +1594,7 @@ fn option_now(app: &App, verb: &str, arg: &str) -> Option<f32> {
         "pax" => s.pax_density,
         "pax_sit" => s.pax_sit,
         "volume" => s.volume,
+        "radio_vol" => app.radio.volume(),
         "led_glow" => s.led_glow as f32,
         "led_mips" => s.led_mips,
         "night_sky" => s.night_sky,
@@ -3130,14 +3179,9 @@ fn world_pages(app: &App) -> Vec<Page> {
             weather.extend(slider_row(app, "temp", "Temperature", "", &|v| {
                 format!("{} °C", v as i64)
             }));
-            let dew_temp = app.weather.as_ref().map(|w| w.temp.0).unwrap_or(15.0);
-            weather.extend(slider_row(app, "humidity", "Humidity", "", &|v| {
-                format!(
-                    "{:.0} % · dew {:.0} °C",
-                    v,
-                    crate::weather_setup::dew_point_c(dew_temp, v)
-                )
-            }));
+            // [ROLLBACK humlabel-1] the percentage alone: the dew point written after it ("% · dew 12 °C") ran into
+            // the label's own width
+            weather.extend(slider_row(app, "humidity", "Humidity", "", &|v| format!("{:.0} %", v)));
             weather.extend(slider_row(app, "wind_speed", "Wind speed", "", &|v| {
                 format!("{} m/s", v as i64)
             }));
@@ -3217,6 +3261,8 @@ fn pages_of(app: &App, kind: &ListKind) -> Option<(Vec<Page>, usize)> {
         ListKind::Vehicle(t) => (vehicle_pages(app), *t),
         ListKind::World(t) => (world_pages(app), *t),
         ListKind::Controls => (vec![("Controls", items(app, kind))], 0),
+        // [ROLLBACK radiomenu-4] one page, like Controls: the settings layout needs its pages
+        ListKind::Radio => (vec![("Radio", items(app, kind))], 0),
         ListKind::Keyboard(tab) => (keyboard_pages(app), *tab),
         ListKind::ControllerDevices(_) | ListKind::Controller(..) | ListKind::ControllerAxis(..) | ListKind::ControllerButtonSettings(..) => crate::game_controller_menu::pages(app, kind)?,
         _ => return None,
@@ -3299,15 +3345,18 @@ pub(crate) fn tour_start(tour: &omsi_timetable::Tour) -> Option<f64> {
 }
 
 /// Whether a tour is listed now: it runs on this day and is current at `now` (seconds of the
-/// day) - under way, or leaving within half an hour; one that has finished is not.
+/// day) - under way, or leaving within half an hour; one that has finished is not. A night tour of
+/// the day before is current in the early hours of this day by its times past 24:00 ([ROLLBACK tourlist-2]:
+/// the window a tour of today is held to is today's only, so the evening's tours are not listed at 1 in the morning).
 fn tour_listed(sch: &crate::schedule::Schedule, line: &str, tour: &omsi_timetable::Tour, now: f64) -> bool {
-    if !sch.tour_available(tour) {
+    let (today, yesterday) = sch.tour_day_kinds(tour);
+    if !today && !yesterday {
         return false;
     }
     let start = tour_start(tour).unwrap_or(0.0);
     let end = sch.tour_stops(line, &tour.number).iter().map(|s| s.3).fold(start, f64::max);
-    // (a night tour's times go on past 24:00: the early hours of the next day count too)
-    [now, now + 86400.0].iter().any(|n| *n >= start - 1800.0 && *n <= end + 60.0)
+    let current = |n: f64| n >= start - 1800.0 && n <= end + 60.0;
+    (today && current(now)) || (yesterday && current(now + 86400.0))
 }
 
 /// The line number a line's trips carry (`.ttp` line), else the name of the line's file.

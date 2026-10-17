@@ -9,7 +9,7 @@ pub mod terrain;
 pub mod tile;
 
 pub use ailists::{active_chrono_dirs, chrono_deactivated_lines, date_code, typgroup_entry_valid, AiGroup, AiLists, DepotEntry};
-pub use calendar::{Calendar, Holiday, HolidayRange, TimeZone};
+pub use calendar::{mask_runs, school_bit, Calendar, Holiday, HolidayRange, TimeZone};
 pub use global::{EntryPoint, GlobalCfg, GroundTex, MapTileRef};
 pub use terrain::Terrain;
 pub use tile::{MapObject, MapRule, MapSpline, SplineAttachment, Tile};

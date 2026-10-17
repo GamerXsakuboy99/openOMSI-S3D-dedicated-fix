@@ -372,6 +372,12 @@ impl Ui {
         self.layers.push((layer, Painter::with_scale(s), 0));
     }
 
+    /// [ROLLBACK showfit-1] Something other than a scroll area used this frame's wheel (the bus preview's
+    /// zoom): the page behind does not scroll with it.
+    pub fn take_wheel(&mut self) {
+        self.wheel_taken = true;
+    }
+
     /// Whether a scroll area took this frame's wheel (what is left scrolls the page).
     pub fn wheel_taken(&self) -> bool {
         // (an open dropdown takes it where it lies, at the end of the frame: a finger

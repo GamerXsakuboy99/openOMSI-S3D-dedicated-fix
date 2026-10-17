@@ -1099,7 +1099,7 @@ impl State {
     }
 
     /// The depot file a bus uses on the chosen map: the map's own when the bus has it (or
-    /// has none: the game borrows it), else the bus's first.
+    /// has none: the game borrows it), else the closest installed one, else the bus's first.
     /// The depot file for the chosen bus: the one the map's own buses use on the chosen date
     /// (the chrono scenarios change it: Berlin's 1994 depot has line 137 where 1986's had
     /// 92), which the bus has, else its first.
@@ -1123,6 +1123,16 @@ impl State {
             .or_else(|| like(&[want.as_str()]))
             .or(Some(want.clone()).filter(|w| !w.is_empty()))
             .or_else(|| like(&map_hints))
+            // [ROLLBACK hoffall-2] Nothing of the bus's own fits the map: the depot file that belongs to
+            // it as it lies elsewhere (loose in `Vehicles/`, or in another vehicle's folder),
+            // by name - before the bus's first file, which any foreign depot would be (the game
+            // took that name as asked for and never looked further)
+            .or_else(|| {
+                let mut hints: Vec<&str> = vec![want.as_str()];
+                hints.extend(map_hints.iter().copied());
+                omsi_vehicle::hof::depot_like_anywhere(&hints)
+                    .and_then(|h| h.path.file_stem().map(|s| s.to_string_lossy().into_owned()))
+            })
             .or_else(|| v.hofs.first().cloned())
             .unwrap_or_default()
     }
@@ -1222,7 +1232,8 @@ impl State {
     /// Start the tour at trip `index` (leaving at `departure`): at its departure.
     pub fn pick_trip(&mut self, index: usize, departure: f64) {
         let (Some(line), Some(tour)) = (self.choice.line.clone(), self.choice.tour.clone()) else { return };
-        self.choice.time = (departure / 60.0).floor() as i32;
+        // (a trip of 25:10 leaves at 01:10 on the clock the start time is set on)
+        self.choice.time = ((departure / 60.0).floor() as i32).rem_euclid(1440);
         self.choice.start_trip = Some((line, tour, index, self.choice.time));
         self.touched();
     }
@@ -1235,6 +1246,8 @@ fn game_listed(pid: Option<u32>, instances: &[core::Instance]) -> bool {
 
 /// The trip a tour starts with at `now`, shared by the route preview and the launch choice.
 pub(super) fn trip_index_at(tour: &core::TourInfo, now: f64) -> Option<usize> {
+    // [ROLLBACK nighttt-1] (a night tour at 1 in the morning is looked up at 25:00)
+    let now = tour.effective_now(now);
     tour.trips.iter().position(|x| x.departure >= now - 120.0).or(if tour.trips.is_empty() { None } else { Some(tour.trips.len() - 1) })
 }
 

@@ -469,7 +469,7 @@ windows. Each was traced to a general cause, most of them read off OMSI:
 * **Routes** (`docs/ROUTES.md`) - chrono `[deactivate_lines]` is a count and names (the
   count took lines "1", "2", "17" off); a scenario is in force only with a date, both ends
   inclusive, found in the game's order; lines from the last scenario back, taken off only
-  by later ones; tour masks: bit 8 school holidays, bit 9 school days (were swapped). AI
+  by later ones; tour masks: bit 8 school days, bit 9 school holidays (Round 7 swapped them; corrected from Omsi.exe in schoolbits-2). AI
   hof choice and `SetLineTo`/`AI_target_index` documented.
 * **Glass** - a slot named like glass without `[matl_alpha]` is opaque as in OMSI (the
   LiAZ's display surround and window frames showed the sky).

@@ -1016,6 +1016,9 @@ pub struct Traffic {
     /// Timetable buses taken off the road because the tile under them was unloaded (their
     /// ids), for the timetable to put them back when the tiles come again.
     pub removed_scheduled: Vec<u64>,
+    /// [ROLLBACK redlight-1] The (car, light controller, signal) triples a car was seen to go through a
+    /// red or without a controller on, logged once each (`light_stop`).
+    red_logged: hashbrown::HashSet<(u64, usize, usize)>,
     /// One-way lanes that have had their reverse twin added (`add_reverse_twins`).
     twinned: hashbrown::HashSet<usize>,
     /// Bodies besides the AI vehicles' that no timetable vehicle may be put into: the
@@ -1814,6 +1817,7 @@ impl Traffic {
             index_of: HashMap::new(),
             pull_out_rooms: HashMap::new(),
             removed_scheduled: Vec::new(),
+            red_logged: hashbrown::HashSet::new(),
             twinned: Default::default(),
             keep_clear: Vec::new(),
             mirror: false,
@@ -5438,11 +5442,19 @@ impl Traffic {
                 continue;
             };
             let Some(ctl) = self.lights.get(c) else {
+                if self.red_logged.insert((self.cars[i].id, c, li)) {
+                    log::info!("t={:.1}: car {} passes light {c}/{li} that has no controller: no stop", self.time, self.cars[i].id);
+                }
                 continue;
             };
             let gap = d - st.front;
             let comfortable = v * v / (2.0 * st.decel * 1.4) + 1.0;
             let possible = v * v / (2.0 * MAX_BRAKE * 0.8);
+            // [ROLLBACK redlight-1] a car that hardly rolls can stop at once: it takes neither the
+            // yellow nor the memory of an earlier green for a reason to go through a red
+            // (cars creeping in a queue, or round a bus standing in a bay, went through on the
+            // strength of "it was at the line when it was green")
+            let rolling = v > 1.5;
             let go = match TrafficLightController::aspect(ctl.state(li)) {
                 Aspect::Green | Aspect::Dark => {
                     // at the line when it showed green: that car goes, whatever comes next
@@ -5455,7 +5467,7 @@ impl Traffic {
                     true
                 }
                 Aspect::Yellow | Aspect::GreenYellow => {
-                    if !queued && (amber == Some((c, li)) || gap < comfortable) {
+                    if !queued && (amber == Some((c, li)) || gap < comfortable) && (rolling || gap < 0.5) {
                         amber = Some((c, li));
                         true
                     } else {
@@ -5464,10 +5476,19 @@ impl Traffic {
                 }
                 // decided to go on yellow and too close to stop now, or past stopping at all
                 Aspect::Red | Aspect::RedYellow => {
-                    let go = (amber == Some((c, li)) && gap < comfortable && !queued)
+                    let go = (amber == Some((c, li)) && gap < comfortable && !queued && rolling)
                         || gap < possible - 0.5;
                     if !go && amber == Some((c, li)) {
                         amber = None;
+                    }
+                    if go && gap < 2.0 && self.red_logged.insert((self.cars[i].id, c, li)) {
+                        log::info!(
+                            "t={:.1}: car {} goes through a red at light {c}/{li}: {:.1} m/s, {gap:.1} m from the line, {} (stop possible within {possible:.1} m, comfortable {comfortable:.1} m)",
+                            self.time,
+                            self.cars[i].id,
+                            v,
+                            if amber == Some((c, li)) { "after a green or yellow it was at" } else { "too close to stop" }
+                        );
                     }
                     go
                 }

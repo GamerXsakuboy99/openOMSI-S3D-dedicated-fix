@@ -1,4 +1,4 @@
-//! The bus catalogue's editor (Settings > Bus catalogue, and Career Mode > Catalog): the
+//! The bus catalogue's editor (Setup > Buses > Bus catalogue, and Career Mode > Catalog): the
 //! player's own database of how the buses are named and what they are
 //! (`omsi_launcher_lib::catalog`), used by the dealership, the fleet and later the Drive page
 //! and the AI list.

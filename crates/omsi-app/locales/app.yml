@@ -25284,3 +25284,134 @@ _version: 2
 
 "A preset is a named set of stickers. It can be put on any bus of this model.":
   pl: "Preset to nazwany zestaw naklejek. Można go nałożyć na każdy autobus tego modelu."
+
+"Set on the IBIS":
+  pl: "Ustaw w IBIS"
+  de: "Im IBIS einstellen"
+
+"Turn the roller blind to":
+  pl: "Przekręć rollbandę na"
+  de: "Rollband einstellen auf"
+
+"Radio...":
+  pl: "Radio..."
+  de: "Radio..."
+
+"louder":
+  pl: "głośniej"
+  de: "lauter"
+
+"quieter":
+  pl: "ciszej"
+  de: "leiser"
+
+"No radio stations (see ~/.openomsi/radio.cfg)":
+  pl: "Brak stacji radiowych (patrz ~/.openomsi/radio.cfg)"
+
+"Choose a livery":
+  pl: "Wybierz malowanie"
+  de: "Lackierung wählen"
+
+"The pictures are taken once a map is chosen.":
+  pl: "Miniaturki powstają, gdy wybrana jest mapa."
+  de: "Die Bilder entstehen, sobald eine Karte gewählt ist."
+
+"Bus pictures":
+  pl: "Miniaturki autobusów"
+  de: "Busbilder"
+
+"Pictures of the buses":
+  pl: "Miniaturki autobusów"
+  de: "Bilder der Busse"
+
+"The lists (the dealership, the fleet, the livery picker) show a picture of each bus. A page takes the ones it shows by itself, one by one, and they are kept; here every bus in every livery gets its picture at once.":
+  pl: "Listy (salon, flota, wybór malowania) pokazują miniaturkę każdego autobusu. Strona robi sama te, które wyświetla, po jednej, i zostają zapamiętane; tutaj każdy autobus w każdym malowaniu dostaje swoją miniaturkę naraz."
+  de: "Die Listen (Händler, Flotte, Lackierungsauswahl) zeigen ein Bild jedes Busses. Eine Seite macht die, die sie zeigt, selbst nacheinander, und sie bleiben gespeichert; hier bekommt jeder Bus in jeder Lackierung sein Bild auf einmal."
+
+"Buses":
+  pl: "Autobusy"
+  de: "Busse"
+
+"Taken already":
+  pl: "Już zrobione"
+  de: "Schon gemacht"
+
+"Still to take":
+  pl: "Do zrobienia"
+  de: "Noch zu machen"
+
+"Time it takes":
+  pl: "Potrzebny czas"
+  de: "Benötigte Zeit"
+
+"The pictures are taken in front of a map: choose one on the Drive page first.":
+  pl: "Miniaturki powstają na tle mapy: wybierz najpierw mapę na stronie Jazda."
+  de: "Die Bilder entstehen vor einer Karte: Wähle zuerst auf der Seite Fahren eine Karte."
+
+"Every bus has its picture.":
+  pl: "Każdy autobus ma już miniaturkę."
+  de: "Jeder Bus hat schon sein Bild."
+
+"It runs in the background: the pictures are taken while this window is open or not, and the launcher stays usable. Starting the game pauses it.":
+  pl: "Działa w tle: miniaturki powstają niezależnie od tego, czy to okno jest otwarte, a launcher pozostaje używalny. Uruchomienie gry wstrzymuje generowanie."
+  de: "Läuft im Hintergrund: Die Bilder entstehen, ob dieses Fenster offen ist oder nicht, und der Launcher bleibt bedienbar. Beim Spielstart pausiert es."
+
+"Take all pictures":
+  pl: "Zrób wszystkie miniaturki"
+  de: "Alle Bilder erstellen"
+
+"Count again":
+  pl: "Policz ponownie"
+  de: "Neu zählen"
+
+"Hide window":
+  pl: "Ukryj okno"
+  de: "Fenster ausblenden"
+
+"Last picture":
+  pl: "Ostatnia miniaturka"
+  de: "Letztes Bild"
+
+"working out the time...":
+  pl: "szacuję czas..."
+  de: "Zeit wird geschätzt..."
+
+"Waiting: the pictures need a map chosen on the Drive page.":
+  pl: "Czekam: miniaturki wymagają mapy wybranej na stronie Jazda."
+  de: "Warte: Für die Bilder muss auf der Seite Fahren eine Karte gewählt sein."
+
+"Use vehicle radio":
+  pl: "Użyj radia pojazdu"
+  de: "Fahrzeugradio verwenden"
+
+"The radio of the cab, with its own buttons":
+  pl: "Radio kabiny, z jego własnymi przyciskami"
+  de: "Das Radio der Kabine mit seinen eigenen Tasten"
+
+"Select":
+  pl: "Wybierz"
+  de: "Wählen"
+
+"Selected":
+  pl: "Wybrane"
+  de: "Gewählt"
+
+"Playing":
+  pl: "Gra"
+  de: "Läuft"
+
+"How loud the radio plays":
+  pl: "Jak głośno gra radio"
+  de: "Wie laut das Radio spielt"
+
+"How the buses are named, sorted and sized (manufacturer, model, class, years), and which the dealership leaves out.":
+  pl: "Jak autobusy są nazywane, sortowane i klasyfikowane (producent, model, klasa, lata) oraz które salon pomija."
+  de: "Wie die Busse benannt, sortiert und eingestuft werden (Hersteller, Modell, Klasse, Jahre) und welche der Händler auslässt."
+
+"The pictures of the buses the lists show. Take them all at once, with the time and the room they need.":
+  pl: "Miniaturki autobusów pokazywane na listach. Zrób je wszystkie naraz, z informacją o czasie i potrzebnym miejscu."
+  de: "Die Bilder der Busse in den Listen. Alle auf einmal erstellen, mit Angabe von Zeit und Platzbedarf."
+
+"Bus catalogue":
+  pl: "Katalog autobusów"
+  de: "Buskatalog"

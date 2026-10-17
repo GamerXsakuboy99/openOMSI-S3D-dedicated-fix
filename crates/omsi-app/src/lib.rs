@@ -28,8 +28,10 @@ mod android;
 mod platform;
 mod touch;
 mod quick_menu;
+mod route_hint;
 mod trip_summary;
 pub mod career_session;
+pub mod career_hired;
 pub mod assets;
 pub mod decals;
 mod placing;
@@ -558,6 +560,7 @@ pub(crate) fn make_app(mut args: Args, server_cfg: Option<server::ServerCfg>) ->
         steer_cursor: None,
         center_cursor: false,
         cursor_hidden: None,
+        cursor_confined: false,
         last_ctl_steer: None,
         mouse_pedals: (0.0, 0.0),
         mouse_kmh: 0.0,
@@ -641,6 +644,7 @@ pub(crate) fn make_app(mut args: Args, server_cfg: Option<server::ServerCfg>) ->
         cpu_mark: None,
         touch: touch::Touch::new(),
         quick: quick_menu::QuickMenu::new(),
+        route_hint: route_hint::RouteHint::new(),
         summary: trip_summary::SummaryWindow::new(),
         career_session,
     };

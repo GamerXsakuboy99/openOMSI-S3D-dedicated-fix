@@ -1220,7 +1220,30 @@ pub struct TourInfo {
     /// timetable dialog lists only the tours of the chosen day, so a
     /// tour of another day is picked by moving the date to it.
     pub next_run: Option<String>,
+    /// [ROLLBACK schoolbits-2] How the asked-for date reads in the map's calendar ("Tue, school days"):
+    /// what the day masks are compared with.
+    pub date_kind: String,
     pub trips: Vec<TripInfo>,
+}
+
+impl TourInfo {
+    /// [ROLLBACK nighttt-1] The time of day (seconds) to look up this tour's trips at when the clock says
+    /// `now`: a night tour's trips after midnight are timed 25:00, 26:00 ..., so at 1 in the morning
+    /// it is 25:00 for it - the trip under way is that one, not the evening's first trip, and the
+    /// tour is not one that has ended. Other tours keep `now`.
+    pub fn effective_now(&self, now: f64) -> f64 {
+        const DAY: f64 = 86_400.0;
+        if now >= DAY / 2.0 || !self.trips.iter().any(|t| t.departure >= DAY) {
+            return now;
+        }
+        let evening = self.trips.first().is_some_and(|f| f.departure >= DAY / 2.0);
+        let under_way = self.trips.iter().any(|t| t.departure <= now + DAY && t.arrival > now + DAY);
+        if evening || under_way {
+            now + DAY
+        } else {
+            now
+        }
+    }
 }
 
 #[derive(Serialize, Clone, Debug)]
@@ -1323,22 +1346,42 @@ fn lines_on(map_dir: &Path, date: &str) -> Result<Vec<LineInfo>> {
     let off = omsi_map::chrono_deactivated_lines(&chrono);
     let data = omsi_timetable::TimetableData::load_with_chrono(map_dir, &chrono, &off);
     // which tours run that day: the tour's mask as the game reads it (bits 0-6 Monday to
-    // Sunday, 7 a public holiday, 8 school holidays, 9 school days: the original)
+    // Sunday, 7 a public holiday, 8 school days, 9 school holidays: the original)
     let calendar = omsi_map::Calendar::load(&map_dir.join("Holidays.txt")).unwrap_or_default();
-    let day_bit = if calendar.is_holiday(code) { 1 << 7 } else { 1 << weekday(code) };
-    let school_bit = if calendar.in_holiday_range(code) { 1 << 8 } else { 1 << 9 };
+    let date_kind = {
+        let names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+        let day = if calendar.is_holiday(code) { "public holiday".to_string() } else { names[weekday(code).clamp(0, 6) as usize].to_string() };
+        format!("{day}, {}", if calendar.in_holiday_range(code) { "school holidays" } else { "school days" })
+    };
     let mut out = Vec::new();
     for l in &data.lines {
         let mut termini: Vec<String> = Vec::new();
         let mut tours = Vec::new();
         for t in &l.tours {
             let mask = t.extra.trim().parse::<i32>().unwrap_or(1023);
-            let runs_on = |c: i32| {
+            // [ROLLBACK nighttt-1] a night tour (trips of 25:00, 26:00) belongs to the day before as well,
+            // whose early hours its late trips are, and as the game lists it (`Schedule::tour_available`)
+            // to the weekday before, as the night belongs to both: at 1 in the morning it is the
+            // tour of the day it started on. It was listed only on its own day, so the night lines were
+            // missing from the list of the day after.
+            let night = t.trips.iter().any(|x| x.departure >= 24.0 * 60.0);
+            let bits = |c: i32| {
                 let day = if calendar.is_holiday(c) { 1 << 7 } else { 1 << weekday(c) };
-                let school = if calendar.in_holiday_range(c) { 1 << 8 } else { 1 << 9 };
-                mask & day != 0 && mask & school != 0
+                let school = omsi_map::school_bit(calendar.in_holiday_range(c)); // [ROLLBACK schoolbits-2]
+                (day, school)
             };
-            let runs = mask & day_bit != 0 && mask & school_bit != 0;
+            let runs_on = |c: i32| {
+                let (day, school) = bits(c);
+                if omsi_map::mask_runs(mask, day, school) {
+                    return true;
+                }
+                if !night {
+                    return false;
+                }
+                let (pd, ps) = bits(add_days(c, -1));
+                omsi_map::mask_runs(mask, pd, ps) || omsi_map::mask_runs(mask, 1 << ((weekday(c) + 1) % 7), school)
+            };
+            let runs = runs_on(code);
             let next_run = (0..400).map(|k| add_days(code, k)).find(|c| runs_on(*c)).map(|c| format!("{:04}-{:02}-{:02}", c / 10000, c / 100 % 100, c % 100));
             let mut trips = Vec::new();
             for tt in &t.trips {
@@ -1387,7 +1430,7 @@ fn lines_on(map_dir: &Path, date: &str) -> Result<Vec<LineInfo>> {
             }
             let first = trips.first().map(|t| t.departure).unwrap_or(0.0);
             let last = trips.last().map(|t| t.arrival).unwrap_or(0.0);
-            tours.push(TourInfo { number: t.number.clone(), ai_group: t.ai_group.clone(), first, last, days: days_of(mask), runs, next_run, trips });
+            tours.push(TourInfo { number: t.number.clone(), ai_group: t.ai_group.clone(), first, last, days: days_of(mask), runs, next_run, date_kind: date_kind.clone(), trips });
         }
         tours.sort_by(|a, b| a.first.total_cmp(&b.first));
         out.push(LineInfo { name: l.name.clone(), user_allowed: l.user_allowed, termini, tours });
@@ -1443,9 +1486,10 @@ fn days_of(mask: i32) -> String {
     if mask & (1 << 7) != 0 && week != 0x7f {
         out.push_str(if out.is_empty() { "holidays" } else { " & holidays" });
     }
+    // (bit 8 is "No Hols": the school days; bit 9 is "Hols": the school holidays - from Omsi.exe)
     match (mask & (1 << 8) != 0, mask & (1 << 9) != 0) {
-        (true, false) => out.push_str(", school holidays"),
-        (false, true) => out.push_str(", school days"),
+        (true, false) => out.push_str(", school days"),
+        (false, true) => out.push_str(", school holidays"),
         _ => {}
     }
     out

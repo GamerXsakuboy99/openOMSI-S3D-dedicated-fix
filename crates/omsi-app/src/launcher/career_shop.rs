@@ -236,6 +236,7 @@ pub(super) fn dealership(l: &mut Launcher, r: Rect) {
     }
 
     // --- the selected offer
+    let over_before = l.ui.over_ui;
     l.ui.panel(side);
     let inner = Rect::new(side.x + 16.0, side.y + 16.0, side.w - 32.0, side.h - 32.0);
     let Some(o) = sel_id.and_then(|id| visible.iter().find(|o| o.id == id).cloned()) else {
@@ -245,9 +246,7 @@ pub(super) fn dealership(l: &mut Launcher, r: Rect) {
     let veh = vehicle_of(&l.state.vehicles, &o.file).cloned();
     let view = Rect::new(inner.x, inner.y, inner.w, inner.w * 9.0 / 16.0);
     l.preview_other = Some((o.file.clone(), o.paint.clone()));
-    let over = l.ui.over_ui;
-    l.preview(view);
-    l.ui.over_ui = over;
+    l.preview_in_panel(view, over_before);
     l.ui.p().rounded_border(view, RADIUS, 1.0, EDGE);
     let mut y = view.bottom() + 12.0;
     let variant = if o.variant.trim().is_empty() { String::new() } else { format!(" {}", o.variant) };
@@ -408,20 +407,19 @@ pub(super) fn fleet(l: &mut Launcher, r: Rect) {
     }
 
     // --- the selected bus
+    let over_before = l.ui.over_ui;
     l.ui.panel(side);
     let inner = Rect::new(side.x + 16.0, side.y + 16.0, side.w - 32.0, side.h - 32.0);
     let Some(row) = rows.iter().find(|b| b.id == sel_id) else { return };
-    show_bus(l, row, inner, balance);
+    show_bus(l, row, inner, balance, over_before);
 }
 
-fn show_bus(l: &mut Launcher, row: &FleetRow, inner: Rect, balance: i64) {
+fn show_bus(l: &mut Launcher, row: &FleetRow, inner: Rect, balance: i64, over_before: bool) {
     let view = Rect::new(inner.x, inner.y, inner.w, inner.w * 9.0 / 16.0);
     l.preview_other = Some((row.file.clone(), row.paint.clone()));
     // (with the stickers the player put on this bus, or on its model)
     l.preview_owner = row.id;
-    let over = l.ui.over_ui;
-    l.preview(view);
-    l.ui.over_ui = over;
+    l.preview_in_panel(view, over_before);
     l.ui.p().rounded_border(view, RADIUS, 1.0, EDGE);
     let mut y = view.bottom() + 12.0;
     l.ui.text_in(&format!("#{} · {}", row.fleet_no, row.maker), Rect::new(inner.x, y, inner.w, 18.0), 13.0, Weight::Medium, TEXT_DIM, Align::Left);
@@ -534,7 +532,7 @@ fn show_bus(l: &mut Launcher, row: &FleetRow, inner: Rect, balance: i64) {
     if l.ui.button("fleet-livery", livery_r, "Customize", Some("palette"), ButtonKind::Normal) {
         l.career.livery = Some(super::career_livery::LiveryView::open(row));
     }
-    let sell_r = Rect::new(inner.x, inner.bottom() - ROW, inner.w, ROW);
+    let mut sell_r = Rect::new(inner.x, inner.bottom() - ROW, inner.w, ROW);
     // moving the bus to another depot (when there is room for the row)
     let mut move_op: Option<u32> = None;
     let move_y = y + 2.0 * (ROW + 8.0);
@@ -544,14 +542,24 @@ fn show_bus(l: &mut Launcher, row: &FleetRow, inner: Rect, balance: i64) {
         .as_ref()
         .map(|c| c.depots.iter().filter(|d| d.id != row.depot).map(|d| (d.id, d.name.clone(), c.free_places(d.id), c.transfer_cost(row.id, d.id))).collect())
         .unwrap_or_default();
-    if !others.is_empty() && move_y + ROW <= sell_r.y - 6.0 {
+    // [ROLLBACK career-move-1] the row for moving did not appear when the panel was too short for it
+    // (a smaller window): it then shares the bottom row with the sell button
+    let roomy = move_y + ROW <= sell_r.y - 6.0;
+    if !others.is_empty() {
+        let (sel_r, mb) = if roomy {
+            (Rect::new(inner.x, move_y, inner.w - 158.0, ROW), Rect::new(inner.right() - 150.0, move_y, 150.0, ROW))
+        } else {
+            let sw = (inner.w * 0.28).max(90.0);
+            sell_r = Rect::new(inner.x, sell_r.y, sw, ROW);
+            let bw = 140.0_f32.min(inner.w * 0.34);
+            (Rect::new(sell_r.right() + 6.0, sell_r.y, (inner.w - sw - bw - 12.0).max(60.0), ROW), Rect::new(inner.right() - bw, sell_r.y, bw, ROW))
+        };
         let names: Vec<String> = others.iter().map(|(_, n, f, _)| format!("{n} ({f} free)")).collect();
         let mut mi = l.career.shop.move_to.min(others.len() - 1);
-        if l.ui.select("fleet-move", Rect::new(inner.x, move_y, inner.w - 158.0, ROW), &mut mi, &names) {
+        if l.ui.select("fleet-move", sel_r, &mut mi, &names) {
             l.career.shop.move_to = mi;
         }
         let (tid, _, free, cost) = others[mi].clone();
-        let mb = Rect::new(inner.right() - 150.0, move_y, 150.0, ROW);
         let ml = format!("Move · {}", money(cost));
         if free == 0 || row.away_until > company::now() || cost > balance {
             l.ui.button_off(mb, &ml, Some("sync_alt"), ButtonKind::Normal);
@@ -560,7 +568,7 @@ fn show_bus(l: &mut Launcher, row: &FleetRow, inner: Rect, balance: i64) {
         }
     }
     let armed = l.career.shop.sell_armed;
-    let sell = l.ui.button("fleet-sell", sell_r, &if armed { "Press again to sell".to_string() } else { format!("Sell · {}", money(row.value)) }, Some("payments"), ButtonKind::Danger);
+    let sell = l.ui.button("fleet-sell", sell_r, &if armed { (if sell_r.w < 170.0 { "Sure?" } else { "Press again to sell" }).to_string() } else { format!("Sell · {}", money(row.value)) }, Some("payments"), ButtonKind::Danger);
 
     if let Some(to) = move_op {
         let r = l.career.company.as_mut().map(|c| c.move_bus(row.id, to));

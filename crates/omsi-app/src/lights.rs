@@ -646,10 +646,16 @@ pub fn collect(
         // (the AI's own lamp only for the cars within 250 m: four more lights each)
         let near = (v.position - camera_pos).length() < AUTO_SPOT_RANGE;
         vehicle_lights(v, &mut scene.coronas, &mut scene.lights, night, i == 0, near);
-        let cab = crate::puddles::cab_bodies(&[*v], camera_pos);
-        particle_sprites_in(&v.particles, &mut scene.smoke, &mut scene.coronas, &cab);
-        for t in &v.trailers {
-            particle_sprites_in(&t.particles, &mut scene.smoke, &mut scene.coronas, &cab);
+        // [ROLLBACK spray-2] An AI vehicle out of the view leaves its animations - and so its particle
+        // sets - as they are until it is seen again (`VehicleInstance::ai_visuals`): the puffs it
+        // left stood in the air where it had been, and any at the edge of the picture were drawn
+        // motionless with no vehicle near them. Its sets are drawn only while they move.
+        if v.ai_visuals {
+            let cab = crate::puddles::cab_bodies(&[*v], camera_pos);
+            particle_sprites_in(&v.particles, &mut scene.smoke, &mut scene.coronas, &cab);
+            for t in &v.trailers {
+                particle_sprites_in(&t.particles, &mut scene.smoke, &mut scene.coronas, &cab);
+            }
         }
     }
     // the lamps' cones in fog: drawn only while the visibility is

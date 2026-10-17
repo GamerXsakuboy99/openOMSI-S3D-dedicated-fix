@@ -329,6 +329,14 @@ fn headlamp_shoulder(c: vec3<f32>) -> vec3<f32> {
     return c * (y / lum);
 }
 
+// [ROLLBACK npclamp-2] The headlamps' shadow map does not darken a person (a pedestrian, a passenger): its
+// texels (1.5 cm at ten metres) cut the jacket and the face into bands with stepped edges, which is
+// nothing Omsi.exe's per-vertex lamps ever drew. A person is lit by the lamps as they come, shadowed by
+// the sun's maps alone. `true` puts the shadow back.
+const PERSON_LAMP_SHADOW: bool = false;
+// whether the pixel being shaded belongs to a person (`Instance::person`, surface flag -2)
+var<private> lamp_person: bool = false;
+
 // The point and spot lights of the pixel's grid cell: diffuse and specular.
 // `thin`: foliage, lit from whichever side the lamp is on (see the sun below).
 fn lamp_light(p: vec3<f32>, n: vec3<f32>, v: vec3<f32>, sf: Surface, thin: bool) -> vec3<f32> {
@@ -416,7 +424,7 @@ fn lamp_light(p: vec3<f32>, n: vec3<f32>, v: vec3<f32>, sf: Surface, thin: bool)
             continue;
         }
         // (pos.w is -1 on a headlamp the lamp shadow map is drawn for)
-        if (l.pos.w < 0.0) {
+        if (l.pos.w < 0.0 && (PERSON_LAMP_SHADOW || !lamp_person)) {
             e = e * lamp_shadow(p, n, ld);
             if (e <= 0.0) {
                 continue;
@@ -794,10 +802,23 @@ fn shade_enhanced(in: FsIn, puddle_weight: ptr<function, vec2<f32>>, capture: bo
     }
     // Leaves and fences transmit light. A terrain road-cut mask only removes ground:
     // its remaining pixels must shade like the uncut ground on terrain-mapped splines.
-    let thin = !terrain && mode > 0.5 && mode < 1.5;
+    // [ROLLBACK cutveh-1] Only foliage is `thin`. Every alpha-tested slot (`[matl_alpha] 1`) was
+    // lit as a leaf - the sun from any side, its shadow looked up half a metre towards the sun,
+    // out through the roof - so a sticker or a grille on a vehicle's inside was as bright as a
+    // leaf in the sun by day, and at night the saloon lamps (N.L, one side only) did not reach
+    // it. A cut-out vehicle part (`in.params2.w` below -500) is lit as a solid surface now,
+    // two-sided (its card has no front: it is lit on the side that is seen; the saloon lamps
+    // light both). Before: `let thin = !terrain && mode > 0.5 && mode < 1.5;`.
+    lamp_person = in.params2.w < -1.5 && in.params2.w > -2.5;
+    let cutout = !terrain && mode > 0.5 && mode < 1.5;
+    let cut_vehicle = cutout && in.params2.w < -500.0;
+    let thin = cutout && !cut_vehicle;
     // [ROLLBACK foliage-140] a leaf card's back copy with its normals pointing down (the
     // ambient of the ground, the sun's shadow pushed into the card itself): turned up
     if (thin && n.z < 0.0) {
+        n = -n;
+    }
+    if (cut_vehicle && dot(n, v) < 0.0) {
         n = -n;
     }
     let has_env = material.params2.y > 0.0;
@@ -852,7 +873,7 @@ fn shade_enhanced(in: FsIn, puddle_weight: ptr<function, vec2<f32>>, capture: bo
     // [ROLLBACK leafcolour-141] A leaf card whose material has a black diffuse colour (and the
     // white ambient colour Omsi.exe gives every slot): Direct3D lights it by the ambient
     // light alone, so its texture shows. Here the diffuse colour alone made the crown black.
-    if (thin && dot(material.color.rgb, vec3<f32>(0.2126, 0.7152, 0.0722)) < 0.04) {
+    if (cutout && dot(material.color.rgb, vec3<f32>(0.2126, 0.7152, 0.0722)) < 0.04) {
         albedo = tex.rgb * max(material.ambient.rgb, vec3<f32>(0.5));
     }
     var detail_factor = 1.0;
@@ -1317,7 +1338,11 @@ fn shade_enhanced(in: FsIn, puddle_weight: ptr<function, vec2<f32>>, capture: bo
     // grew with the night and whitened the saloon)
     // (the lamps' light does not reach into the gaps under the seats and round the
     // handrails either: without the ambient occlusion on it they glowed through there)
-    let cabin_light = interior_lamps(in.world, n, in.params2.z);
+    // ([ROLLBACK cutveh-1] a cut-out vehicle part takes the saloon lamps on both faces)
+    var cabin_light = interior_lamps(in.world, n, in.params2.z);
+    if (cut_vehicle) {
+        cabin_light = max(cabin_light, interior_lamps(in.world, -n, in.params2.z));
+    }
     let cabin = sf.albedo * cabin_light * mix(1.0, ao, 0.85);
     var rgb = (direct + ambient + lamps) * pre + cabin;
     var emit = tex.rgb * material.emissive.rgb * max(enh.exposure.z * 2.0, 0.8);
@@ -1387,8 +1412,13 @@ fn shade_enhanced(in: FsIn, puddle_weight: ptr<function, vec2<f32>>, capture: bo
             }
         }
         emit = emit + tex.rgb * enh.led.x * alpha * lm_gate * led_level() * lw * max(enh.exposure.z * 2.0, 0.8);
-    } else if (material.emissive.w < -0.5) {
+    } else if (material.emissive.w < -0.5 && material.params2.x < 0.5) {
         // a display's text (see MaterialExtra::display)
+        // [ROLLBACK textlm-1] A text with a light map of its own (`[matl_lightmap]` on its slot) took
+        // this glow on top of the light map's (ADDSMOOTH, above), so the text burned at night
+        // as a night map would while the slot's plain background, lit by the same light map in
+        // the same colour, stayed faint. The light map alone governs such a slot now. Before:
+        // `} else if (material.emissive.w < -0.5) {`.
         emit = emit + tex.rgb * 0.35 * max(enh.exposure.z * 2.0, 0.8);
     }
     // [ROLLBACK glass-38 begin] (devtools-38: the colour of a pane)

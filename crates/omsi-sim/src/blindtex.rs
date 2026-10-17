@@ -185,6 +185,339 @@ pub fn text_of_name(path: &str) -> String {
     stem.replace('_', " ").trim().to_string()
 }
 
+// --- the look settings (Settings > Rollbands) ----------------------------------------------
+
+/// [ROLLBACK rollbands-1] How the player has the pictures of one folder drawn (Settings >
+/// Rollbands): colours, the size of the lettering and its shape. The default draws the picture
+/// as it was before the settings existed.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Tweak {
+    /// The colour of the picture's ground (None: the style's own); paper keeps its grain and shading.
+    pub bg: Option<[u8; 3]>,
+    /// The colour of the lettering (None: the style's own).
+    pub ink: Option<[u8; 3]>,
+    /// The size of the capitals, 1 = as drawn.
+    pub size: f32,
+    /// The second line's size against the first's, 1 = as drawn.
+    pub second: f32,
+    /// How wide a line may be, 1 = as drawn.
+    pub width: f32,
+    /// How wide the letters are drawn, 1 = as the face has them.
+    pub letters: f32,
+    /// Added to the weight of the face (Roboto's 100..900).
+    pub weight: f32,
+    /// Space between two letters, in em, added to the style's own.
+    pub track: f32,
+    /// The lettering moved down by this share of the picture's height (up when negative).
+    pub shift: f32,
+    /// Every letter a capital.
+    pub caps: bool,
+    /// The lettering's face: a font file on this machine (None: the built-in Roboto). See `local_fonts`.
+    pub font: Option<&'static str>,
+}
+
+impl Default for Tweak {
+    fn default() -> Tweak {
+        Tweak { bg: None, ink: None, size: 1.0, second: 1.0, width: 1.0, letters: 1.0, weight: 0.0, track: 0.0, shift: 0.0, caps: false, font: None }
+    }
+}
+
+impl Tweak {
+    /// Whether nothing is changed.
+    pub fn is_default(&self) -> bool {
+        *self == Tweak::default()
+    }
+}
+
+/// The folders' styles, in the order the settings list them.
+pub const STYLES: [Style; 8] = [Style::Sd79, Style::O307, Style::Phantom, Style::Mirage, Style::N40, Style::Pr110, Style::Dykty, Style::Plate];
+
+impl Style {
+    /// The name a style has in the settings file.
+    pub fn key(self) -> &'static str {
+        match self {
+            Style::Sd79 => "sd79",
+            Style::O307 => "o307",
+            Style::Phantom => "phantom",
+            Style::Mirage => "mirage",
+            Style::Pr110 => "pr110",
+            Style::Dykty => "dykty",
+            Style::N40 => "n40",
+            Style::Plate => "steckschild",
+        }
+    }
+
+    /// The folder of `Anzeigen` the style stands for, as the settings show it.
+    pub fn folder(self) -> &'static str {
+        match self {
+            Style::Sd79 => "Rollband_SD79 (and SD83)",
+            Style::O307 => "Rollband_O307*",
+            Style::Phantom => "Rollband_Phantom",
+            Style::Mirage => "Rollband_Mirage",
+            Style::Pr110 => "PR110",
+            Style::Dykty => "Dykty_Juzek",
+            Style::N40 => "Rollband_N40*",
+            Style::Plate => "Steckschild*",
+        }
+    }
+
+    /// The colours the style is drawn in without a change: the ground and the lettering.
+    pub fn colours(self) -> ([u8; 3], [u8; 3]) {
+        match self {
+            Style::Sd79 => ([255, 255, 255], [0, 0, 0]),
+            Style::O307 => ([217, 209, 200], [24, 17, 12]),
+            Style::Phantom => ([29, 29, 29], [255, 255, 255]),
+            Style::Mirage => ([20, 20, 20], [193, 213, 27]),
+            Style::Pr110 => ([208, 201, 169], [16, 14, 10]),
+            Style::Dykty => ([184, 184, 184], [10, 10, 10]),
+            Style::N40 => ([26, 27, 26], [193, 213, 27]),
+            Style::Plate => ([228, 229, 229], [12, 12, 12]),
+        }
+    }
+}
+
+static TWEAKS: std::sync::RwLock<[Tweak; 8]> = std::sync::RwLock::new([Tweak { bg: None, ink: None, size: 1.0, second: 1.0, width: 1.0, letters: 1.0, weight: 0.0, track: 0.0, shift: 0.0, caps: false, font: None }; 8]);
+static TWEAKS_VERSION: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+static TWEAKS_LOADED: std::sync::Once = std::sync::Once::new();
+
+thread_local! {
+    /// The look the picture being drawn is made in (see `render_with`).
+    static CUR: std::cell::Cell<Tweak> = std::cell::Cell::new(Tweak::default());
+}
+
+fn cur() -> Tweak {
+    CUR.with(|c| c.get())
+}
+
+fn style_index(style: Style) -> usize {
+    STYLES.iter().position(|s| *s == style).unwrap_or(0)
+}
+
+/// The look the player has set for `style`.
+pub fn tweak(style: Style) -> Tweak {
+    TWEAKS.read().map(|t| t[style_index(style)]).unwrap_or_default()
+}
+
+/// Set the look of `style`. Pictures drawn from now on carry it (`tweaks_version` changes).
+pub fn set_tweak(style: Style, t: Tweak) {
+    if let Ok(mut all) = TWEAKS.write() {
+        if all[style_index(style)] != t {
+            all[style_index(style)] = t;
+            TWEAKS_VERSION.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        }
+    }
+}
+
+/// A number that changes whenever a look was set: part of what a drawn picture is kept under.
+pub fn tweaks_version() -> u64 {
+    TWEAKS_VERSION.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+fn hex(c: [u8; 3]) -> String {
+    format!("{:02x}{:02x}{:02x}", c[0], c[1], c[2])
+}
+
+/// A colour written as `RRGGBB` or `#RRGGBB`.
+pub fn parse_hex(s: &str) -> Option<[u8; 3]> {
+    let t = s.trim().trim_start_matches('#');
+    if t.len() != 6 || !t.is_ascii() {
+        return None;
+    }
+    let v = u32::from_str_radix(t, 16).ok()?;
+    Some([(v >> 16) as u8, (v >> 8) as u8, v as u8])
+}
+
+/// A colour as the settings show it: `#RRGGBB`.
+pub fn hex_of(c: [u8; 3]) -> String {
+    format!("#{}", hex(c))
+}
+
+/// The looks of all styles as a settings file: a `[folder]` block of `key=value` lines each
+/// (a block of a style left as it is is not written).
+pub fn tweaks_to_text(all: &[Tweak; 8]) -> String {
+    let mut out = String::from("# openOMSI: how the roller blinds' and plug-in signs' pictures are drawn (Settings > Rollbands)\n");
+    for (i, st) in STYLES.iter().enumerate() {
+        let t = &all[i];
+        if t.is_default() {
+            continue;
+        }
+        out.push_str(&format!("\n[{}]\n", st.key()));
+        if let Some(c) = t.bg {
+            out.push_str(&format!("bg={}\n", hex(c)));
+        }
+        if let Some(c) = t.ink {
+            out.push_str(&format!("ink={}\n", hex(c)));
+        }
+        if let Some(f) = t.font {
+            out.push_str(&format!("font={f}\n"));
+        }
+        out.push_str(&format!("size={:.3}\nsecond={:.3}\nwidth={:.3}\nletters={:.3}\nweight={:.1}\ntrack={:.4}\nshift={:.4}\ncaps={}\n", t.size, t.second, t.width, t.letters, t.weight, t.track, t.shift, u8::from(t.caps)));
+    }
+    out
+}
+
+/// The looks a settings file holds (what it does not name stays as drawn).
+pub fn tweaks_from_text(text: &str) -> [Tweak; 8] {
+    let mut all = [Tweak::default(); 8];
+    let mut at: Option<usize> = None;
+    for line in text.lines() {
+        let l = line.trim();
+        if l.is_empty() || l.starts_with('#') || l.starts_with(';') {
+            continue;
+        }
+        if let Some(name) = l.strip_prefix('[').and_then(|x| x.strip_suffix(']')) {
+            at = STYLES.iter().position(|s| s.key().eq_ignore_ascii_case(name.trim()));
+            continue;
+        }
+        let (Some(i), Some((k, v))) = (at, l.split_once('=')) else { continue };
+        let (k, v) = (k.trim().to_ascii_lowercase(), v.trim());
+        let t = &mut all[i];
+        let num = |lo: f32, hi: f32, d: f32| v.parse::<f32>().ok().filter(|x| x.is_finite()).map(|x| x.clamp(lo, hi)).unwrap_or(d);
+        match k.as_str() {
+            "bg" => t.bg = parse_hex(v),
+            "ink" => t.ink = parse_hex(v),
+            "size" => t.size = num(0.4, 2.0, 1.0),
+            "second" => t.second = num(0.4, 2.0, 1.0),
+            "width" => t.width = num(0.4, 1.5, 1.0),
+            "letters" => t.letters = num(0.4, 1.8, 1.0),
+            "weight" => t.weight = num(-600.0, 600.0, 0.0),
+            "track" => t.track = num(-0.1, 0.5, 0.0),
+            "shift" => t.shift = num(-0.5, 0.5, 0.0),
+            "caps" => t.caps = matches!(v, "1" | "true" | "yes" | "on"),
+            "font" => t.font = (!v.is_empty()).then(|| intern_font(v)),
+            _ => {}
+        }
+    }
+    all
+}
+
+/// Read the looks from `path` (a missing file leaves every style as drawn) and set them.
+pub fn load_file(path: &std::path::Path) {
+    let all = std::fs::read_to_string(path).map(|t| tweaks_from_text(&t)).unwrap_or([Tweak::default(); 8]);
+    for (i, st) in STYLES.iter().enumerate() {
+        set_tweak(*st, all[i]);
+    }
+}
+
+/// Read the looks from `path` once in the process's life (the game's: the settings are read
+/// when it starts; the launcher sets them itself while they are edited).
+pub fn ensure_loaded(path: impl FnOnce() -> std::path::PathBuf) {
+    TWEAKS_LOADED.call_once(|| load_file(&path()));
+}
+
+/// Keep the looks in `path`.
+pub fn save_file(path: &std::path::Path) -> std::io::Result<()> {
+    let all = TWEAKS.read().map(|t| *t).unwrap_or([Tweak::default(); 8]);
+    std::fs::write(path, tweaks_to_text(&all))
+}
+
+// --- local fonts ----------------------------------------------------------------------------
+
+static FONT_NAMES: std::sync::Mutex<Vec<&'static str>> = std::sync::Mutex::new(Vec::new());
+static FONT_BYTES: std::sync::Mutex<Vec<(&'static str, Option<&'static [u8]>)>> = std::sync::Mutex::new(Vec::new());
+
+/// A font file's path kept for the life of the process (a `Tweak` holds it as a `&'static str`).
+pub fn intern_font(path: &str) -> &'static str {
+    let mut all = FONT_NAMES.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some(p) = all.iter().find(|p| **p == path) {
+        return p;
+    }
+    let p: &'static str = Box::leak(path.to_string().into_boxed_str());
+    all.push(p);
+    p
+}
+
+/// The bytes of a font file, read once (None for a file that is not there or no font ab_glyph reads).
+fn font_bytes(path: &'static str) -> Option<&'static [u8]> {
+    let mut all = FONT_BYTES.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some((_, b)) = all.iter().find(|(p, _)| *p == path) {
+        return *b;
+    }
+    let bytes = std::fs::metadata(path)
+        .ok()
+        .filter(|m| m.len() < 40 << 20)
+        .and_then(|_| std::fs::read(path).ok())
+        .filter(|b| FontRef::try_from_slice(b).is_ok())
+        .map(|b| &*Box::leak(b.into_boxed_slice()));
+    all.push((path, bytes));
+    bytes
+}
+
+/// The folders fonts are looked for in: the system's, the user's, and `~/.openomsi/fonts` (a font
+/// put there is found on every system).
+fn font_dirs() -> Vec<std::path::PathBuf> {
+    use std::path::PathBuf;
+    let env = |k: &str| std::env::var_os(k).map(PathBuf::from);
+    let mut dirs = Vec::new();
+    if let Some(w) = env("WINDIR").or_else(|| env("SystemRoot")) {
+        dirs.push(w.join("Fonts"));
+    }
+    if let Some(l) = env("LOCALAPPDATA") {
+        dirs.push(l.join("Microsoft").join("Windows").join("Fonts"));
+    }
+    if let Some(h) = env("HOME").or_else(|| env("USERPROFILE")) {
+        dirs.push(h.join(".openomsi").join("fonts"));
+        dirs.push(h.join("Library").join("Fonts"));
+        dirs.push(h.join(".local").join("share").join("fonts"));
+        dirs.push(h.join(".fonts"));
+    }
+    for d in ["/System/Library/Fonts", "/Library/Fonts", "/usr/share/fonts", "/usr/local/share/fonts"] {
+        dirs.push(PathBuf::from(d));
+    }
+    dirs
+}
+
+fn scan_fonts(dir: &std::path::Path, depth: u32, out: &mut Vec<(String, String)>) {
+    if depth > 4 || out.len() > 4000 {
+        return;
+    }
+    let Ok(rd) = std::fs::read_dir(dir) else { return };
+    for e in rd.flatten() {
+        let p = e.path();
+        if p.is_dir() {
+            scan_fonts(&p, depth + 1, out);
+        } else if p.extension().and_then(|x| x.to_str()).is_some_and(|x| x.eq_ignore_ascii_case("ttf") || x.eq_ignore_ascii_case("otf")) {
+            let stem = p.file_stem().and_then(|x| x.to_str()).unwrap_or("").replace(['_', '-'], " ");
+            if let Some(path) = p.to_str() {
+                out.push((stem, path.to_string()));
+            }
+        }
+    }
+}
+
+/// The fonts this machine has as (name, file): `.ttf` and `.otf` files of the system's font
+/// folders, the user's and `~/.openomsi/fonts`, by name. Looked for once.
+pub fn local_fonts() -> &'static [(String, String)] {
+    static FONTS: std::sync::OnceLock<Vec<(String, String)>> = std::sync::OnceLock::new();
+    FONTS.get_or_init(|| {
+        let mut all = Vec::new();
+        for d in font_dirs() {
+            scan_fonts(&d, 0, &mut all);
+        }
+        all.sort_by(|a, b| a.0.to_lowercase().cmp(&b.0.to_lowercase()).then(a.1.cmp(&b.1)));
+        all.dedup_by(|a, b| a.1 == b.1);
+        // (a name two files share: the folder it is in after it)
+        let dup: Vec<bool> = (0..all.len()).map(|i| all.iter().filter(|x| x.0.eq_ignore_ascii_case(&all[i].0)).count() > 1).collect();
+        for (i, f) in all.iter_mut().enumerate() {
+            if dup[i] {
+                let dir = std::path::Path::new(&f.1).parent().and_then(|p| p.file_name()).and_then(|x| x.to_str()).unwrap_or("");
+                f.0 = format!("{} ({dir})", f.0);
+            }
+        }
+        all
+    })
+}
+
+/// The colour of the ground: the player's, else the style's own `d`.
+fn bg_or(d: [u8; 3]) -> [u8; 3] {
+    cur().bg.unwrap_or(d)
+}
+
+/// The colour of the lettering: the player's, else the style's own `d`.
+fn ink_or(d: [f32; 3]) -> [f32; 3] {
+    cur().ink.map(|c| [c[0] as f32, c[1] as f32, c[2] as f32]).unwrap_or(d)
+}
+
 // --- drawing --------------------------------------------------------------------------------
 
 struct Canvas {
@@ -232,7 +565,12 @@ impl Canvas {
 /// Roboto at a weight and width (the variable font's axes): its condensed, bold cut is the
 /// nearest thing to the DIN lettering of a blind that the game carries.
 fn face(wght: f32, wdth: f32) -> Option<FontRef<'static>> {
-    let mut f = FontRef::try_from_slice(crate::htmlengine::ROBOTO).ok()?;
+    // ([ROLLBACK rollbands-2] the player's own font, where it can be read; else Roboto as it was)
+    let custom = cur().font.and_then(font_bytes).and_then(|b| FontRef::try_from_slice(b).ok());
+    let mut f = match custom {
+        Some(f) => f,
+        None => FontRef::try_from_slice(crate::htmlengine::ROBOTO).ok()?,
+    };
     f.set_variation(b"wght", wght);
     f.set_variation(b"wdth", wdth);
     Some(f)
@@ -298,6 +636,22 @@ const PLAIN: Opts = Opts { sx0: 1.0, min_sx: 1.0, track_em: 0.0, stencil: false 
 /// condensed cut when that is too wide, then (when `o` allows) narrower letters, then a smaller
 /// size when even that is not enough.
 fn fit_ex<'a>(text: &'a str, wght: f32, wdth: f32, cap: f32, max_w: f32, o: Opts) -> Option<Run<'a>> {
+    fit_look(text, wght, wdth, cap * cur().size, max_w, o)
+}
+
+/// As `fit_ex`, for a `cap` that already carries the player's size (a line set again at the
+/// size the smaller of two came out in).
+// [ROLLBACK rollbands-1] (before the settings: `fit_ex` was this function)
+fn fit_ex_cap<'a>(text: &'a str, wght: f32, wdth: f32, cap: f32, max_w: f32, o: Opts) -> Option<Run<'a>> {
+    fit_look(text, wght, wdth, cap, max_w, o)
+}
+
+/// The fitting, with the player's weight, width and spacing laid on the style's.
+fn fit_look<'a>(text: &'a str, wght: f32, wdth: f32, cap: f32, max_w: f32, o: Opts) -> Option<Run<'a>> {
+    let t = cur();
+    let wght = (wght + t.weight).clamp(100.0, 900.0);
+    let max_w = max_w * t.width;
+    let o = Opts { sx0: o.sx0 * t.letters, min_sx: (o.min_sx * t.letters).min(o.sx0 * t.letters), track_em: (o.track_em + t.track).max(-0.1), ..o };
     let mut best: Option<Run<'a>> = None;
     for w in [wdth, 75.0f32] {
         let font = face(wght, w.max(75.0))?;
@@ -340,8 +694,13 @@ impl Run<'_> {
 /// capitals came out in proportion (a destination made smaller to fit does not stand over a
 /// second line that is not).
 fn second_cap(big: Option<&Run>, big_nominal: f32, want: f32) -> f32 {
+    // [ROLLBACK rollbands-1] the player's second-line size, and the destination's own size against
+    // which it counts as made smaller (`fit_ex` lays the size on the result)
+    let t = cur();
+    let want = want * t.second;
+    let nominal = big_nominal * t.size;
     match big {
-        Some(b) if b.cap() < big_nominal => want * (b.cap() / big_nominal),
+        Some(b) if b.cap() < nominal => want * (b.cap() / nominal),
         _ => want,
     }
 }
@@ -395,6 +754,8 @@ fn draw_run(cv: &mut Canvas, run: &Run, x: f32, y: f32, color: [f32; 3]) {
 }
 
 fn centred(cv: &mut Canvas, run: &Run, centre: f32, baseline: f32, color: [f32; 3]) {
+    // ([ROLLBACK rollbands-1] the player's shift of the lettering up or down)
+    let baseline = baseline + cur().shift * cv.h as f32;
     draw_run(cv, run, centre - run.width / 2.0, baseline, color);
 }
 
@@ -480,10 +841,27 @@ fn double_arrow(cv: &mut Canvas, cx: f32, top: f32, bottom: f32, w: f32, color: 
     );
 }
 
-/// The picture for `style` and `lines`.
+/// The picture for `style` and `lines`, in the look the player has set for the style.
 pub fn render(style: Style, lines: &Lines) -> Image {
+    render_with(style, lines, &tweak(style))
+}
+
+/// The picture for `style` and `lines` in the look `tw` (the settings' preview draws the look
+/// being edited).
+pub fn render_with(style: Style, lines: &Lines, tw: &Tweak) -> Image {
+    let before = CUR.with(|c| c.replace(*tw));
+    let img = render_look(style, lines);
+    CUR.with(|c| c.set(before));
+    img
+}
+
+fn render_look(style: Style, lines: &Lines) -> Image {
     // (a suffix such as the "*B" of "Weeze*B" is for the depot's own use: not drawn)
-    let lines = &Lines { line: lines.line.clone(), big: cut_suffix(&lines.big), small: cut_suffix(&lines.small) };
+    let mut lines = Lines { line: lines.line.clone(), big: cut_suffix(&lines.big), small: cut_suffix(&lines.small) };
+    if cur().caps {
+        lines = Lines { line: lines.line.to_uppercase(), big: lines.big.to_uppercase(), small: lines.small.to_uppercase() };
+    }
+    let lines = &lines;
     // (a text that came as one line, on two where the picture is made for two)
     let lines = &auto_split(style, lines);
     match style {
@@ -505,8 +883,8 @@ pub fn render(style: Style, lines: &Lines) -> Image {
 /// from 47 to 208).
 fn render_sd79(lines: &Lines) -> Image {
     const S: f32 = 4.0;
-    let mut cv = Canvas::new((256.0 * S) as usize, (64.0 * S) as usize, [255, 255, 255]);
-    let black = [0.0, 0.0, 0.0];
+    let mut cv = Canvas::new((256.0 * S) as usize, (64.0 * S) as usize, bg_or(Style::Sd79.colours().0));
+    let black = ink_or([0.0, 0.0, 0.0]);
     let (centre, max_w) = (128.0 * S, 164.0 * S);
     let two = !lines.small.trim().is_empty();
     let big = (!lines.big.trim().is_empty()).then(|| fit(lines.big.trim(), 650.0, 100.0, 22.0 * S, max_w)).flatten();
@@ -535,13 +913,16 @@ fn render_o307(lines: &Lines) -> Image {
     let (w, h) = ((860.0 * S) as usize, (172.0 * S) as usize);
     let mut cv = Canvas::new(w, h, [200, 189, 178]);
     let (cx, cy) = (w as f32 * 0.5, h as f32 * 0.5);
+    // ([ROLLBACK rollbands-1] the player's paper: the centre's colour, the corners darkened as they were)
+    let paper_c = bg_or(Style::O307.colours().0);
     for y in 0..h {
         for x in 0..w {
             // 0 in the middle, 1 at the corners
             let (dx, dy) = ((x as f32 - cx) / cx, (y as f32 - cy) / cy);
             let t = ((dx * dx + dy * dy) / 2.0).sqrt().powf(1.4);
             let grain = (hash01(x as u32 / 2, y as u32 / 2) - 0.5) * 7.0 + (hash01(x as u32, y as u32) - 0.5) * 3.0;
-            let (light, dark) = ([217.0f32, 209.0, 200.0], [168.0f32, 152.0, 137.0]);
+            let light = [paper_c[0] as f32, paper_c[1] as f32, paper_c[2] as f32];
+            let dark = [light[0] * (168.0 / 217.0), light[1] * (152.0 / 209.0), light[2] * (137.0 / 200.0)];
             let i = (y * w + x) * 4;
             for k in 0..3 {
                 cv.rgba[i + k] = (light[k] + (dark[k] - light[k]) * t.min(1.0) + grain).round().clamp(0.0, 255.0) as u8;
@@ -560,7 +941,7 @@ fn render_o307(lines: &Lines) -> Image {
             cv.blend(rule + dx, y, [42.0, 27.0, 17.0], a);
         }
     }
-    let ink = [24.0, 17.0, 12.0];
+    let ink = ink_or([24.0, 17.0, 12.0]);
     let line = lines.line.trim();
     if !line.is_empty() {
         // (capitals 92 high on the baseline 133 in the field 34..139, a little larger than the
@@ -573,14 +954,17 @@ fn render_o307(lines: &Lines) -> Image {
         }
     }
     let two = !lines.small.trim().is_empty();
-    let big = (!lines.big.trim().is_empty()).then(|| fit(lines.big.trim(), 700.0, 75.0, 50.0 * S, 380.0 * S)).flatten();
+    // [ROLLBACK o307-1] with no line number the destination has the whole front window (right of the
+    // rule) to itself and is centred in it, not left where the number's box would leave it
+    let (dest_x, dest_w) = if line.is_empty() { (540.0, 480.0) } else { (627.0, 380.0) };
+    let big = (!lines.big.trim().is_empty()).then(|| fit(lines.big.trim(), 700.0, 75.0, 50.0 * S, dest_w * S)).flatten();
     if let Some(run) = &big {
         let base = if two { 87.0 * S } else { 111.0 * S };
-        centred(&mut cv, run, 627.0 * S, base, ink);
+        centred(&mut cv, run, dest_x * S, base, ink);
     }
     if two {
-        if let Some(run) = fit(lines.small.trim(), 600.0, 75.0, second_cap(big.as_ref(), 50.0 * S, 27.0 * S), 380.0 * S) {
-            centred(&mut cv, &run, 627.0 * S, 132.0 * S, ink);
+        if let Some(run) = fit(lines.small.trim(), 600.0, 75.0, second_cap(big.as_ref(), 50.0 * S, 27.0 * S), dest_w * S) {
+            centred(&mut cv, &run, dest_x * S, 132.0 * S, ink);
         }
     }
     cv.into_image()
@@ -592,8 +976,8 @@ fn render_o307(lines: &Lines) -> Image {
 /// original's ink runs from 22 to 232).
 fn render_phantom(lines: &Lines) -> Image {
     const S: f32 = 4.0;
-    let mut cv = Canvas::new((256.0 * S) as usize, (64.0 * S) as usize, [29, 29, 29]);
-    let white = [255.0, 255.0, 255.0];
+    let mut cv = Canvas::new((256.0 * S) as usize, (64.0 * S) as usize, bg_or(Style::Phantom.colours().0));
+    let white = ink_or([255.0, 255.0, 255.0]);
     let (centre, max_w) = (127.0 * S, 216.0 * S);
     let two = !lines.small.trim().is_empty();
     let cap = if two { 25.0 } else { 28.0 } * S;
@@ -620,8 +1004,8 @@ const MIRAGE: Opts = Opts { sx0: 1.14, min_sx: 0.8, track_em: 0.05, stencil: fal
 /// ink is 132..886 for a short destination): a margin of 120 stays at either side.
 fn render_mirage(lines: &Lines) -> Image {
     const S: f32 = 2.0;
-    let mut cv = Canvas::new((1024.0 * S) as usize, (256.0 * S) as usize, [20, 20, 20]);
-    let ink = [193.0, 213.0, 27.0];
+    let mut cv = Canvas::new((1024.0 * S) as usize, (256.0 * S) as usize, bg_or(Style::Mirage.colours().0));
+    let ink = ink_or([193.0, 213.0, 27.0]);
     let (centre, max_w) = (509.0 * S, 780.0 * S);
     let two = !lines.small.trim().is_empty();
     let upper = lines.big.trim().to_string();
@@ -703,7 +1087,8 @@ fn auto_split(style: Style, lines: &Lines) -> Lines {
         Style::Dykty | Style::Plate => return lines.clone(),
         _ => {
             let Some((wght, wdth, cap, max_w, opts, k)) = single_spec(style) else { return lines.clone() };
-            let cramped = fit_ex(a, wght, wdth, cap, max_w, opts).is_some_and(|r| r.cap() < cap * 0.985 || r.sx < opts.sx0 - 0.01);
+            // ([ROLLBACK rollbands-1] against the size and the letters the player has set)
+            let cramped = fit_ex(a, wght, wdth, cap, max_w, opts).is_some_and(|r| r.cap() < cap * cur().size * 0.985 || r.sx < opts.sx0 * cur().letters - 0.01);
             if !cramped {
                 return lines.clone();
             }
@@ -746,7 +1131,7 @@ fn pr110_cell(cv: &mut Canvas, s: f32, (x0, y0): (f32, f32), big: bool, line: &s
         if let (Some(ra), Some(rb)) = (ra, rb) {
             // both lines the size of the smaller one
             let cap = ra.cap().min(rb.cap());
-            if let (Some(ra), Some(rb)) = (fit_ex(a, 800.0, 75.0, cap, max_w, STENCIL), fit_ex(b, 800.0, 75.0, cap, max_w, STENCIL)) {
+            if let (Some(ra), Some(rb)) = (fit_ex_cap(a, 800.0, 75.0, cap, max_w, STENCIL), fit_ex_cap(b, 800.0, 75.0, cap, max_w, STENCIL)) {
                 let gap = dest.3 * s * cap / (dest.2 * s);
                 let top = cy - (2.0 * cap + gap) / 2.0;
                 centred(cv, &ra, cx, top + cap, ink);
@@ -766,9 +1151,10 @@ fn pr110_cell(cv: &mut Canvas, s: f32, (x0, y0): (f32, f32), big: bool, line: &s
 fn render_pr110(lines: &Lines) -> Image {
     const S: f32 = 2.0;
     let (w, h) = ((1024.0 * S) as usize, (304.0 * S) as usize);
-    let mut cv = Canvas::new(w, h, [208, 201, 169]);
-    paper(&mut cv, 0, 0, w as i32, h as i32, [208.0, 201.0, 169.0], 6.0, 2.5, 80.0 * S, 11);
-    let ink = [16.0, 14.0, 10.0];
+    let ground = bg_or(Style::Pr110.colours().0);
+    let mut cv = Canvas::new(w, h, ground);
+    paper(&mut cv, 0, 0, w as i32, h as i32, [ground[0] as f32, ground[1] as f32, ground[2] as f32], 6.0, 2.5, 80.0 * S, 11);
+    let ink = ink_or([16.0, 14.0, 10.0]);
     let line = lines.line.trim().to_string();
     let (a, b) = (lines.big.trim().to_string(), lines.small.trim().to_string());
     for (x0, y0, big) in [(0.0, 0.0, true), (598.0, 0.0, false), (0.0, 153.0, true), (598.0, 153.0, false)] {
@@ -787,7 +1173,9 @@ fn render_pr110(lines: &Lines) -> Image {
 fn render_dykty(lines: &Lines) -> Image {
     let (w, h) = (1996usize, 614usize);
     let mut cv = Canvas::new(w, h, [0, 0, 0]);
-    let ink = [10.0, 10.0, 10.0];
+    let ink = ink_or([10.0, 10.0, 10.0]);
+    let plate = bg_or(Style::Dykty.colours().0);
+    let plate = [plate[0] as f32, plate[1] as f32, plate[2] as f32];
     let (a, b) = (lines.big.trim(), lines.small.trim());
     let text = if b.is_empty() { a.to_string() } else { format!("{a} {b}") };
     let big_rows = [67, 204, 341, 478, 614];
@@ -797,7 +1185,7 @@ fn render_dykty(lines: &Lines) -> Image {
     for (x0, x1, rows, cx, base) in parts {
         for r in 0..rows.len() - 1 {
             let (y0, y1) = (rows[r], rows[r + 1]);
-            paper(&mut cv, x0, y0, x1, y1, [184.0, 184.0, 184.0], 6.0, 2.0, 60.0, (r as u32 + 1) * 13 + x0 as u32);
+            paper(&mut cv, x0, y0, x1, y1, plate, 6.0, 2.0, 60.0, (r as u32 + 1) * 13 + x0 as u32);
             if r + 2 < rows.len() {
                 cv.rect(x0, y1 - 1, x1, y1, [34, 34, 34]);
             }
@@ -826,8 +1214,8 @@ const N40_OPTS: Opts = Opts { sx0: 1.0, min_sx: 0.7, track_em: 0.0, stencil: fal
 /// number 684..751).
 fn render_n40(lines: &Lines) -> Image {
     const S: f32 = 4.0;
-    let mut cv = Canvas::new((774.0 * S) as usize, (64.0 * S) as usize, [26, 27, 26]);
-    let ink = [193.0, 213.0, 27.0];
+    let mut cv = Canvas::new((774.0 * S) as usize, (64.0 * S) as usize, bg_or(Style::N40.colours().0));
+    let ink = ink_or([193.0, 213.0, 27.0]);
     for x in [256.0f32, 663.0] {
         cv.rect((x * S) as i32, 0, ((x + 1.0) * S) as i32, (64.0 * S) as i32, [58, 60, 58]);
     }
@@ -840,7 +1228,7 @@ fn render_n40(lines: &Lines) -> Image {
         if let (Some(ra), Some(rb)) = (ra, rb) {
             // both lines the size of the smaller one
             let cap = ra.cap().min(rb.cap());
-            if let (Some(ra), Some(rb)) = (fit_ex(a, 600.0, 80.0, cap, max_w, N40_OPTS), fit_ex(b, 600.0, 80.0, cap, max_w, N40_OPTS)) {
+            if let (Some(ra), Some(rb)) = (fit_ex_cap(a, 600.0, 80.0, cap, max_w, N40_OPTS), fit_ex_cap(b, 600.0, 80.0, cap, max_w, N40_OPTS)) {
                 centred(&mut cv, &ra, 128.0 * S, 24.0 * S, ink);
                 centred(&mut cv, &rb, 128.0 * S, 54.0 * S, ink);
             }
@@ -877,9 +1265,10 @@ fn render_n40(lines: &Lines) -> Image {
 fn render_plate(lines: &Lines) -> Image {
     const S: f32 = 4.0;
     let (w, h) = ((256.0 * S) as usize, (64.0 * S) as usize);
-    let mut cv = Canvas::new(w, h, [228, 229, 229]);
-    paper(&mut cv, 0, 0, w as i32, h as i32, [228.0, 229.0, 229.0], 2.0, 1.2, 40.0 * S, 5);
-    let black = [12.0, 12.0, 12.0];
+    let ground = bg_or(Style::Plate.colours().0);
+    let mut cv = Canvas::new(w, h, ground);
+    paper(&mut cv, 0, 0, w as i32, h as i32, [ground[0] as f32, ground[1] as f32, ground[2] as f32], 2.0, 1.2, 40.0 * S, 5);
+    let black = ink_or([12.0, 12.0, 12.0]);
     let (a, b) = (lines.big.trim(), lines.small.trim());
     let text = if b.is_empty() { a.to_string() } else { format!("{a} {b}") };
     let line = lines.line.trim();
@@ -894,7 +1283,7 @@ fn render_plate(lines: &Lines) -> Image {
     }
     if !text.is_empty() {
         match fit_ex(&text, 650.0, 80.0, 27.0 * S, max_w * S, opts) {
-            Some(run) if run.cap() >= 27.0 * S * 0.67 || !text.contains(' ') => {
+            Some(run) if run.cap() >= 27.0 * S * cur().size * 0.67 || !text.contains(' ') => {
                 centred(&mut cv, &run, centre * S, (31.0 - 13.5) * S + run.cap() / 2.0 - 0.0, black)
             }
             _ => {
@@ -903,7 +1292,7 @@ fn render_plate(lines: &Lines) -> Image {
                 let (ra, rb) = (fit_ex(&x, 650.0, 80.0, cap, max_w * S, opts), fit_ex(&y, 650.0, 80.0, cap, max_w * S, opts));
                 if let (Some(ra), Some(rb)) = (ra, rb) {
                     let cap = ra.cap().min(rb.cap());
-                    if let (Some(ra), Some(rb)) = (fit_ex(&x, 650.0, 80.0, cap, max_w * S, opts), fit_ex(&y, 650.0, 80.0, cap, max_w * S, opts)) {
+                    if let (Some(ra), Some(rb)) = (fit_ex_cap(&x, 650.0, 80.0, cap, max_w * S, opts), fit_ex_cap(&y, 650.0, 80.0, cap, max_w * S, opts)) {
                         centred(&mut cv, &ra, centre * S, 15.5 * S, black);
                         centred(&mut cv, &rb, centre * S, 30.5 * S, black);
                     }
@@ -920,6 +1309,69 @@ mod tests {
 
     fn strings(v: &[&str]) -> Vec<String> {
         v.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn a_look_is_kept_in_a_text_and_read_back() {
+        let mut all = [Tweak::default(); 8];
+        all[1] = Tweak { bg: Some([1, 2, 3]), ink: Some([250, 128, 0]), size: 0.8, second: 1.25, width: 0.9, letters: 1.1, weight: 150.0, track: 0.05, shift: -0.02, caps: true, font: Some(intern_font("/fonts/Some Font.ttf")) };
+        let back = tweaks_from_text(&tweaks_to_text(&all));
+        assert_eq!(back[1].bg, Some([1, 2, 3]));
+        assert_eq!(back[1].ink, Some([250, 128, 0]));
+        assert!((back[1].size - 0.8).abs() < 1e-3 && (back[1].second - 1.25).abs() < 1e-3 && (back[1].weight - 150.0).abs() < 0.1);
+        assert!(back[1].caps && back[0].is_default() && back[7].is_default());
+        assert_eq!(back[1].font, Some("/fonts/Some Font.ttf"));
+        // (a folder left as it is is not written; nonsense is ignored, numbers are held to a range)
+        assert!(!tweaks_to_text(&all).contains("[sd79]"));
+        let odd = tweaks_from_text("[sd79]\nsize=99\nbg=zzz\nink=#102030\n[nothing]\nsize=2\n");
+        assert_eq!((odd[0].size, odd[0].bg, odd[0].ink), (2.0, None, Some([16, 32, 48])));
+        assert_eq!(parse_hex("#FFaa00"), Some([255, 170, 0]));
+        assert_eq!(parse_hex("12345"), None);
+        assert_eq!(hex_of([1, 171, 255]), "#01abff");
+    }
+
+    #[test]
+    fn a_look_changes_the_picture_and_the_default_does_not() {
+        let l = Lines { line: "76".into(), big: "Zehlendorf".into(), small: "Sachtlebenstr.".into() };
+        for st in STYLES {
+            let plain = render_with(st, &l, &Tweak::default());
+            assert_eq!(plain.rgba, render_with(st, &l, &Tweak::default()).rgba);
+            let t = Tweak { bg: Some([9, 40, 90]), ..Tweak::default() };
+            let blue = render_with(st, &l, &t);
+            assert_eq!((blue.width, blue.height), (plain.width, plain.height));
+            // (a corner of the ground, off the lettering; the Dykty's black outside its plates is no ground)
+            if st != Style::Dykty {
+                let px = &blue.rgba[..3];
+                assert!((px[2] as i32 - 90).abs() < 40 && px[0] < 60, "{st:?}: {px:?}");
+            }
+            let big = render_with(st, &l, &Tweak { size: 0.5, ink: Some([255, 0, 0]), ..Tweak::default() });
+            assert_ne!(big.rgba, plain.rgba, "{st:?}");
+        }
+    }
+
+    #[test]
+    fn a_font_that_cannot_be_read_leaves_the_built_in_one() {
+        let l = Lines { line: String::new(), big: "Zehlendorf".into(), small: String::new() };
+        let plain = render_with(Style::Phantom, &l, &Tweak::default());
+        let lost = render_with(Style::Phantom, &l, &Tweak { font: Some(intern_font("/no/such/font.ttf")), ..Tweak::default() });
+        assert_eq!(plain.rgba, lost.rgba);
+        // (the folders are looked for without a failure, whatever is in them)
+        let _ = local_fonts();
+    }
+
+    #[test]
+    fn capitals_and_the_size_reach_the_lettering() {
+        let l = Lines { line: String::new(), big: "Zehlendorf".into(), small: String::new() };
+        let a = render_with(Style::Phantom, &l, &Tweak::default());
+        let b = render_with(Style::Phantom, &l, &Tweak { caps: true, ..Tweak::default() });
+        let c = render_with(Style::Phantom, &l, &Tweak { size: 0.5, ..Tweak::default() });
+        let ink = |i: &Image| i.rgba.chunks(4).filter(|p| p[0] > 128).count();
+        assert_ne!(a.rgba, b.rgba);
+        assert!(ink(&c) < ink(&a) * 2 / 3, "half the capitals, far less ink: {} against {}", ink(&c), ink(&a));
+        // a text that is not cramped is not split into two lines because the size was set smaller
+        let d = render_with(Style::Sd79, &Lines { line: String::new(), big: "Berlin Mitte".into(), small: String::new() }, &Tweak { size: 0.6, ..Tweak::default() });
+        let rows: Vec<usize> = (0..d.height as usize).filter(|y| (0..d.width as usize).any(|x| d.rgba[(y * d.width as usize + x) * 4] < 100)).collect();
+        assert!(rows.last().unwrap() - rows.first().unwrap() < d.height as usize / 2, "one line");
     }
 
     #[test]
@@ -1047,6 +1499,9 @@ mod tests {
         // no line number: the panels stay empty
         let none = render(Style::O307, &Lines { big: "Pythagorasdorf".into(), ..Default::default() });
         assert!(ink_bbox_in(&none, 0, 400, |p| p[0] < 70).is_none());
+        // [ROLLBACK o307-1] ... and the destination is centred in the window right of the rule
+        let d = ink_bbox_in(&none, 430, 1720, |p| p[0] < 70).expect("the destination");
+        assert!((d.0 + d.2).abs_diff(2 * 1080) < 120, "{d:?}");
     }
 
     fn ink_bbox_in(img: &Image, x_from: usize, x_to: usize, f: impl Fn(&[u8]) -> bool) -> Option<(usize, usize, usize, usize)> {

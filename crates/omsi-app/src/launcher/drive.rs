@@ -37,6 +37,8 @@ pub(super) struct BusManufacturer {
 pub struct DriveView {
     /// The tab: 0 the vehicle and the environment, 1 the map and the duty.
     pub tab: usize,
+    /// [ROLLBACK seatview-1] The bus's picture is seen from: 0 outside, 1 the driver's seat, 2 a passenger's.
+    pub seat_view: usize,
     pub bus_filter: String,
     /// The original OMSI manufacturer/type hierarchy, cached between content updates.
     bus_manufacturers: std::sync::Arc<Vec<BusManufacturer>>,
@@ -45,10 +47,8 @@ pub struct DriveView {
     bus_list_initialized: bool,
     vehicle_settings_open: bool,
     pub line_filter: String,
-    /// The tour list's search (tour number, trip name, line, stop) and whether tours whose
-    /// last trip has left are listed.
+    /// The tour list's search (tour number, trip name, line, stop).
     pub tour_filter: String,
-    pub show_ended: bool,
     /// The line list was put where the chosen line is (once: the first time it has rows).
     line_scrolled: bool,
     /// The roadbook's sidebar: open or shut, and whether the player shut it by hand (which
@@ -62,6 +62,9 @@ pub struct DriveView {
     /// `~/.openomsi/favourite-buses.txt`; and whether the list shows only them.
     favourites: Option<std::collections::BTreeSet<String>>,
     only_favourites: bool,
+    /// [ROLLBACK liverypick-1] The livery picker (the tiles with the bus's pictures) is open over the stage.
+    livery_open: bool,
+    livery_was_open: bool,
 }
 
 fn favourites_file() -> std::path::PathBuf {
@@ -153,14 +156,37 @@ pub fn draw(l: &mut Launcher, area: Rect) {
         l.map_background(lay.view);
     } else {
         l.preview_full(lay.view, 0.5);
-    }
+        // [ROLLBACK seatview-1] outside / the driver's seat / a passenger's seat (the bus's own cameras)
+        let bar = Rect::new(lay.view.x + 12.0, lay.view.bottom() - 40.0, 270.0, 28.0);
+        l.ui.solid(Rect::new(bar.x, bar.y, bar.w + 44.0, bar.h));
+        let mut mode = l.drive.seat_view;
+        if l.ui.segmented("drive-seat", bar, &mut mode, &["Outside", "Cockpit", "Interior"]) {
+            l.drive.seat_view = mode;
+        }
+        let seat = match l.drive.seat_view {
+            1 => Some(super::showroom::Seat::Driver),
+            2 => Some(super::showroom::Seat::Passenger),
+            _ => None,
+        };
+        l.showroom.set_seat(seat);
+        if let Some(sx) = seat {
+            if l.showroom.seat_count(sx) > 1 && l.ui.icon_button("drive-seat-next", Vec2::new(bar.right() + 22.0, bar.y + 14.0), 14.0, "chevron_right", "Next camera") {
+                l.showroom.seat_next();
+            }
+        }
+    } 
     l.ui.p().rounded_border(lay.view, RADIUS, 1.0, EDGE);
 
     steps(l, lay.steps);
     l.ui.panel(lay.panel);
     let inner = Rect::new(lay.panel.x + 18.0, lay.panel.y + 16.0, lay.panel.w - 36.0, lay.panel.h - 32.0);
     match tab {
-        0 => step_bus(l, inner),
+        0 => {
+            step_bus(l, inner);
+            if l.drive.livery_open {
+                livery_picker(l, lay.view);
+            }
+        }
         1 => step_time(l, inner),
         _ => duty_panel(l, inner),
     }
@@ -180,10 +206,88 @@ pub fn draw(l: &mut Launcher, area: Rect) {
         map_labels(l, lay.clear, &avoid);
     }
     foot(l, lay.foot, tab);
+    // [ROLLBACK thumbsall-2] the livery picker was shut: the pictures it asked for and are not taken yet are dropped
+    if tab != 0 {
+        l.drive.livery_open = false;
+    }
+    if l.drive.livery_was_open && !l.drive.livery_open {
+        l.thumbs.cancel_queued(true);
+    }
+    l.drive.livery_was_open = l.drive.livery_open;
     if tab == 2 {
         l.map_interact(lay.view, lay.clear);
     } else {
         l.showroom_pointer(lay.view);
+    }
+}
+
+/// [ROLLBACK liverypick-1] The livery picker: every livery of the chosen bus as a tile with its picture
+/// (the same pictures the dealership shows, taken once and kept in the cache), over the stage but
+/// not over the seat bar under it. A click on a tile chooses it and puts the picker away.
+fn livery_picker(l: &mut Launcher, view: Rect) {
+    let Some(vehicle) = l.state.bus().cloned() else {
+        l.drive.livery_open = false;
+        return;
+    };
+    let panel = Rect::new(view.x + 8.0, view.y + 8.0, (view.w - 16.0).max(120.0), (view.h - 16.0 - 44.0).max(120.0));
+    l.ui.panel(panel);
+    l.ui.solid(panel);
+    let inner = panel.inset(16.0);
+    let count = vehicle.paints.len() + 1;
+    l.ui.text_in("Choose a livery", Rect::new(inner.x, inner.y, inner.w - 120.0, 26.0), 18.0, Weight::Bold, TEXT, Align::Left);
+    let sub = match l.thumbs_status() {
+        Some(t) => t,
+        None if !l.thumbs_can_work() => "The pictures are taken once a map is chosen.".to_string(),
+        None => liveries_text(count - 1),
+    };
+    l.ui.text_in(&sub, Rect::new(inner.x, inner.y + 26.0, inner.w - 120.0, 16.0), 12.0, Weight::Regular, TEXT_DIM, Align::Left);
+    if l.ui.button("paint-close", Rect::new(inner.right() - 104.0, inner.y, 104.0, 32.0), "Close", Some("close"), ButtonKind::Normal) {
+        l.drive.livery_open = false;
+        return;
+    }
+    let body = Rect::new(inner.x, inner.y + 52.0, inner.w, (inner.h - 52.0).max(60.0));
+    // ("" is the bus's own paint)
+    let tiles: Vec<(String, String)> = std::iter::once((String::new(), default_livery_label(&vehicle).to_string()))
+        .chain(vehicle.paints.iter().map(|p| (p.clone(), p.clone())))
+        .collect();
+    let current = l.state.choice.paint.clone();
+    let mut picked: Option<String> = None;
+    let mut want: Vec<String> = Vec::new();
+    {
+        let icons = &l.icons;
+        let file = vehicle.file.as_str();
+        l.ui.scroll_area("livery-tiles", body, &mut |ui, v| {
+            let gw = v.w - 12.0;
+            let cols = ((gw + 10.0) / 210.0).floor().max(1.0) as usize;
+            let tw = (gw - (cols as f32 - 1.0) * 10.0) / cols as f32;
+            let th = (tw - 12.0) * 9.0 / 16.0;
+            let tile_h = th + 12.0 + 30.0;
+            for (i, (paint, label)) in tiles.iter().enumerate() {
+                let r = Rect::new(v.x + (i % cols) as f32 * (tw + 10.0), v.y + (i / cols) as f32 * (tile_h + 10.0), tw, tile_h);
+                let chosen = *paint == current;
+                ui.p().rounded(r, 8.0, FIELD);
+                if ui.row(&format!("livery-tile-{i}"), r, chosen) {
+                    picked = Some(paint.clone());
+                }
+                let pic = Rect::new(r.x + 6.0, r.y + 6.0, r.w - 12.0, th);
+                if ui.rect_visible(pic) {
+                    want.push(paint.clone());
+                }
+                super::thumbs::thumb_draw(ui, icons, pic, file, paint, 6.0);
+                ui.text_in(label, Rect::new(r.x + 8.0, pic.bottom() + 6.0, r.w - 16.0, 22.0), 13.0, if chosen { Weight::Bold } else { Weight::Medium }, TEXT, Align::Left);
+            }
+            tiles.len().div_ceil(cols) as f32 * (tile_h + 10.0) + 4.0
+        });
+    }
+    for p in want {
+        l.thumb_request(&vehicle.file, &p);
+    }
+    if let Some(p) = picked {
+        if p != l.state.choice.paint {
+            l.state.choice.paint = p;
+            l.state.touched();
+        }
+        l.drive.livery_open = false;
     }
 }
 
@@ -348,21 +452,20 @@ fn duty_panel(l: &mut Launcher, body: Rect) {
     y += 40.0;
     let now = l.state.choice.time as f64 * 60.0;
     let q = l.drive.tour_filter.trim().to_lowercase();
-    let mut ended_count = 0;
     let mut tours: Vec<(&omsi_launcher_lib::TourInfo, bool, Option<usize>)> = Vec::new();
+    let none_today = !line.tours.iter().any(|t| t.runs);
     for t in line.tours.iter().filter(|t| t.runs) {
         // [ROLLBACK tours-93] tours that do not run on the chosen day are not offered
         let (ended, trip) = tour_trip(t, now, &q);
         if trip.is_none() && !t.trips.is_empty() {
             continue;
         }
-        if ended {
-            ended_count += 1;
-            if !l.drive.show_ended {
-                continue;
-            }
-        }
         tours.push((t, ended, trip));
+    }
+    // [ROLLBACK tourlist-2] the tours whose last trip has left are listed (greyed, last) only when no
+    // other tour is left at this time: there are no switches for them any more
+    if tours.iter().any(|t| !t.1) {
+        tours.retain(|t| !t.1);
     }
     let departure = |t: &(&omsi_launcher_lib::TourInfo, bool, Option<usize>)| t.2.and_then(|k| t.0.trips.get(k)).map_or(f64::MAX, |x| x.departure);
     tours.sort_by(|a, b| {
@@ -374,12 +477,6 @@ fn duty_panel(l: &mut Launcher, body: Rect) {
             }
         }).then_with(|| natural(&a.0.number).cmp(&natural(&b.0.number)))
     });
-    let mut show_ended = l.drive.show_ended;
-    let toggle_w = 190.0_f32.min(body.w * 0.6);
-    if l.ui.toggle("tour-ended", Rect::new(heading.right() - toggle_w, heading.y, toggle_w, heading.h), &mut show_ended, &format!("{} ({ended_count})", omsi_ui::tr("Ended tours"))) {
-        l.drive.show_ended = show_ended;
-    }
-    l.ui.tooltip(Rect::new(heading.right() - toggle_w, heading.y, toggle_w, heading.h), "Tours whose last trip has already left at the chosen time");
     let searching = !q.is_empty();
     let tours: Vec<(String, usize, String, bool, Option<String>, Option<omsi_launcher_lib::TripInfo>, String, String, bool)> = tours.iter().map(|&(t, ended, k)| {
         let trip = k.and_then(|i| t.trips.get(i)).cloned();
@@ -387,13 +484,20 @@ fn duty_panel(l: &mut Launcher, body: Rect) {
         let terminus = t.trips.last().map(|x| x.terminus.clone()).unwrap_or_default();
         (t.number.clone(), t.trips.len(), t.days.clone(), t.runs, t.next_run.clone(), trip, from, terminus, ended)
     }).collect();
+    let date_kind = line.tours.first().map(|t| t.date_kind.clone()).unwrap_or_default(); // [ROLLBACK schoolbits-2]
     let chosen_t = l.state.choice.tour.clone();
     let mut pick = None;
     const TOUR_H: f32 = 70.0;
     let list = Rect::new(body.x - 4.0, y, body.w + 8.0, (start_y - 30.0 - y).max(TOUR_H));
     l.ui.scroll_area("tour-list", list, &mut |ui, v| {
         if tours.is_empty() {
-            let why = if searching { "No tour has a trip still to come that matches." } else { "No tour left at this time: show the ended tours, or start earlier." };
+            let why = if searching {
+                "No tour has a trip still to come that matches."
+            } else if none_today {
+                "No tour of this line runs on the chosen date: change the date."
+            } else {
+                "No tour left at this time: start earlier."
+            };
             ui.text_in(why, Rect::new(v.x + 10.0, v.y + 6.0, v.w, 34.0), 12.5, Weight::Regular, TEXT_DIM, Align::Left);
         }
         for (k, (num, trips, days, runs, next, trip, from, terminus, ended)) in tours.iter().enumerate() {
@@ -428,7 +532,7 @@ fn duty_panel(l: &mut Launcher, body: Rect) {
             }
             if !*runs {
                 sub = match next {
-                    Some(n) => format!("{trips} trips · {days} · runs {n}"),
+                    Some(n) => format!("{trips} trips · {days} · runs {n} (this date: {date_kind})"),
                     None => format!("{trips} trips · never within a year"),
                 };
             }
@@ -463,6 +567,7 @@ fn duty_panel(l: &mut Launcher, body: Rect) {
 /// under way or the next, or with a search (`q`, lower case) the first still to come that
 /// matches it by name, line or stop (a tour whose number matches keeps the usual one).
 fn tour_trip(t: &omsi_launcher_lib::TourInfo, now: f64, q: &str) -> (bool, Option<usize>) {
+    let now = t.effective_now(now); // [ROLLBACK nighttt-1]
     let ended = t.runs && t.trips.iter().all(|x| x.departure < now - 120.0);
     let first = trip_index_at(t, now);
     let has = |s: &str| s.to_lowercase().contains(q);
@@ -768,15 +873,21 @@ fn map_labels(l: &mut Launcher, map: Rect, avoid: &[Rect]) {
     if let Some(i) = l.mapview.hovered().or_else(|| l.mapview.shown_of(l.state.choice.entry)) {
         if let (Some(name), Some(at)) = (l.mapview.entry_name(i).map(str::to_string), l.mapview.entry_at(i)) {
             if map.contains(at) {
-                let name = if name.chars().count() > 32 { name.chars().take(31).collect::<String>() + "…" } else { name };
-                let w = l.ui.width(&name, 11.5, Weight::Medium) + 14.0;
-                let right = Rect::new(at.x + 12.0, at.y - 28.0, w, 20.0);
-                let rr = if inside(&right) { right } else { Rect::new(at.x - 12.0 - w, at.y - 28.0, w, 20.0) };
-                if inside(&rr) {
-                    l.ui.p().rounded(rr, 4.0, ACCENT);
-                    l.ui.text_in(&name, rr.pad(7.0, 0.0), 11.5, Weight::Bold, Color::rgba(18, 14, 8, 1.0), Align::Left);
-                    taken.push(rr);
-                }
+                // [ROLLBACK epname-1] The whole name, measured in the weight it is written in. It was cut at
+                // 32 letters with a "…", measured in Medium and drawn in Bold (wider: the text
+                // was cut short by its own box), and left out where neither side had room. Now the
+                // box fits the Bold text with a little to spare and, where neither side of the
+                // point has room, slides along the map's edge to where it fits (a name longer
+                // than the map is the only one cut).
+                let w = (l.ui.width(&name, 11.5, Weight::Bold) + 22.0).min(map.w - 8.0);
+                let y = (at.y - 28.0).clamp(map.y + 4.0, (map.bottom() - 4.0 - 20.0).max(map.y + 4.0));
+                let right = Rect::new(at.x + 12.0, y, w, 20.0);
+                let left = Rect::new(at.x - 12.0 - w, y, w, 20.0);
+                let slid = Rect::new((at.x - w * 0.5).clamp(map.x + 4.0, (map.right() - 4.0 - w).max(map.x + 4.0)), y, w, 20.0);
+                let rr = [right, left, slid].into_iter().find(|r| inside(r)).unwrap_or(slid);
+                l.ui.p().rounded(rr, 4.0, ACCENT);
+                l.ui.text_in(&name, rr.pad(7.0, 0.0), 11.5, Weight::Bold, Color::rgba(18, 14, 8, 1.0), Align::Left);
+                taken.push(rr);
             }
         }
     }
@@ -1052,7 +1163,10 @@ fn step_bus(l: &mut Launcher, r: Rect) {
             }
         }
     }
-    if let Some(file) = pick { l.state.select_bus(&file); }
+    if let Some(file) = pick {
+        l.state.select_bus(&file);
+        l.drive.livery_open = false;
+    }
     if let Some(file) = star {
         let f = l.drive.favourites.get_or_insert_with(read_favourites);
         let k = fav_key(&file);
@@ -1069,12 +1183,28 @@ fn step_bus(l: &mut Launcher, r: Rect) {
         l.ui.label(Rect::new(r.x, y, r.w, 22.0), "Livery");
         if paints.len() > 1 { l.ui.text_in(&format!("{} / {}", paint_sel + 1, paints.len()), Rect::new(r.right() - 70.0, y, 70.0, 22.0), 11.5, Weight::Regular, TEXT_DIM, Align::Right); }
         y += 28.0;
+        // [ROLLBACK liverypick-1] the livery is chosen from tiles with the bus's pictures (the ones the
+        // dealership shows), opened by this button; the arrows still step through them
         let has_arrows = paints.len() > 1;
-        let selector = Rect::new(r.x, y, r.w - if has_arrows { 88.0 } else { 0.0 }, ROW);
-        let mut changed = l.ui.select("paint", selector, &mut paint_sel, &paints);
+        let sel_h = 48.0;
+        let selector = Rect::new(r.x, y, r.w - if has_arrows { 88.0 } else { 0.0 }, sel_h);
+        let mut changed = false;
+        l.ui.p().rounded(selector, 6.0, FIELD);
+        if l.ui.row("paint-open", selector, l.drive.livery_open) && paints.len() > 1 {
+            l.drive.livery_open = !l.drive.livery_open;
+        }
+        let th = Rect::new(selector.x + 6.0, selector.y + 6.0, (sel_h - 12.0) * 16.0 / 9.0, sel_h - 12.0);
+        let cur_paint = if paint_sel == 0 { String::new() } else { vehicle.paints[paint_sel - 1].clone() };
+        l.draw_thumb(th, &vehicle.file, &cur_paint, 4.0);
+        l.ui.text_in(&paints[paint_sel], Rect::new(th.right() + 10.0, selector.y, (selector.w - th.w - 52.0).max(20.0), selector.h), 13.0, Weight::Medium, TEXT, Align::Left);
+        if paints.len() > 1 {
+            l.ui.icon("grid_view", Vec2::new(selector.right() - 20.0, selector.center().y), 18.0, TEXT_DIM);
+            l.ui.tooltip(selector, "Choose a livery");
+        }
         if has_arrows {
-            let prev = Rect::new(selector.right() + 8.0, y, ROW, ROW);
-            let next = Rect::new(prev.right() + 8.0, y, ROW, ROW);
+            let ay = y + (sel_h - ROW) * 0.5;
+            let prev = Rect::new(selector.right() + 8.0, ay, ROW, ROW);
+            let next = Rect::new(prev.right() + 8.0, ay, ROW, ROW);
             if l.ui.button("paint-previous", prev, "", Some("chevron_left"), ButtonKind::Normal) { paint_sel = (paint_sel + paints.len() - 1) % paints.len(); changed = true; }
             if l.ui.button("paint-next", next, "", Some("chevron_right"), ButtonKind::Normal) { paint_sel = (paint_sel + 1) % paints.len(); changed = true; }
             l.ui.tooltip(prev, "Preview previous livery");
@@ -1084,7 +1214,7 @@ fn step_bus(l: &mut Launcher, r: Rect) {
             l.state.choice.paint = if paint_sel == 0 { String::new() } else { vehicle.paints[paint_sel - 1].clone() };
             l.state.touched();
         }
-        y += ROW + 14.0;
+        y += sel_h + 14.0;
         let settings = Rect::new(r.x, y, r.w, 32.0);
         if l.ui.row("vehicle-settings-toggle", settings, false) { l.drive.vehicle_settings_open = !l.drive.vehicle_settings_open; }
         l.ui.icon(if l.drive.vehicle_settings_open { "expand_less" } else { "expand_more" }, Vec2::new(settings.x + 12.0, settings.center().y), 18.0, TEXT_DIM);
@@ -1240,12 +1370,8 @@ fn step_time(l: &mut Launcher, r: Rect) {
         l.state.touched();
     }
     y += 36.0;
-    let mut v = l.state.choice.autostart;
-    if l.ui.toggle("autostart", Rect::new(r.x, y, r.w, 32.0), &mut v, "Put the bus into service on start (Shift+U)") {
-        l.state.choice.autostart = v;
-        l.state.touched();
-    }
-    y += 36.0;
+    // [ROLLBACK uifix-1] ("Put the bus into service on start" is not on this step any more: it is
+    // Shift+U in the game, `--autostart`, and the phone layout's start sheet)
     let mut v = l.state.choice.on_foot;
     if l.ui.toggle("onfoot", Rect::new(r.x, y, r.w, 32.0), &mut v, "Start on foot (place a bus from the game menu)") {
         l.state.choice.on_foot = v;
@@ -1365,8 +1491,8 @@ fn step_time(l: &mut Launcher, r: Rect) {
             yy += 40.0;
             changed |= ui.slider("custom-temp", Rect::new(v.x + 4.0, yy, v.w - 12.0, 34.0), &mut custom.temp_c, -30.0, 45.0, 1.0, "Temperature", &|x| format!("{x:.0} °C"));
             yy += 40.0;
-            let temp_for_dew = custom.temp_c;
-            changed |= ui.slider("custom-hum", Rect::new(v.x + 4.0, yy, v.w - 12.0, 34.0), &mut custom.humidity, 0.0, 100.0, 1.0, "Humidity", &|x| format!("{x:.0} % · dew {:.0} °C", crate::weather_setup::dew_point_c(temp_for_dew, x)));
+            // ([ROLLBACK humlabel-1] the percentage alone, as in the game's own list)
+            changed |= ui.slider("custom-hum", Rect::new(v.x + 4.0, yy, v.w - 12.0, 34.0), &mut custom.humidity, 0.0, 100.0, 1.0, "Humidity", &|x| format!("{x:.0} %"));
             yy += 44.0;
 
             ui.label(Rect::new(v.x + 4.0, yy, 130.0, 32.0), "Cloud type");
@@ -1697,6 +1823,7 @@ mod vehicle_picker_tests {
             days: "Mon-Fri".into(),
             runs: true,
             next_run: None,
+            date_kind: String::new(),
             trips,
         };
         let h = |x: f64| x * 3600.0;

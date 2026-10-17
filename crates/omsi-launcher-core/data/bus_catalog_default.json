@@ -82,6 +82,10 @@
       "raw": "Mercedes-Benz Release",
       "name": "Mercedes-Benz"
     },
+    "neoplan polska by manek": {
+      "raw": "Neoplan Polska by Manek",
+      "name": "Neoplan Polska"
+    },
     "s400 le business series": {
       "raw": "S400 LE Business Series",
       "name": "Setra"
@@ -94,6 +98,26 @@
       "raw": "S400 NF Series | euro 4",
       "name": "Setra"
     },
+    "solaris iii actia i": {
+      "raw": "Solaris III - Actia I",
+      "name": "Solaris"
+    },
+    "solaris iii continental moki 3": {
+      "raw": "Solaris III - Continental MOKI 3",
+      "name": "Solaris"
+    },
+    "solaris iii motoplast moki 2": {
+      "raw": "Solaris III - Motoplast MOKI 2",
+      "name": "Solaris"
+    },
+    "solaris iii motoplast moki 3": {
+      "raw": "Solaris III - Motoplast MOKI 3",
+      "name": "Solaris"
+    },
+    "solaris iii touchdash prototype": {
+      "raw": "Solaris III - TouchDash Prototype",
+      "name": "Solaris"
+    },
     "solaris iii vdv": {
       "raw": "Solaris III - VDV",
       "name": "Solaris"
@@ -105,6 +129,30 @@
     "thüringer wald": {
       "raw": "Thüringer Wald",
       "name": "Thüringer Wald"
+    },
+    "trollino iv pack by iwo moki ii": {
+      "raw": "Trollino IV Pack by Iwo - MOKI II",
+      "name": "Solaris"
+    },
+    "urbino iv pack by iwo actia ii": {
+      "raw": "Urbino IV Pack by Iwo - Actia II",
+      "name": "Solaris"
+    },
+    "urbino iv pack by iwo mvp continental": {
+      "raw": "Urbino IV Pack by Iwo - MVP Continental",
+      "name": "Solaris"
+    },
+    "urbino iv pack by iwo touchdash": {
+      "raw": "Urbino IV Pack by Iwo - TouchDash",
+      "name": "Solaris"
+    },
+    "urbino iv pack by iwo vdo continental": {
+      "raw": "Urbino IV Pack by Iwo - VDO Continental",
+      "name": "Solaris"
+    },
+    "urbino iv pack by iwo vdo fap": {
+      "raw": "Urbino IV Pack by Iwo - VDO FAP",
+      "name": "Solaris"
     },
     "volkswagen minibus gmbh": {
       "raw": "Volkswagen MiniBus GmbH",
@@ -8192,6 +8240,142 @@
       "variant": "3D | 2-2-1",
       "ignore": false
     },
+    "neoplan polska by manek|k4010td zf 99": {
+      "raw_maker": "Neoplan Polska by Manek",
+      "raw_model": "K4010td | ZF | '99",
+      "maker": "Neoplan Polska",
+      "model": "K 4010 TD",
+      "variant": "ZF | '99",
+      "ignore": false
+    },
+    "neoplan polska by manek|k4016td voith 98 99": {
+      "raw_maker": "Neoplan Polska by Manek",
+      "raw_model": "K4016td | Voith | '98-99",
+      "maker": "Neoplan Polska",
+      "model": "K 4016 TD",
+      "variant": "Voith | '98-99",
+      "ignore": false
+    },
+    "neoplan polska by manek|k4016td zf 98 99": {
+      "raw_maker": "Neoplan Polska by Manek",
+      "raw_model": "K4016td | ZF | '98-99",
+      "maker": "Neoplan Polska",
+      "model": "K 4016 TD",
+      "variant": "ZF | '98-99",
+      "ignore": false
+    },
+    "neoplan polska by manek|n4009 voith 97 99": {
+      "raw_maker": "Neoplan Polska by Manek",
+      "raw_model": "N4009 | Voith | '97-99",
+      "maker": "Neoplan Polska",
+      "model": "N 4009",
+      "variant": "Voith | '97-99",
+      "ignore": false
+    },
+    "neoplan polska by manek|n4016 daf gs160m voith 97 99": {
+      "raw_maker": "Neoplan Polska by Manek",
+      "raw_model": "N4016 | DAF GS160M + Voith | '97-99",
+      "maker": "Neoplan Polska",
+      "model": "N 4016",
+      "variant": "DAF GS160M + Voith | '97-99",
+      "ignore": false
+    },
+    "neoplan polska by manek|n4016 daf gs200m voith 97 99": {
+      "raw_maker": "Neoplan Polska by Manek",
+      "raw_model": "N4016 | DAF GS200M + Voith | '97-99",
+      "maker": "Neoplan Polska",
+      "model": "N 4016",
+      "variant": "DAF GS200M + Voith | '97-99",
+      "ignore": false
+    },
+    "neoplan polska by manek|n4016 daf gs200m zf 97 99": {
+      "raw_maker": "Neoplan Polska by Manek",
+      "raw_model": "N4016 | DAF GS200M + ZF | '97-99",
+      "maker": "Neoplan Polska",
+      "model": "N 4016",
+      "variant": "DAF GS200M + ZF | '97-99",
+      "ignore": false
+    },
+    "neoplan polska by manek|n4016 man voith 97 99": {
+      "raw_maker": "Neoplan Polska by Manek",
+      "raw_model": "N4016 | MAN + Voith | '97-99",
+      "maker": "Neoplan Polska",
+      "model": "N 4016",
+      "variant": "MAN + Voith | '97-99",
+      "ignore": false
+    },
+    "neoplan polska by manek|n4016 man zf 97 99": {
+      "raw_maker": "Neoplan Polska by Manek",
+      "raw_model": "N4016 | MAN + ZF | '97-99",
+      "maker": "Neoplan Polska",
+      "model": "N 4016",
+      "variant": "MAN + ZF | '97-99",
+      "ignore": false
+    },
+    "neoplan polska by manek|n4016td zf 98": {
+      "raw_maker": "Neoplan Polska by Manek",
+      "raw_model": "N4016td | ZF | '98",
+      "maker": "Neoplan Polska",
+      "model": "N 4016 TD",
+      "variant": "ZF | '98",
+      "ignore": false
+    },
+    "neoplan polska by manek|n4020 daf voith 97 99": {
+      "raw_maker": "Neoplan Polska by Manek",
+      "raw_model": "N4020 | DAF + Voith | '97-99",
+      "maker": "Neoplan Polska",
+      "model": "N 4020",
+      "variant": "DAF + Voith | '97-99",
+      "ignore": false
+    },
+    "neoplan polska by manek|n4020 daf zf 97 99": {
+      "raw_maker": "Neoplan Polska by Manek",
+      "raw_model": "N4020 | DAF + ZF | '97-99",
+      "maker": "Neoplan Polska",
+      "model": "N 4020",
+      "variant": "DAF + ZF | '97-99",
+      "ignore": false
+    },
+    "neoplan polska by manek|n4020 man zf 97 99": {
+      "raw_maker": "Neoplan Polska by Manek",
+      "raw_model": "N4020 | MAN + ZF | '97-99",
+      "maker": "Neoplan Polska",
+      "model": "N 4020",
+      "variant": "MAN + ZF | '97-99",
+      "ignore": false
+    },
+    "neoplan polska by manek|n4020td voith 97 99": {
+      "raw_maker": "Neoplan Polska by Manek",
+      "raw_model": "N4020td | Voith | '97-99",
+      "maker": "Neoplan Polska",
+      "model": "N 4020 TD",
+      "variant": "Voith | '97-99",
+      "ignore": false
+    },
+    "neoplan polska by manek|n4020td zf 97 99": {
+      "raw_maker": "Neoplan Polska by Manek",
+      "raw_model": "N4020td | ZF | '97-99",
+      "maker": "Neoplan Polska",
+      "model": "N 4020 TD",
+      "variant": "ZF | '97-99",
+      "ignore": false
+    },
+    "neoplan polska by manek|n4021td voith 98 00": {
+      "raw_maker": "Neoplan Polska by Manek",
+      "raw_model": "N4021td | Voith | '98-00",
+      "maker": "Neoplan Polska",
+      "model": "N 4021 TD",
+      "variant": "Voith | '98-00",
+      "ignore": false
+    },
+    "neoplan polska by manek|n4021td zf 98 00": {
+      "raw_maker": "Neoplan Polska by Manek",
+      "raw_model": "N4021td | ZF | '98-00",
+      "maker": "Neoplan Polska",
+      "model": "N 4021 TD",
+      "variant": "ZF | '98-00",
+      "ignore": false
+    },
     "neoplan|n4014nf 1988 2d voith": {
       "raw_maker": "Neoplan",
       "raw_model": "N4014NF 1988 2D Voith",
@@ -8872,12 +9056,516 @@
       "variant": "NGT Saint-Servan Biogaz",
       "ignore": false
     },
+    "solaris iii actia i|metrostyle 12 3d": {
+      "raw_maker": "Solaris III - Actia I",
+      "raw_model": "MetroStyle 12 / 3D",
+      "maker": "Solaris",
+      "model": "Urbino 12 III MetroStyle",
+      "variant": "3D Actia I",
+      "ignore": false
+    },
+    "solaris iii actia i|metrostyle 12 hybrid 3d": {
+      "raw_maker": "Solaris III - Actia I",
+      "raw_model": "MetroStyle 12 Hybrid / 3D",
+      "maker": "Solaris",
+      "model": "Urbino 12 III MetroStyle Hybrid",
+      "variant": "3D Actia I",
+      "ignore": false
+    },
+    "solaris iii actia i|urbino 10 2d": {
+      "raw_maker": "Solaris III - Actia I",
+      "raw_model": "Urbino 10 / 2D",
+      "maker": "Solaris",
+      "model": "Urbino 10 III",
+      "variant": "2D Actia I",
+      "ignore": false
+    },
+    "solaris iii actia i|urbino 10 3d": {
+      "raw_maker": "Solaris III - Actia I",
+      "raw_model": "Urbino 10 / 3D",
+      "maker": "Solaris",
+      "model": "Urbino 10 III",
+      "variant": "3D Actia I",
+      "ignore": false
+    },
+    "solaris iii actia i|urbino 12 2d": {
+      "raw_maker": "Solaris III - Actia I",
+      "raw_model": "Urbino 12 / 2D",
+      "maker": "Solaris",
+      "model": "Urbino 12 III",
+      "variant": "2D Actia I",
+      "ignore": false
+    },
+    "solaris iii actia i|urbino 12 3d": {
+      "raw_maker": "Solaris III - Actia I",
+      "raw_model": "Urbino 12 / 3D",
+      "maker": "Solaris",
+      "model": "Urbino 12 III",
+      "variant": "3D Actia I",
+      "ignore": false
+    },
+    "solaris iii actia i|urbino 12 3d ef": {
+      "raw_maker": "Solaris III - Actia I",
+      "raw_model": "Urbino 12 / 3D EF",
+      "maker": "Solaris",
+      "model": "Urbino 12 III",
+      "variant": "3D EF Actia I",
+      "ignore": false
+    },
+    "solaris iii actia i|urbino 12 electric 2d": {
+      "raw_maker": "Solaris III - Actia I",
+      "raw_model": "Urbino 12 Electric / 2D",
+      "maker": "Solaris",
+      "model": "Urbino 12 III Electric",
+      "variant": "2D Actia I",
+      "ignore": false
+    },
+    "solaris iii actia i|urbino 12 electric 3d": {
+      "raw_maker": "Solaris III - Actia I",
+      "raw_model": "Urbino 12 Electric / 3D",
+      "maker": "Solaris",
+      "model": "Urbino 12 III Electric",
+      "variant": "3D Actia I",
+      "ignore": false
+    },
+    "solaris iii actia i|urbino 12 hybrid 2d": {
+      "raw_maker": "Solaris III - Actia I",
+      "raw_model": "Urbino 12 Hybrid / 2D",
+      "maker": "Solaris",
+      "model": "Urbino 12 III Hybrid",
+      "variant": "2D Actia I",
+      "ignore": false
+    },
+    "solaris iii actia i|urbino 12 hybrid 3d": {
+      "raw_maker": "Solaris III - Actia I",
+      "raw_model": "Urbino 12 Hybrid / 3D",
+      "maker": "Solaris",
+      "model": "Urbino 12 III Hybrid",
+      "variant": "3D Actia I",
+      "ignore": false
+    },
+    "solaris iii actia i|urbino 12 hybrid 3d ef": {
+      "raw_maker": "Solaris III - Actia I",
+      "raw_model": "Urbino 12 Hybrid / 3D EF",
+      "maker": "Solaris",
+      "model": "Urbino 12 III Hybrid",
+      "variant": "3D EF Actia I",
+      "ignore": false
+    },
+    "solaris iii actia i|urbino 15 2d": {
+      "raw_maker": "Solaris III - Actia I",
+      "raw_model": "Urbino 15 / 2D",
+      "maker": "Solaris",
+      "model": "Urbino 15 III",
+      "variant": "2D Actia I",
+      "ignore": false
+    },
+    "solaris iii actia i|urbino 15 3d": {
+      "raw_maker": "Solaris III - Actia I",
+      "raw_model": "Urbino 15 / 3D",
+      "maker": "Solaris",
+      "model": "Urbino 15 III",
+      "variant": "3D Actia I",
+      "ignore": false
+    },
+    "solaris iii actia i|urbino 18 3d": {
+      "raw_maker": "Solaris III - Actia I",
+      "raw_model": "Urbino 18 / 3D",
+      "maker": "Solaris",
+      "model": "Urbino 18 III",
+      "variant": "3D Actia I",
+      "ignore": false
+    },
+    "solaris iii actia i|urbino 18 4d": {
+      "raw_maker": "Solaris III - Actia I",
+      "raw_model": "Urbino 18 / 4D",
+      "maker": "Solaris",
+      "model": "Urbino 18 III",
+      "variant": "4D Actia I",
+      "ignore": false
+    },
+    "solaris iii actia i|urbino 18 electric 3d": {
+      "raw_maker": "Solaris III - Actia I",
+      "raw_model": "Urbino 18 Electric / 3D",
+      "maker": "Solaris",
+      "model": "Urbino 18 III Electric",
+      "variant": "3D Actia I",
+      "ignore": false
+    },
+    "solaris iii actia i|urbino 18 electric 4d": {
+      "raw_maker": "Solaris III - Actia I",
+      "raw_model": "Urbino 18 Electric / 4D",
+      "maker": "Solaris",
+      "model": "Urbino 18 III Electric",
+      "variant": "4D Actia I",
+      "ignore": false
+    },
+    "solaris iii actia i|urbino 18 hybrid 3d": {
+      "raw_maker": "Solaris III - Actia I",
+      "raw_model": "Urbino 18 Hybrid / 3D",
+      "maker": "Solaris",
+      "model": "Urbino 18 III Hybrid",
+      "variant": "3D Actia I",
+      "ignore": false
+    },
+    "solaris iii actia i|urbino 18 hybrid 4d": {
+      "raw_maker": "Solaris III - Actia I",
+      "raw_model": "Urbino 18 Hybrid / 4D",
+      "maker": "Solaris",
+      "model": "Urbino 18 III Hybrid",
+      "variant": "4D Actia I",
+      "ignore": false
+    },
+    "solaris iii continental moki 3|urbino 10 2d": {
+      "raw_maker": "Solaris III - Continental MOKI 3",
+      "raw_model": "Urbino 10 / 2D",
+      "maker": "Solaris",
+      "model": "Urbino 10 III",
+      "variant": "2D Continental MOKI 3",
+      "ignore": false
+    },
+    "solaris iii continental moki 3|urbino 10 3d": {
+      "raw_maker": "Solaris III - Continental MOKI 3",
+      "raw_model": "Urbino 10 / 3D",
+      "maker": "Solaris",
+      "model": "Urbino 10 III",
+      "variant": "3D Continental MOKI 3",
+      "ignore": false
+    },
+    "solaris iii continental moki 3|urbino 12 2d": {
+      "raw_maker": "Solaris III - Continental MOKI 3",
+      "raw_model": "Urbino 12 / 2D",
+      "maker": "Solaris",
+      "model": "Urbino 12 III",
+      "variant": "2D Continental MOKI 3",
+      "ignore": false
+    },
+    "solaris iii continental moki 3|urbino 12 3d": {
+      "raw_maker": "Solaris III - Continental MOKI 3",
+      "raw_model": "Urbino 12 / 3D",
+      "maker": "Solaris",
+      "model": "Urbino 12 III",
+      "variant": "3D Continental MOKI 3",
+      "ignore": false
+    },
+    "solaris iii continental moki 3|urbino 12 3d ef": {
+      "raw_maker": "Solaris III - Continental MOKI 3",
+      "raw_model": "Urbino 12 / 3D EF",
+      "maker": "Solaris",
+      "model": "Urbino 12 III",
+      "variant": "3D EF Continental MOKI 3",
+      "ignore": false
+    },
+    "solaris iii continental moki 3|urbino 15 2d": {
+      "raw_maker": "Solaris III - Continental MOKI 3",
+      "raw_model": "Urbino 15 / 2D",
+      "maker": "Solaris",
+      "model": "Urbino 15 III",
+      "variant": "2D Continental MOKI 3",
+      "ignore": false
+    },
+    "solaris iii continental moki 3|urbino 15 3d": {
+      "raw_maker": "Solaris III - Continental MOKI 3",
+      "raw_model": "Urbino 15 / 3D",
+      "maker": "Solaris",
+      "model": "Urbino 15 III",
+      "variant": "3D Continental MOKI 3",
+      "ignore": false
+    },
+    "solaris iii continental moki 3|urbino 18 3d": {
+      "raw_maker": "Solaris III - Continental MOKI 3",
+      "raw_model": "Urbino 18 / 3D",
+      "maker": "Solaris",
+      "model": "Urbino 18 III",
+      "variant": "3D Continental MOKI 3",
+      "ignore": false
+    },
+    "solaris iii continental moki 3|urbino 18 4d": {
+      "raw_maker": "Solaris III - Continental MOKI 3",
+      "raw_model": "Urbino 18 / 4D",
+      "maker": "Solaris",
+      "model": "Urbino 18 III",
+      "variant": "4D Continental MOKI 3",
+      "ignore": false
+    },
+    "solaris iii motoplast moki 2|urbino 10 2d": {
+      "raw_maker": "Solaris III - Motoplast MOKI 2",
+      "raw_model": "Urbino 10 / 2D",
+      "maker": "Solaris",
+      "model": "Urbino 10 III",
+      "variant": "2D Motoplast MOKI 2",
+      "ignore": false
+    },
+    "solaris iii motoplast moki 2|urbino 10 3d": {
+      "raw_maker": "Solaris III - Motoplast MOKI 2",
+      "raw_model": "Urbino 10 / 3D",
+      "maker": "Solaris",
+      "model": "Urbino 10 III",
+      "variant": "3D Motoplast MOKI 2",
+      "ignore": false
+    },
+    "solaris iii motoplast moki 2|urbino 12 2d": {
+      "raw_maker": "Solaris III - Motoplast MOKI 2",
+      "raw_model": "Urbino 12 / 2D",
+      "maker": "Solaris",
+      "model": "Urbino 12 III",
+      "variant": "2D Motoplast MOKI 2",
+      "ignore": false
+    },
+    "solaris iii motoplast moki 2|urbino 12 3d": {
+      "raw_maker": "Solaris III - Motoplast MOKI 2",
+      "raw_model": "Urbino 12 / 3D",
+      "maker": "Solaris",
+      "model": "Urbino 12 III",
+      "variant": "3D Motoplast MOKI 2",
+      "ignore": false
+    },
+    "solaris iii motoplast moki 2|urbino 12 3d ef": {
+      "raw_maker": "Solaris III - Motoplast MOKI 2",
+      "raw_model": "Urbino 12 / 3D EF",
+      "maker": "Solaris",
+      "model": "Urbino 12 III",
+      "variant": "3D EF Motoplast MOKI 2",
+      "ignore": false
+    },
+    "solaris iii motoplast moki 2|urbino 12 hybrid 2d": {
+      "raw_maker": "Solaris III - Motoplast MOKI 2",
+      "raw_model": "Urbino 12 Hybrid / 2D",
+      "maker": "Solaris",
+      "model": "Urbino 12 III Hybrid",
+      "variant": "2D Motoplast MOKI 2",
+      "ignore": false
+    },
+    "solaris iii motoplast moki 2|urbino 12 hybrid 3d": {
+      "raw_maker": "Solaris III - Motoplast MOKI 2",
+      "raw_model": "Urbino 12 Hybrid / 3D",
+      "maker": "Solaris",
+      "model": "Urbino 12 III Hybrid",
+      "variant": "3D Motoplast MOKI 2",
+      "ignore": false
+    },
+    "solaris iii motoplast moki 2|urbino 12 hybrid 3d ef": {
+      "raw_maker": "Solaris III - Motoplast MOKI 2",
+      "raw_model": "Urbino 12 Hybrid / 3D EF",
+      "maker": "Solaris",
+      "model": "Urbino 12 III Hybrid",
+      "variant": "3D EF Motoplast MOKI 2",
+      "ignore": false
+    },
+    "solaris iii motoplast moki 2|urbino 15 2d": {
+      "raw_maker": "Solaris III - Motoplast MOKI 2",
+      "raw_model": "Urbino 15 / 2D",
+      "maker": "Solaris",
+      "model": "Urbino 15 III",
+      "variant": "2D Motoplast MOKI 2",
+      "ignore": false
+    },
+    "solaris iii motoplast moki 2|urbino 15 3d": {
+      "raw_maker": "Solaris III - Motoplast MOKI 2",
+      "raw_model": "Urbino 15 / 3D",
+      "maker": "Solaris",
+      "model": "Urbino 15 III",
+      "variant": "3D Motoplast MOKI 2",
+      "ignore": false
+    },
+    "solaris iii motoplast moki 2|urbino 18 3d": {
+      "raw_maker": "Solaris III - Motoplast MOKI 2",
+      "raw_model": "Urbino 18 / 3D",
+      "maker": "Solaris",
+      "model": "Urbino 18 III",
+      "variant": "3D Motoplast MOKI 2",
+      "ignore": false
+    },
+    "solaris iii motoplast moki 2|urbino 18 4d": {
+      "raw_maker": "Solaris III - Motoplast MOKI 2",
+      "raw_model": "Urbino 18 / 4D",
+      "maker": "Solaris",
+      "model": "Urbino 18 III",
+      "variant": "4D Motoplast MOKI 2",
+      "ignore": false
+    },
+    "solaris iii motoplast moki 2|urbino 18 hybrid 3d": {
+      "raw_maker": "Solaris III - Motoplast MOKI 2",
+      "raw_model": "Urbino 18 Hybrid / 3D",
+      "maker": "Solaris",
+      "model": "Urbino 18 III Hybrid",
+      "variant": "3D Motoplast MOKI 2",
+      "ignore": false
+    },
+    "solaris iii motoplast moki 2|urbino 18 hybrid 4d": {
+      "raw_maker": "Solaris III - Motoplast MOKI 2",
+      "raw_model": "Urbino 18 Hybrid / 4D",
+      "maker": "Solaris",
+      "model": "Urbino 18 III Hybrid",
+      "variant": "4D Motoplast MOKI 2",
+      "ignore": false
+    },
+    "solaris iii motoplast moki 3|urbino 10 2d": {
+      "raw_maker": "Solaris III - Motoplast MOKI 3",
+      "raw_model": "Urbino 10 / 2D",
+      "maker": "Solaris",
+      "model": "Urbino 10 III",
+      "variant": "2D Motoplast MOKI 3",
+      "ignore": false
+    },
+    "solaris iii motoplast moki 3|urbino 10 3d": {
+      "raw_maker": "Solaris III - Motoplast MOKI 3",
+      "raw_model": "Urbino 10 / 3D",
+      "maker": "Solaris",
+      "model": "Urbino 10 III",
+      "variant": "3D Motoplast MOKI 3",
+      "ignore": false
+    },
+    "solaris iii motoplast moki 3|urbino 12 2d": {
+      "raw_maker": "Solaris III - Motoplast MOKI 3",
+      "raw_model": "Urbino 12 / 2D",
+      "maker": "Solaris",
+      "model": "Urbino 12 III",
+      "variant": "2D Motoplast MOKI 3",
+      "ignore": false
+    },
+    "solaris iii motoplast moki 3|urbino 12 3d": {
+      "raw_maker": "Solaris III - Motoplast MOKI 3",
+      "raw_model": "Urbino 12 / 3D",
+      "maker": "Solaris",
+      "model": "Urbino 12 III",
+      "variant": "3D Motoplast MOKI 3",
+      "ignore": false
+    },
+    "solaris iii motoplast moki 3|urbino 12 3d ef": {
+      "raw_maker": "Solaris III - Motoplast MOKI 3",
+      "raw_model": "Urbino 12 / 3D EF",
+      "maker": "Solaris",
+      "model": "Urbino 12 III",
+      "variant": "3D EF Motoplast MOKI 3",
+      "ignore": false
+    },
+    "solaris iii motoplast moki 3|urbino 15 2d": {
+      "raw_maker": "Solaris III - Motoplast MOKI 3",
+      "raw_model": "Urbino 15 / 2D",
+      "maker": "Solaris",
+      "model": "Urbino 15 III",
+      "variant": "2D Motoplast MOKI 3",
+      "ignore": false
+    },
+    "solaris iii motoplast moki 3|urbino 15 3d": {
+      "raw_maker": "Solaris III - Motoplast MOKI 3",
+      "raw_model": "Urbino 15 / 3D",
+      "maker": "Solaris",
+      "model": "Urbino 15 III",
+      "variant": "3D Motoplast MOKI 3",
+      "ignore": false
+    },
+    "solaris iii motoplast moki 3|urbino 18 3d": {
+      "raw_maker": "Solaris III - Motoplast MOKI 3",
+      "raw_model": "Urbino 18 / 3D",
+      "maker": "Solaris",
+      "model": "Urbino 18 III",
+      "variant": "3D Motoplast MOKI 3",
+      "ignore": false
+    },
+    "solaris iii motoplast moki 3|urbino 18 4d": {
+      "raw_maker": "Solaris III - Motoplast MOKI 3",
+      "raw_model": "Urbino 18 / 4D",
+      "maker": "Solaris",
+      "model": "Urbino 18 III",
+      "variant": "4D Motoplast MOKI 3",
+      "ignore": false
+    },
     "solaris iii touchdash prototype|urbino 10 2d": {
       "raw_maker": "Solaris III - TouchDash Prototype",
       "raw_model": "Urbino 10 / 2D",
       "maker": "Solaris",
       "model": "Urbino 10 III",
       "variant": "2D TouchDash Prototype",
+      "ignore": false
+    },
+    "solaris iii touchdash prototype|urbino 10 3d": {
+      "raw_maker": "Solaris III - TouchDash Prototype",
+      "raw_model": "Urbino 10 / 3D",
+      "maker": "Solaris",
+      "model": "Urbino 10 III",
+      "variant": "3D TouchDash Prototype",
+      "ignore": false
+    },
+    "solaris iii touchdash prototype|urbino 12 2d": {
+      "raw_maker": "Solaris III - TouchDash Prototype",
+      "raw_model": "Urbino 12 / 2D",
+      "maker": "Solaris",
+      "model": "Urbino 12 III",
+      "variant": "2D TouchDash Prototype",
+      "ignore": false
+    },
+    "solaris iii touchdash prototype|urbino 12 3d": {
+      "raw_maker": "Solaris III - TouchDash Prototype",
+      "raw_model": "Urbino 12 / 3D",
+      "maker": "Solaris",
+      "model": "Urbino 12 III",
+      "variant": "3D TouchDash Prototype",
+      "ignore": false
+    },
+    "solaris iii touchdash prototype|urbino 12 3d ef": {
+      "raw_maker": "Solaris III - TouchDash Prototype",
+      "raw_model": "Urbino 12 / 3D EF",
+      "maker": "Solaris",
+      "model": "Urbino 12 III",
+      "variant": "3D EF TouchDash Prototype",
+      "ignore": false
+    },
+    "solaris iii touchdash prototype|urbino 12 hybrid 2d": {
+      "raw_maker": "Solaris III - TouchDash Prototype",
+      "raw_model": "Urbino 12 Hybrid / 2D",
+      "maker": "Solaris",
+      "model": "Urbino 12 III Hybrid",
+      "variant": "2D TouchDash Prototype",
+      "ignore": false
+    },
+    "solaris iii touchdash prototype|urbino 12 hybrid 3d": {
+      "raw_maker": "Solaris III - TouchDash Prototype",
+      "raw_model": "Urbino 12 Hybrid / 3D",
+      "maker": "Solaris",
+      "model": "Urbino 12 III Hybrid",
+      "variant": "3D TouchDash Prototype",
+      "ignore": false
+    },
+    "solaris iii touchdash prototype|urbino 12 hybrid 3d ef": {
+      "raw_maker": "Solaris III - TouchDash Prototype",
+      "raw_model": "Urbino 12 Hybrid / 3D EF",
+      "maker": "Solaris",
+      "model": "Urbino 12 III Hybrid",
+      "variant": "3D EF TouchDash Prototype",
+      "ignore": false
+    },
+    "solaris iii touchdash prototype|urbino 15 2d": {
+      "raw_maker": "Solaris III - TouchDash Prototype",
+      "raw_model": "Urbino 15 / 2D",
+      "maker": "Solaris",
+      "model": "Urbino 15 III",
+      "variant": "2D TouchDash Prototype",
+      "ignore": false
+    },
+    "solaris iii touchdash prototype|urbino 15 3d": {
+      "raw_maker": "Solaris III - TouchDash Prototype",
+      "raw_model": "Urbino 15 / 3D",
+      "maker": "Solaris",
+      "model": "Urbino 15 III",
+      "variant": "3D TouchDash Prototype",
+      "ignore": false
+    },
+    "solaris iii touchdash prototype|urbino 18 3d": {
+      "raw_maker": "Solaris III - TouchDash Prototype",
+      "raw_model": "Urbino 18 / 3D",
+      "maker": "Solaris",
+      "model": "Urbino 18 III",
+      "variant": "3D TouchDash Prototype",
+      "ignore": false
+    },
+    "solaris iii touchdash prototype|urbino 18 4d": {
+      "raw_maker": "Solaris III - TouchDash Prototype",
+      "raw_model": "Urbino 18 / 4D",
+      "maker": "Solaris",
+      "model": "Urbino 18 III",
+      "variant": "4D TouchDash Prototype",
       "ignore": false
     },
     "solaris iii touchdash|urbino 12 3d": {
@@ -8891,7 +9579,7 @@
     "solaris iii vdv|urbino 10 2d": {
       "raw_maker": "Solaris III - VDV",
       "raw_model": "Urbino 10 / 2D",
-      "maker": "",
+      "maker": "Solaris",
       "model": "Urbino 10 III",
       "variant": "1-2-0 VDV",
       "ignore": false
@@ -9287,6 +9975,2558 @@
       "model": "S 315 UL Euro 3 mit Fahrradanhänger",
       "variant": "",
       "ignore": true
+    },
+    "trollino iv pack by iwo moki ii|fl st12 trollino emit 3dn": {
+      "raw_maker": "Trollino IV Pack by Iwo - MOKI II",
+      "raw_model": "FL|ST12|Trollino|Emit|3Dn",
+      "maker": "Solaris",
+      "model": "Trollino 12 IV",
+      "variant": "FL|ST12|Trollino|Emit|3Dn MOKI II",
+      "ignore": false
+    },
+    "trollino iv pack by iwo moki ii|fl st12 trollino skoda 3dn": {
+      "raw_maker": "Trollino IV Pack by Iwo - MOKI II",
+      "raw_model": "FL|ST12|Trollino|Skoda|3Dn",
+      "maker": "Solaris",
+      "model": "Trollino 12 IV",
+      "variant": "FL|ST12|Trollino|Skoda|3Dn MOKI II",
+      "ignore": false
+    },
+    "trollino iv pack by iwo moki ii|fl st12 trollino tsa tmf 3dn": {
+      "raw_maker": "Trollino IV Pack by Iwo - MOKI II",
+      "raw_model": "FL|ST12|Trollino|TSA TMF|3Dn",
+      "maker": "Solaris",
+      "model": "Trollino 12 IV",
+      "variant": "FL|ST12|Trollino|TSA TMF|3Dn MOKI II",
+      "ignore": false
+    },
+    "trollino iv pack by iwo moki ii|fl st12 trollino zf ave 3dn": {
+      "raw_maker": "Trollino IV Pack by Iwo - MOKI II",
+      "raw_model": "FL|ST12|Trollino|ZF AVE|3Dn",
+      "maker": "Solaris",
+      "model": "Trollino 12 IV",
+      "variant": "FL|ST12|Trollino|ZF AVE|3Dn MOKI II",
+      "ignore": false
+    },
+    "trollino iv pack by iwo moki ii|fl st18 trollino emit 3dp": {
+      "raw_maker": "Trollino IV Pack by Iwo - MOKI II",
+      "raw_model": "FL|ST18|Trollino|Emit|3Dp",
+      "maker": "Solaris",
+      "model": "Trollino 18 IV",
+      "variant": "FL|ST18|Trollino|Emit|3Dp MOKI II",
+      "ignore": false
+    },
+    "trollino iv pack by iwo moki ii|fl st18 trollino emit 4dn": {
+      "raw_maker": "Trollino IV Pack by Iwo - MOKI II",
+      "raw_model": "FL|ST18|Trollino|Emit|4Dn",
+      "maker": "Solaris",
+      "model": "Trollino 18 IV",
+      "variant": "FL|ST18|Trollino|Emit|4Dn MOKI II",
+      "ignore": false
+    },
+    "trollino iv pack by iwo moki ii|st12 trollino emit 3dn": {
+      "raw_maker": "Trollino IV Pack by Iwo - MOKI II",
+      "raw_model": "ST12|Trollino|Emit|3Dn",
+      "maker": "Solaris",
+      "model": "Trollino 12 IV",
+      "variant": "ST12|Trollino|Emit|3Dn MOKI II",
+      "ignore": false
+    },
+    "trollino iv pack by iwo moki ii|st12 trollino skoda 3dn": {
+      "raw_maker": "Trollino IV Pack by Iwo - MOKI II",
+      "raw_model": "ST12|Trollino|Skoda|3Dn",
+      "maker": "Solaris",
+      "model": "Trollino 12 IV",
+      "variant": "ST12|Trollino|Skoda|3Dn MOKI II",
+      "ignore": false
+    },
+    "trollino iv pack by iwo moki ii|st12 trollino tsa tmf 3dn": {
+      "raw_maker": "Trollino IV Pack by Iwo - MOKI II",
+      "raw_model": "ST12|Trollino|TSA TMF|3Dn",
+      "maker": "Solaris",
+      "model": "Trollino 12 IV",
+      "variant": "ST12|Trollino|TSA TMF|3Dn MOKI II",
+      "ignore": false
+    },
+    "trollino iv pack by iwo moki ii|st18 trollino emit 4dn": {
+      "raw_maker": "Trollino IV Pack by Iwo - MOKI II",
+      "raw_model": "ST18|Trollino|Emit|4Dn",
+      "maker": "Solaris",
+      "model": "Trollino 18 IV",
+      "variant": "ST18|Trollino|Emit|4Dn MOKI II",
+      "ignore": false
+    },
+    "trollino iv pack by iwo vdo continental|fl st18 trollino emit 3dp": {
+      "raw_maker": "Trollino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|ST18|Trollino|Emit|3Dp",
+      "maker": "Solaris",
+      "model": "Trollino 18 IV",
+      "variant": "FL|ST18|Trollino|Emit|3Dp VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su10 5 cummins voith 2d": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU10.5|Cummins|Voith|2D",
+      "maker": "Solaris",
+      "model": "Urbino 10,5 IV",
+      "variant": "FL|SU10.5|Cummins|Voith|2D Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su10 5 cummins voith 3d": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU10.5|Cummins|Voith|3D",
+      "maker": "Solaris",
+      "model": "Urbino 10,5 IV",
+      "variant": "FL|SU10.5|Cummins|Voith|3D Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su10 5 cummins zf 2d": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU10.5|Cummins|ZF|2D",
+      "maker": "Solaris",
+      "model": "Urbino 10,5 IV",
+      "variant": "FL|SU10.5|Cummins|ZF|2D Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su10 5 cummins zf 3d": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU10.5|Cummins|ZF|3D",
+      "maker": "Solaris",
+      "model": "Urbino 10,5 IV",
+      "variant": "FL|SU10.5|Cummins|ZF|3D Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su10 5 daf voith 2d": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU10.5|DAF|Voith|2D",
+      "maker": "Solaris",
+      "model": "Urbino 10,5 IV",
+      "variant": "FL|SU10.5|DAF|Voith|2D Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su10 5 daf voith 3d": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU10.5|DAF|Voith|3D",
+      "maker": "Solaris",
+      "model": "Urbino 10,5 IV",
+      "variant": "FL|SU10.5|DAF|Voith|3D Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su10 5 daf zf 2d": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU10.5|DAF|ZF|2D",
+      "maker": "Solaris",
+      "model": "Urbino 10,5 IV",
+      "variant": "FL|SU10.5|DAF|ZF|2D Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su10 5 electric zf cetrax 3d": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU10.5|Electric|ZF CeTrax|3D",
+      "maker": "Solaris",
+      "model": "Urbino 10,5 IV Electric",
+      "variant": "FL|SU10.5|Electric|ZF CeTrax|3D Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su10 5 zf voith 3d": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU10.5|ZF|Voith|3D",
+      "maker": "Solaris",
+      "model": "Urbino 10,5 IV",
+      "variant": "FL|SU10.5|ZF|Voith|3D Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su12 cng voith 2dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU12|CNG|Voith|2Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV CNG",
+      "variant": "FL|SU12|CNG|Voith|2Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su12 cng voith 2dp": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU12|CNG|Voith|2Dp",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV CNG",
+      "variant": "FL|SU12|CNG|Voith|2Dp Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su12 cng voith 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU12|CNG|Voith|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV CNG",
+      "variant": "FL|SU12|CNG|Voith|3Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su12 cng voith 3dt": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU12|CNG|Voith|3Dt",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV CNG",
+      "variant": "FL|SU12|CNG|Voith|3Dt Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su12 cng zf 2dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU12|CNG|ZF|2Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV CNG",
+      "variant": "FL|SU12|CNG|ZF|2Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su12 cng zf 2dp": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU12|CNG|ZF|2Dp",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV CNG",
+      "variant": "FL|SU12|CNG|ZF|2Dp Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su12 cng zf 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU12|CNG|ZF|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV CNG",
+      "variant": "FL|SU12|CNG|ZF|3Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su12 cng zf 3dt": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU12|CNG|ZF|3Dt",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV CNG",
+      "variant": "FL|SU12|CNG|ZF|3Dt Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su12 cummins voith 2dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU12|Cummins|Voith|2Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "FL|SU12|Cummins|Voith|2Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su12 cummins voith 2dp": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU12|Cummins|Voith|2Dp",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "FL|SU12|Cummins|Voith|2Dp Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su12 cummins voith 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU12|Cummins|Voith|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "FL|SU12|Cummins|Voith|3Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su12 cummins voith 3dt": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU12|Cummins|Voith|3Dt",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "FL|SU12|Cummins|Voith|3Dt Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su12 cummins zf 2dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU12|Cummins|ZF|2Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "FL|SU12|Cummins|ZF|2Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su12 cummins zf 2dp": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU12|Cummins|ZF|2Dp",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "FL|SU12|Cummins|ZF|2Dp Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su12 cummins zf 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU12|Cummins|ZF|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "FL|SU12|Cummins|ZF|3Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su12 cummins zf 3dt": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU12|Cummins|ZF|3Dt",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "FL|SU12|Cummins|ZF|3Dt Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su12 daf voith 2dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU12|DAF|Voith|2Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "FL|SU12|DAF|Voith|2Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su12 daf voith 2dp": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU12|DAF|Voith|2Dp",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "FL|SU12|DAF|Voith|2Dp Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su12 daf voith 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU12|DAF|Voith|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "FL|SU12|DAF|Voith|3Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su12 daf voith 3dt": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU12|DAF|Voith|3Dt",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "FL|SU12|DAF|Voith|3Dt Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su12 daf zf 2dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU12|DAF|ZF|2Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "FL|SU12|DAF|ZF|2Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su12 daf zf 2dp": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU12|DAF|ZF|2Dp",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "FL|SU12|DAF|ZF|2Dp Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su12 daf zf 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU12|DAF|ZF|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "FL|SU12|DAF|ZF|3Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su12 daf zf 3dt": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU12|DAF|ZF|3Dt",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "FL|SU12|DAF|ZF|3Dt Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su12 electric new tsa tmf 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU12|Electric New|TSA TMF|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "FL|SU12|Electric New|TSA TMF|3Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su12 electric new zf cetrax 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU12|Electric New|ZF CeTrax|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "FL|SU12|Electric New|ZF CeTrax|3Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su12 electric tsa tmf 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU12|Electric|TSA TMF|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "FL|SU12|Electric|TSA TMF|3Dn Actia II",
+      "ignore": true
+    },
+    "urbino iv pack by iwo actia ii|fl su12 electric zf avn 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU12|Electric|ZF AVN|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "FL|SU12|Electric|ZF AVN|3Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su12 electric zf cetrax 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU12|Electric|ZF CeTrax|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "FL|SU12|Electric|ZF CeTrax|3Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su12 hybrid 2dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU12|Hybrid|2Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Hybrid",
+      "variant": "FL|SU12|Hybrid|2Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su12 hybrid 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU12|Hybrid|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Hybrid",
+      "variant": "FL|SU12|Hybrid|3Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su18 cng voith 4dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU18|CNG|Voith|4Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV CNG",
+      "variant": "FL|SU18|CNG|Voith|4Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su18 cng zf 4dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU18|CNG|ZF|4Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV CNG",
+      "variant": "FL|SU18|CNG|ZF|4Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su18 daf voith 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU18|DAF|Voith|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV",
+      "variant": "FL|SU18|DAF|Voith|3Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su18 daf voith 4dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU18|DAF|Voith|4Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV",
+      "variant": "FL|SU18|DAF|Voith|4Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su18 daf voith 4dp": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU18|DAF|Voith|4Dp",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV",
+      "variant": "FL|SU18|DAF|Voith|4Dp Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su18 daf zf 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU18|DAF|ZF|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV",
+      "variant": "FL|SU18|DAF|ZF|3Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su18 daf zf 4dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU18|DAF|ZF|4Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV",
+      "variant": "FL|SU18|DAF|ZF|4Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su18 daf zf 4dp": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU18|DAF|ZF|4Dp",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV",
+      "variant": "FL|SU18|DAF|ZF|4Dp Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su18 electric new tsa tmf 4dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU18|Electric New|TSA TMF|4Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV Electric",
+      "variant": "FL|SU18|Electric New|TSA TMF|4Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su18 electric tsa tmf 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU18|Electric|TSA TMF|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV Electric",
+      "variant": "FL|SU18|Electric|TSA TMF|3Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su18 electric tsa tmf 4dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU18|Electric|TSA TMF|4Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV Electric",
+      "variant": "FL|SU18|Electric|TSA TMF|4Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su18 electric zf avn 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU18|Electric|ZF AVN|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV Electric",
+      "variant": "FL|SU18|Electric|ZF AVN|3Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su18 electric zf avn 4dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU18|Electric|ZF AVN|4Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV Electric",
+      "variant": "FL|SU18|Electric|ZF AVN|4Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su18 hybrid 4dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU18|Hybrid|4Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV Hybrid",
+      "variant": "FL|SU18|Hybrid|4Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su18 hydrogen tsa tmf 4dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU18|Hydrogen|TSA TMF|4Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV Hydrogen",
+      "variant": "FL|SU18|Hydrogen|TSA TMF|4Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|fl su9 electric siemens 2d": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "FL|SU9|Electric|Siemens|2D",
+      "maker": "Solaris",
+      "model": "Urbino 9 LE IV Electric",
+      "variant": "FL|SU9|Electric|Siemens|2D Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|su10 5 cummins voith 2d": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "SU10.5|Cummins|Voith|2D",
+      "maker": "Solaris",
+      "model": "Urbino 10,5 IV",
+      "variant": "SU10.5|Cummins|Voith|2D Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|su10 5 cummins voith 3d": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "SU10.5|Cummins|Voith|3D",
+      "maker": "Solaris",
+      "model": "Urbino 10,5 IV",
+      "variant": "SU10.5|Cummins|Voith|3D Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|su10 5 cummins zf 2d": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "SU10.5|Cummins|ZF|2D",
+      "maker": "Solaris",
+      "model": "Urbino 10,5 IV",
+      "variant": "SU10.5|Cummins|ZF|2D Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|su10 5 cummins zf 3d": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "SU10.5|Cummins|ZF|3D",
+      "maker": "Solaris",
+      "model": "Urbino 10,5 IV",
+      "variant": "SU10.5|Cummins|ZF|3D Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|su10 5 daf voith 2d": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "SU10.5|DAF|Voith|2D",
+      "maker": "Solaris",
+      "model": "Urbino 10,5 IV",
+      "variant": "SU10.5|DAF|Voith|2D Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|su10 5 daf voith 3d": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "SU10.5|DAF|Voith|3D",
+      "maker": "Solaris",
+      "model": "Urbino 10,5 IV",
+      "variant": "SU10.5|DAF|Voith|3D Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|su10 5 daf zf 2d": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "SU10.5|DAF|ZF|2D",
+      "maker": "Solaris",
+      "model": "Urbino 10,5 IV",
+      "variant": "SU10.5|DAF|ZF|2D Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|su10 5 daf zf 3d": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "SU10.5|DAF|ZF|3D",
+      "maker": "Solaris",
+      "model": "Urbino 10,5 IV",
+      "variant": "SU10.5|DAF|ZF|3D Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|su12 cng voith 2dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "SU12|CNG|Voith|2Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV CNG",
+      "variant": "SU12|CNG|Voith|2Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|su12 cng voith 2dp": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "SU12|CNG|Voith|2Dp",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV CNG",
+      "variant": "SU12|CNG|Voith|2Dp Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|su12 cng voith 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "SU12|CNG|Voith|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV CNG",
+      "variant": "SU12|CNG|Voith|3Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|su12 cng voith 3dt": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "SU12|CNG|Voith|3Dt",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV CNG",
+      "variant": "SU12|CNG|Voith|3Dt Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|su12 cng zf 2dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "SU12|CNG|ZF|2Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV CNG",
+      "variant": "SU12|CNG|ZF|2Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|su12 cng zf 2dp": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "SU12|CNG|ZF|2Dp",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV CNG",
+      "variant": "SU12|CNG|ZF|2Dp Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|su12 cng zf 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "SU12|CNG|ZF|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV CNG",
+      "variant": "SU12|CNG|ZF|3Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|su12 cng zf 3dt": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "SU12|CNG|ZF|3Dt",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV CNG",
+      "variant": "SU12|CNG|ZF|3Dt Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|su12 cummins voith 2dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "SU12|Cummins|Voith|2Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "SU12|Cummins|Voith|2Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|su12 cummins voith 2dp": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "SU12|Cummins|Voith|2Dp",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "SU12|Cummins|Voith|2Dp Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|su12 cummins voith 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "SU12|Cummins|Voith|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "SU12|Cummins|Voith|3Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|su12 cummins voith 3dt": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "SU12|Cummins|Voith|3Dt",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "SU12|Cummins|Voith|3Dt Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|su12 cummins zf 2dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "SU12|Cummins|ZF|2Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "SU12|Cummins|ZF|2Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|su12 cummins zf 2dp": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "SU12|Cummins|ZF|2Dp",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "SU12|Cummins|ZF|2Dp Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|su12 cummins zf 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "SU12|Cummins|ZF|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "SU12|Cummins|ZF|3Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|su12 cummins zf 3dt": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "SU12|Cummins|ZF|3Dt",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "SU12|Cummins|ZF|3Dt Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|su12 daf voith 2dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "SU12|DAF|Voith|2Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "SU12|DAF|Voith|2Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|su12 daf voith 2dp": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "SU12|DAF|Voith|2Dp",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "SU12|DAF|Voith|2Dp Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|su12 daf voith 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "SU12|DAF|Voith|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "SU12|DAF|Voith|3Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|su12 daf voith 3dt": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "SU12|DAF|Voith|3Dt",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "SU12|DAF|Voith|3Dt Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|su12 daf zf 2dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "SU12|DAF|ZF|2Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "SU12|DAF|ZF|2Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|su12 daf zf 2dp": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "SU12|DAF|ZF|2Dp",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "SU12|DAF|ZF|2Dp Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|su12 daf zf 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "SU12|DAF|ZF|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "SU12|DAF|ZF|3Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|su12 daf zf 3dt": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "SU12|DAF|ZF|3Dt",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "SU12|DAF|ZF|3Dt Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|su12 electric tsa tmf 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "SU12|Electric|TSA TMF|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "SU12|Electric|TSA TMF|3Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|su12 electric zf ave 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "SU12|Electric|ZF AVE|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "SU12|Electric|ZF AVE|3Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|su12 hybrid 2dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "SU12|Hybrid|2Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Hybrid",
+      "variant": "SU12|Hybrid|2Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|su12 hybrid 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "SU12|Hybrid|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Hybrid",
+      "variant": "SU12|Hybrid|3Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|su18 cng voith 4dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "SU18|CNG|Voith|4Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV CNG",
+      "variant": "SU18|CNG|Voith|4Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|su18 cng zf 4dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "SU18|CNG|ZF|4Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV CNG",
+      "variant": "SU18|CNG|ZF|4Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|su18 daf voith 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "SU18|DAF|Voith|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV",
+      "variant": "SU18|DAF|Voith|3Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|su18 daf voith 4dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "SU18|DAF|Voith|4Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV",
+      "variant": "SU18|DAF|Voith|4Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|su18 daf zf 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "SU18|DAF|ZF|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV",
+      "variant": "SU18|DAF|ZF|3Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|su18 daf zf 4dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "SU18|DAF|ZF|4Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV",
+      "variant": "SU18|DAF|ZF|4Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|su18 electric tsa tmf 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "SU18|Electric|TSA TMF|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV Electric",
+      "variant": "SU18|Electric|TSA TMF|3Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|su18 electric tsa tmf 4dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "SU18|Electric|TSA TMF|4Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV Electric",
+      "variant": "SU18|Electric|TSA TMF|4Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|su18 electric zf ave 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "SU18|Electric|ZF AVE|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV Electric",
+      "variant": "SU18|Electric|ZF AVE|3Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|su18 electric zf ave 4dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "SU18|Electric|ZF AVE|4Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV Electric",
+      "variant": "SU18|Electric|ZF AVE|4Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo actia ii|su18 hybrid 4dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - Actia II",
+      "raw_model": "SU18|Hybrid|4Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV Hybrid",
+      "variant": "SU18|Hybrid|4Dn Actia II",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su10 5 cummins voith 2d": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU10.5|Cummins|Voith|2D",
+      "maker": "Solaris",
+      "model": "Urbino 10,5 IV",
+      "variant": "FL|SU10.5|Cummins|Voith|2D MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su10 5 cummins voith 3d": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU10.5|Cummins|Voith|3D",
+      "maker": "Solaris",
+      "model": "Urbino 10,5 IV",
+      "variant": "FL|SU10.5|Cummins|Voith|3D MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su10 5 cummins zf 2d": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU10.5|Cummins|ZF|2D",
+      "maker": "Solaris",
+      "model": "Urbino 10,5 IV",
+      "variant": "FL|SU10.5|Cummins|ZF|2D MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su10 5 cummins zf 3d": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU10.5|Cummins|ZF|3D",
+      "maker": "Solaris",
+      "model": "Urbino 10,5 IV",
+      "variant": "FL|SU10.5|Cummins|ZF|3D MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su10 5 daf voith 2d": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU10.5|DAF|Voith|2D",
+      "maker": "Solaris",
+      "model": "Urbino 10,5 IV",
+      "variant": "FL|SU10.5|DAF|Voith|2D MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su10 5 daf voith 3d": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU10.5|DAF|Voith|3D",
+      "maker": "Solaris",
+      "model": "Urbino 10,5 IV",
+      "variant": "FL|SU10.5|DAF|Voith|3D MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su10 5 electric zf cetrax 3d": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU10.5|Electric|ZF CeTrax|3D",
+      "maker": "Solaris",
+      "model": "Urbino 10,5 IV Electric",
+      "variant": "FL|SU10.5|Electric|ZF CeTrax|3D MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su10 5 mild hybrid cummins 2d": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU10.5|Mild Hybrid|Cummins|2D",
+      "maker": "Solaris",
+      "model": "Urbino 10,5 IV Mild Hybrid",
+      "variant": "FL|SU10.5|Mild Hybrid|Cummins|2D MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su10 5 mild hybrid cummins 3d": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU10.5|Mild Hybrid|Cummins|3D",
+      "maker": "Solaris",
+      "model": "Urbino 10,5 IV Mild Hybrid",
+      "variant": "FL|SU10.5|Mild Hybrid|Cummins|3D MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su10 5 zf voith 2d": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU10.5|ZF|Voith|2D",
+      "maker": "Solaris",
+      "model": "Urbino 10,5 IV",
+      "variant": "FL|SU10.5|ZF|Voith|2D MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su10 5 zf voith 3d": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU10.5|ZF|Voith|3D",
+      "maker": "Solaris",
+      "model": "Urbino 10,5 IV",
+      "variant": "FL|SU10.5|ZF|Voith|3D MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su12 cng voith 2dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU12|CNG|Voith|2Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV CNG",
+      "variant": "FL|SU12|CNG|Voith|2Dn MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su12 cng voith 2dp": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU12|CNG|Voith|2Dp",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV CNG",
+      "variant": "FL|SU12|CNG|Voith|2Dp MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su12 cng voith 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU12|CNG|Voith|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV CNG",
+      "variant": "FL|SU12|CNG|Voith|3Dn MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su12 cng voith 3dt": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU12|CNG|Voith|3Dt",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV CNG",
+      "variant": "FL|SU12|CNG|Voith|3Dt MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su12 cng zf 2dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU12|CNG|ZF|2Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV CNG",
+      "variant": "FL|SU12|CNG|ZF|2Dn MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su12 cng zf 2dp": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU12|CNG|ZF|2Dp",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV CNG",
+      "variant": "FL|SU12|CNG|ZF|2Dp MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su12 cng zf 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU12|CNG|ZF|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV CNG",
+      "variant": "FL|SU12|CNG|ZF|3Dn MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su12 cng zf 3dt": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU12|CNG|ZF|3Dt",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV CNG",
+      "variant": "FL|SU12|CNG|ZF|3Dt MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su12 cummins voith 2dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU12|Cummins|Voith|2Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "FL|SU12|Cummins|Voith|2Dn MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su12 cummins voith 2dp": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU12|Cummins|Voith|2Dp",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "FL|SU12|Cummins|Voith|2Dp MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su12 cummins voith 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU12|Cummins|Voith|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "FL|SU12|Cummins|Voith|3Dn MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su12 cummins voith 3dt": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU12|Cummins|Voith|3Dt",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "FL|SU12|Cummins|Voith|3Dt MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su12 cummins zf 2dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU12|Cummins|ZF|2Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "FL|SU12|Cummins|ZF|2Dn MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su12 cummins zf 2dp": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU12|Cummins|ZF|2Dp",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "FL|SU12|Cummins|ZF|2Dp MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su12 cummins zf 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU12|Cummins|ZF|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "FL|SU12|Cummins|ZF|3Dn MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su12 cummins zf 3dt": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU12|Cummins|ZF|3Dt",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "FL|SU12|Cummins|ZF|3Dt MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su12 daf voith 2dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU12|DAF|Voith|2Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "FL|SU12|DAF|Voith|2Dn MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su12 daf voith 2dp": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU12|DAF|Voith|2Dp",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "FL|SU12|DAF|Voith|2Dp MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su12 daf voith 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU12|DAF|Voith|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "FL|SU12|DAF|Voith|3Dn MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su12 daf voith 3dt": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU12|DAF|Voith|3Dt",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "FL|SU12|DAF|Voith|3Dt MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su12 daf zf 2dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU12|DAF|ZF|2Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "FL|SU12|DAF|ZF|2Dn MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su12 daf zf 2dp": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU12|DAF|ZF|2Dp",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "FL|SU12|DAF|ZF|2Dp MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su12 daf zf 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU12|DAF|ZF|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "FL|SU12|DAF|ZF|3Dn MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su12 daf zf 3dt": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU12|DAF|ZF|3Dt",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "FL|SU12|DAF|ZF|3Dt MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su12 electric new tsa tmf 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU12|Electric New|TSA TMF|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "FL|SU12|Electric New|TSA TMF|3Dn MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su12 electric new zf cetrax 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU12|Electric New|ZF CeTrax|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "FL|SU12|Electric New|ZF CeTrax|3Dn MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su12 electric tsa tmf 2dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU12|Electric|TSA TMF|2Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "FL|SU12|Electric|TSA TMF|2Dn MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su12 electric tsa tmf 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU12|Electric|TSA TMF|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "FL|SU12|Electric|TSA TMF|3Dn MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su12 electric tsa tmf 3dt": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU12|Electric|TSA TMF|3Dt",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "FL|SU12|Electric|TSA TMF|3Dt MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su12 electric zf avn 2dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU12|Electric|ZF AVN|2Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "FL|SU12|Electric|ZF AVN|2Dn MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su12 electric zf avn 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU12|Electric|ZF AVN|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "FL|SU12|Electric|ZF AVN|3Dn MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su12 electric zf avn 3dt": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU12|Electric|ZF AVN|3Dt",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "FL|SU12|Electric|ZF AVN|3Dt MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su12 electric zf cetrax 2dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU12|Electric|ZF CeTrax|2Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "FL|SU12|Electric|ZF CeTrax|2Dn MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su12 electric zf cetrax 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU12|Electric|ZF CeTrax|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "FL|SU12|Electric|ZF CeTrax|3Dn MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su12 electric zf cetrax 3dt": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU12|Electric|ZF CeTrax|3Dt",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "FL|SU12|Electric|ZF CeTrax|3Dt MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su12 hybrid 2dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU12|Hybrid|2Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Hybrid",
+      "variant": "FL|SU12|Hybrid|2Dn MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su12 hybrid 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU12|Hybrid|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Hybrid",
+      "variant": "FL|SU12|Hybrid|3Dn MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su12 hydrogen tsa tmf 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU12|Hydrogen|TSA TMF|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Hydrogen",
+      "variant": "FL|SU12|Hydrogen|TSA TMF|3Dn MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su12 hydrogen zf avn 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU12|Hydrogen|ZF AVN|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Hydrogen",
+      "variant": "FL|SU12|Hydrogen|ZF AVN|3Dn MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su12 hydrogen zf cetrax 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU12|Hydrogen|ZF CeTrax|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Hydrogen",
+      "variant": "FL|SU12|Hydrogen|ZF CeTrax|3Dn MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su12 mild hybrid cummins 2dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU12|Mild Hybrid|Cummins|2Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Mild Hybrid",
+      "variant": "FL|SU12|Mild Hybrid|Cummins|2Dn MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su12 mild hybrid cummins 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU12|Mild Hybrid|Cummins|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Mild Hybrid",
+      "variant": "FL|SU12|Mild Hybrid|Cummins|3Dn MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su12 mild hybrid daf 2dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU12|Mild Hybrid|DAF|2Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Mild Hybrid",
+      "variant": "FL|SU12|Mild Hybrid|DAF|2Dn MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su12 mild hybrid daf 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU12|Mild Hybrid|DAF|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Mild Hybrid",
+      "variant": "FL|SU12|Mild Hybrid|DAF|3Dn MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su18 cng voith 4dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU18|CNG|Voith|4Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV CNG",
+      "variant": "FL|SU18|CNG|Voith|4Dn MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su18 cng zf 4dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU18|CNG|ZF|4Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV CNG",
+      "variant": "FL|SU18|CNG|ZF|4Dn MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su18 daf voith 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU18|DAF|Voith|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV",
+      "variant": "FL|SU18|DAF|Voith|3Dn MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su18 daf voith 4dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU18|DAF|Voith|4Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV",
+      "variant": "FL|SU18|DAF|Voith|4Dn MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su18 daf zf 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU18|DAF|ZF|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV",
+      "variant": "FL|SU18|DAF|ZF|3Dn MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su18 daf zf 4dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU18|DAF|ZF|4Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV",
+      "variant": "FL|SU18|DAF|ZF|4Dn MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su18 electric new tsa tmf 4dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU18|Electric New|TSA TMF|4Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV Electric",
+      "variant": "FL|SU18|Electric New|TSA TMF|4Dn MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su18 electric tsa tmf 4dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU18|Electric|TSA TMF|4Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV Electric",
+      "variant": "FL|SU18|Electric|TSA TMF|4Dn MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su18 electric zf avn 4dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU18|Electric|ZF AVN|4Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV Electric",
+      "variant": "FL|SU18|Electric|ZF AVN|4Dn MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su18 hybrid 4dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU18|Hybrid|4Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV Hybrid",
+      "variant": "FL|SU18|Hybrid|4Dn MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su18 hydrogen tsa tmf 4dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU18|Hydrogen|TSA TMF|4Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV Hydrogen",
+      "variant": "FL|SU18|Hydrogen|TSA TMF|4Dn MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su18 mild hybrid cng 4dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU18|Mild Hybrid|CNG|4Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV Mild Hybrid",
+      "variant": "FL|SU18|Mild Hybrid|CNG|4Dn MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su18 mild hybrid daf 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU18|Mild Hybrid|DAF|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV Mild Hybrid",
+      "variant": "FL|SU18|Mild Hybrid|DAF|3Dn MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su18 mild hybrid daf 4dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU18|Mild Hybrid|DAF|4Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV Mild Hybrid",
+      "variant": "FL|SU18|Mild Hybrid|DAF|4Dn MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo mvp continental|fl su9 electric siemens 2d": {
+      "raw_maker": "Urbino IV Pack by Iwo - MVP Continental",
+      "raw_model": "FL|SU9|Electric|Siemens|2D",
+      "maker": "Solaris",
+      "model": "Urbino 9 LE IV Electric",
+      "variant": "FL|SU9|Electric|Siemens|2D MVP Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo touchdash|fl su12 electric new zf cetrax 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - TouchDash",
+      "raw_model": "FL|SU12|Electric New|ZF CeTrax|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "FL|SU12|Electric New|ZF CeTrax|3Dn TouchDash",
+      "ignore": false
+    },
+    "urbino iv pack by iwo touchdash|fl su12 electric tsa tmf 2dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - TouchDash",
+      "raw_model": "FL|SU12|Electric|TSA TMF|2Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "FL|SU12|Electric|TSA TMF|2Dn TouchDash",
+      "ignore": false
+    },
+    "urbino iv pack by iwo touchdash|fl su12 electric tsa tmf 2dp": {
+      "raw_maker": "Urbino IV Pack by Iwo - TouchDash",
+      "raw_model": "FL|SU12|Electric|TSA TMF|2Dp",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "FL|SU12|Electric|TSA TMF|2Dp TouchDash",
+      "ignore": false
+    },
+    "urbino iv pack by iwo touchdash|fl su12 electric tsa tmf 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - TouchDash",
+      "raw_model": "FL|SU12|Electric|TSA TMF|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "FL|SU12|Electric|TSA TMF|3Dn TouchDash",
+      "ignore": false
+    },
+    "urbino iv pack by iwo touchdash|fl su12 electric tsa tmf 3dt": {
+      "raw_maker": "Urbino IV Pack by Iwo - TouchDash",
+      "raw_model": "FL|SU12|Electric|TSA TMF|3Dt",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "FL|SU12|Electric|TSA TMF|3Dt TouchDash",
+      "ignore": false
+    },
+    "urbino iv pack by iwo touchdash|fl su12 electric zf avn 2dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - TouchDash",
+      "raw_model": "FL|SU12|Electric|ZF AVN|2Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "FL|SU12|Electric|ZF AVN|2Dn TouchDash",
+      "ignore": false
+    },
+    "urbino iv pack by iwo touchdash|fl su12 electric zf avn 2dp": {
+      "raw_maker": "Urbino IV Pack by Iwo - TouchDash",
+      "raw_model": "FL|SU12|Electric|ZF AVN|2Dp",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "FL|SU12|Electric|ZF AVN|2Dp TouchDash",
+      "ignore": false
+    },
+    "urbino iv pack by iwo touchdash|fl su12 electric zf avn 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - TouchDash",
+      "raw_model": "FL|SU12|Electric|ZF AVN|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "FL|SU12|Electric|ZF AVN|3Dn TouchDash",
+      "ignore": false
+    },
+    "urbino iv pack by iwo touchdash|fl su12 electric zf avn 3dt": {
+      "raw_maker": "Urbino IV Pack by Iwo - TouchDash",
+      "raw_model": "FL|SU12|Electric|ZF AVN|3Dt",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "FL|SU12|Electric|ZF AVN|3Dt TouchDash",
+      "ignore": false
+    },
+    "urbino iv pack by iwo touchdash|fl su12 electric zf cetrax 2dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - TouchDash",
+      "raw_model": "FL|SU12|Electric|ZF CeTrax|2Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "FL|SU12|Electric|ZF CeTrax|2Dn TouchDash",
+      "ignore": false
+    },
+    "urbino iv pack by iwo touchdash|fl su12 electric zf cetrax 2dp": {
+      "raw_maker": "Urbino IV Pack by Iwo - TouchDash",
+      "raw_model": "FL|SU12|Electric|ZF CeTrax|2Dp",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "FL|SU12|Electric|ZF CeTrax|2Dp TouchDash",
+      "ignore": false
+    },
+    "urbino iv pack by iwo touchdash|fl su12 electric zf cetrax 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - TouchDash",
+      "raw_model": "FL|SU12|Electric|ZF CeTrax|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "FL|SU12|Electric|ZF CeTrax|3Dn TouchDash",
+      "ignore": false
+    },
+    "urbino iv pack by iwo touchdash|fl su12 electric zf cetrax 3dt": {
+      "raw_maker": "Urbino IV Pack by Iwo - TouchDash",
+      "raw_model": "FL|SU12|Electric|ZF CeTrax|3Dt",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "FL|SU12|Electric|ZF CeTrax|3Dt TouchDash",
+      "ignore": false
+    },
+    "urbino iv pack by iwo touchdash|fl su15 electric zf cetrax 2d": {
+      "raw_maker": "Urbino IV Pack by Iwo - TouchDash",
+      "raw_model": "FL|SU15|Electric|ZF CeTrax|2D",
+      "maker": "Solaris",
+      "model": "Urbino 15 LE IV Electric",
+      "variant": "FL|SU15|Electric|ZF CeTrax|2D TouchDash",
+      "ignore": false
+    },
+    "urbino iv pack by iwo touchdash|fl su18 electric new tsa tmf 4dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - TouchDash",
+      "raw_model": "FL|SU18|Electric New|TSA TMF|4Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV Electric",
+      "variant": "FL|SU18|Electric New|TSA TMF|4Dn TouchDash",
+      "ignore": false
+    },
+    "urbino iv pack by iwo touchdash|fl su18 electric tsa tmf 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - TouchDash",
+      "raw_model": "FL|SU18|Electric|TSA TMF|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV Electric",
+      "variant": "FL|SU18|Electric|TSA TMF|3Dn TouchDash",
+      "ignore": false
+    },
+    "urbino iv pack by iwo touchdash|fl su18 electric tsa tmf 4dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - TouchDash",
+      "raw_model": "FL|SU18|Electric|TSA TMF|4Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV Electric",
+      "variant": "FL|SU18|Electric|TSA TMF|4Dn TouchDash",
+      "ignore": false
+    },
+    "urbino iv pack by iwo touchdash|fl su18 electric zf avn 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - TouchDash",
+      "raw_model": "FL|SU18|Electric|ZF AVN|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV Electric",
+      "variant": "FL|SU18|Electric|ZF AVN|3Dn TouchDash",
+      "ignore": false
+    },
+    "urbino iv pack by iwo touchdash|fl su18 electric zf avn 4dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - TouchDash",
+      "raw_model": "FL|SU18|Electric|ZF AVN|4Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV Electric",
+      "variant": "FL|SU18|Electric|ZF AVN|4Dn TouchDash",
+      "ignore": false
+    },
+    "urbino iv pack by iwo touchdash|fl su18 hydrogen tsa tmf 4dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - TouchDash",
+      "raw_model": "FL|SU18|Hydrogen|TSA TMF|4Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV Hydrogen",
+      "variant": "FL|SU18|Hydrogen|TSA TMF|4Dn TouchDash",
+      "ignore": false
+    },
+    "urbino iv pack by iwo touchdash|fl su24 electric tsa tmf 5d": {
+      "raw_maker": "Urbino IV Pack by Iwo - TouchDash",
+      "raw_model": "FL|SU24|Electric|TSA TMF|5D",
+      "maker": "Solaris",
+      "model": "Urbino 24 IV Electric",
+      "variant": "FL|SU24|Electric|TSA TMF|5D TouchDash",
+      "ignore": false
+    },
+    "urbino iv pack by iwo touchdash|fl su9 electric siemens 2d": {
+      "raw_maker": "Urbino IV Pack by Iwo - TouchDash",
+      "raw_model": "FL|SU9|Electric|Siemens|2D",
+      "maker": "Solaris",
+      "model": "Urbino 9 LE IV Electric",
+      "variant": "FL|SU9|Electric|Siemens|2D TouchDash",
+      "ignore": false
+    },
+    "urbino iv pack by iwo touchdash|su12 electric tsa tmf 2dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - TouchDash",
+      "raw_model": "SU12|Electric|TSA TMF|2Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "SU12|Electric|TSA TMF|2Dn TouchDash",
+      "ignore": false
+    },
+    "urbino iv pack by iwo touchdash|su12 electric tsa tmf 2dp": {
+      "raw_maker": "Urbino IV Pack by Iwo - TouchDash",
+      "raw_model": "SU12|Electric|TSA TMF|2Dp",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "SU12|Electric|TSA TMF|2Dp TouchDash",
+      "ignore": false
+    },
+    "urbino iv pack by iwo touchdash|su12 electric tsa tmf 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - TouchDash",
+      "raw_model": "SU12|Electric|TSA TMF|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "SU12|Electric|TSA TMF|3Dn TouchDash",
+      "ignore": false
+    },
+    "urbino iv pack by iwo touchdash|su12 electric tsa tmf 3dt": {
+      "raw_maker": "Urbino IV Pack by Iwo - TouchDash",
+      "raw_model": "SU12|Electric|TSA TMF|3Dt",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "SU12|Electric|TSA TMF|3Dt TouchDash",
+      "ignore": false
+    },
+    "urbino iv pack by iwo touchdash|su12 electric zf ave 2dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - TouchDash",
+      "raw_model": "SU12|Electric|ZF AVE|2Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "SU12|Electric|ZF AVE|2Dn TouchDash",
+      "ignore": false
+    },
+    "urbino iv pack by iwo touchdash|su12 electric zf ave 2dp": {
+      "raw_maker": "Urbino IV Pack by Iwo - TouchDash",
+      "raw_model": "SU12|Electric|ZF AVE|2Dp",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "SU12|Electric|ZF AVE|2Dp TouchDash",
+      "ignore": false
+    },
+    "urbino iv pack by iwo touchdash|su12 electric zf ave 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - TouchDash",
+      "raw_model": "SU12|Electric|ZF AVE|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "SU12|Electric|ZF AVE|3Dn TouchDash",
+      "ignore": false
+    },
+    "urbino iv pack by iwo touchdash|su12 electric zf ave 3dt": {
+      "raw_maker": "Urbino IV Pack by Iwo - TouchDash",
+      "raw_model": "SU12|Electric|ZF AVE|3Dt",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "SU12|Electric|ZF AVE|3Dt TouchDash",
+      "ignore": false
+    },
+    "urbino iv pack by iwo touchdash|su18 electric tsa tmf 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - TouchDash",
+      "raw_model": "SU18|Electric|TSA TMF|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV Electric",
+      "variant": "SU18|Electric|TSA TMF|3Dn TouchDash",
+      "ignore": false
+    },
+    "urbino iv pack by iwo touchdash|su18 electric tsa tmf 4dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - TouchDash",
+      "raw_model": "SU18|Electric|TSA TMF|4Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV Electric",
+      "variant": "SU18|Electric|TSA TMF|4Dn TouchDash",
+      "ignore": false
+    },
+    "urbino iv pack by iwo touchdash|su18 electric zf ave 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - TouchDash",
+      "raw_model": "SU18|Electric|ZF AVE|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV Electric",
+      "variant": "SU18|Electric|ZF AVE|3Dn TouchDash",
+      "ignore": false
+    },
+    "urbino iv pack by iwo touchdash|su18 electric zf ave 4dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - TouchDash",
+      "raw_model": "SU18|Electric|ZF AVE|4Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV Electric",
+      "variant": "SU18|Electric|ZF AVE|4Dn TouchDash",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su10 5 cummins voith 2d": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU10.5|Cummins|Voith|2D",
+      "maker": "Solaris",
+      "model": "Urbino 10,5 IV",
+      "variant": "FL|SU10.5|Cummins|Voith|2D VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su10 5 cummins voith 3d": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU10.5|Cummins|Voith|3D",
+      "maker": "Solaris",
+      "model": "Urbino 10,5 IV",
+      "variant": "FL|SU10.5|Cummins|Voith|3D VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su10 5 cummins zf 2d": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU10.5|Cummins|ZF|2D",
+      "maker": "Solaris",
+      "model": "Urbino 10,5 IV",
+      "variant": "FL|SU10.5|Cummins|ZF|2D VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su10 5 cummins zf 3d": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU10.5|Cummins|ZF|3D",
+      "maker": "Solaris",
+      "model": "Urbino 10,5 IV",
+      "variant": "FL|SU10.5|Cummins|ZF|3D VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su10 5 daf voith 2d": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU10.5|DAF|Voith|2D",
+      "maker": "Solaris",
+      "model": "Urbino 10,5 IV",
+      "variant": "FL|SU10.5|DAF|Voith|2D VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su10 5 daf voith 3d": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU10.5|DAF|Voith|3D",
+      "maker": "Solaris",
+      "model": "Urbino 10,5 IV",
+      "variant": "FL|SU10.5|DAF|Voith|3D VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su10 5 daf zf 2d": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU10.5|DAF|ZF|2D",
+      "maker": "Solaris",
+      "model": "Urbino 10,5 IV",
+      "variant": "FL|SU10.5|DAF|ZF|2D VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su10 5 zf voith 3d": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU10.5|ZF|Voith|3D",
+      "maker": "Solaris",
+      "model": "Urbino 10,5 IV",
+      "variant": "FL|SU10.5|ZF|Voith|3D VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su12 cng voith 2dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU12|CNG|Voith|2Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV CNG",
+      "variant": "FL|SU12|CNG|Voith|2Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su12 cng voith 2dp": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU12|CNG|Voith|2Dp",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV CNG",
+      "variant": "FL|SU12|CNG|Voith|2Dp VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su12 cng voith 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU12|CNG|Voith|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV CNG",
+      "variant": "FL|SU12|CNG|Voith|3Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su12 cng voith 3dt": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU12|CNG|Voith|3Dt",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV CNG",
+      "variant": "FL|SU12|CNG|Voith|3Dt VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su12 cng zf 2dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU12|CNG|ZF|2Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV CNG",
+      "variant": "FL|SU12|CNG|ZF|2Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su12 cng zf 2dp": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU12|CNG|ZF|2Dp",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV CNG",
+      "variant": "FL|SU12|CNG|ZF|2Dp VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su12 cng zf 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU12|CNG|ZF|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV CNG",
+      "variant": "FL|SU12|CNG|ZF|3Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su12 cng zf 3dt": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU12|CNG|ZF|3Dt",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV CNG",
+      "variant": "FL|SU12|CNG|ZF|3Dt VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su12 cummins voith 2dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU12|Cummins|Voith|2Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "FL|SU12|Cummins|Voith|2Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su12 cummins voith 2dp": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU12|Cummins|Voith|2Dp",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "FL|SU12|Cummins|Voith|2Dp VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su12 cummins voith 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU12|Cummins|Voith|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "FL|SU12|Cummins|Voith|3Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su12 cummins voith 3dt": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU12|Cummins|Voith|3Dt",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "FL|SU12|Cummins|Voith|3Dt VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su12 cummins zf 2dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU12|Cummins|ZF|2Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "FL|SU12|Cummins|ZF|2Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su12 cummins zf 2dp": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU12|Cummins|ZF|2Dp",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "FL|SU12|Cummins|ZF|2Dp VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su12 cummins zf 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU12|Cummins|ZF|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "FL|SU12|Cummins|ZF|3Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su12 cummins zf 3dt": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU12|Cummins|ZF|3Dt",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "FL|SU12|Cummins|ZF|3Dt VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su12 daf voith 2dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU12|DAF|Voith|2Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "FL|SU12|DAF|Voith|2Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su12 daf voith 2dp": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU12|DAF|Voith|2Dp",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "FL|SU12|DAF|Voith|2Dp VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su12 daf voith 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU12|DAF|Voith|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "FL|SU12|DAF|Voith|3Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su12 daf voith 3dt": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU12|DAF|Voith|3Dt",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "FL|SU12|DAF|Voith|3Dt VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su12 daf zf 2dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU12|DAF|ZF|2Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "FL|SU12|DAF|ZF|2Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su12 daf zf 2dp": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU12|DAF|ZF|2Dp",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "FL|SU12|DAF|ZF|2Dp VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su12 daf zf 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU12|DAF|ZF|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "FL|SU12|DAF|ZF|3Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su12 daf zf 3dt": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU12|DAF|ZF|3Dt",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "FL|SU12|DAF|ZF|3Dt VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su12 electric new zf cetrax 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU12|Electric New|ZF CeTrax|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "FL|SU12|Electric New|ZF CeTrax|3Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su12 electric tsa tmf 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU12|Electric|TSA TMF|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "FL|SU12|Electric|TSA TMF|3Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su12 electric tsa tmf 3dt": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU12|Electric|TSA TMF|3Dt",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "FL|SU12|Electric|TSA TMF|3Dt VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su12 electric zf avn 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU12|Electric|ZF AVN|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "FL|SU12|Electric|ZF AVN|3Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su12 electric zf avn 3dt": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU12|Electric|ZF AVN|3Dt",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "FL|SU12|Electric|ZF AVN|3Dt VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su12 electric zf cetrax 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU12|Electric|ZF CeTrax|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "FL|SU12|Electric|ZF CeTrax|3Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su12 electric zf cetrax 3dt": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU12|Electric|ZF CeTrax|3Dt",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "FL|SU12|Electric|ZF CeTrax|3Dt VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su18 cng voith 4dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU18|CNG|Voith|4Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV CNG",
+      "variant": "FL|SU18|CNG|Voith|4Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su18 cng zf 4dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU18|CNG|ZF|4Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV CNG",
+      "variant": "FL|SU18|CNG|ZF|4Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su18 daf voith 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU18|DAF|Voith|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV",
+      "variant": "FL|SU18|DAF|Voith|3Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su18 daf voith 4dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU18|DAF|Voith|4Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV",
+      "variant": "FL|SU18|DAF|Voith|4Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su18 daf voith 4dp": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU18|DAF|Voith|4Dp",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV",
+      "variant": "FL|SU18|DAF|Voith|4Dp VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su18 daf zf 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU18|DAF|ZF|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV",
+      "variant": "FL|SU18|DAF|ZF|3Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su18 daf zf 4dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU18|DAF|ZF|4Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV",
+      "variant": "FL|SU18|DAF|ZF|4Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su18 daf zf 4dp": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU18|DAF|ZF|4Dp",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV",
+      "variant": "FL|SU18|DAF|ZF|4Dp VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su18 electric tsa tmf 4dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU18|Electric|TSA TMF|4Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV Electric",
+      "variant": "FL|SU18|Electric|TSA TMF|4Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|fl su18 electric zf avn 4dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "FL|SU18|Electric|ZF AVN|4Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV Electric",
+      "variant": "FL|SU18|Electric|ZF AVN|4Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|su10 5 cummins voith 2d": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "SU10.5|Cummins|Voith|2D",
+      "maker": "Solaris",
+      "model": "Urbino 10,5 IV",
+      "variant": "SU10.5|Cummins|Voith|2D VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|su10 5 cummins voith 3d": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "SU10.5|Cummins|Voith|3D",
+      "maker": "Solaris",
+      "model": "Urbino 10,5 IV",
+      "variant": "SU10.5|Cummins|Voith|3D VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|su10 5 cummins zf 2d": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "SU10.5|Cummins|ZF|2D",
+      "maker": "Solaris",
+      "model": "Urbino 10,5 IV",
+      "variant": "SU10.5|Cummins|ZF|2D VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|su10 5 cummins zf 3d": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "SU10.5|Cummins|ZF|3D",
+      "maker": "Solaris",
+      "model": "Urbino 10,5 IV",
+      "variant": "SU10.5|Cummins|ZF|3D VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|su10 5 daf voith 2d": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "SU10.5|DAF|Voith|2D",
+      "maker": "Solaris",
+      "model": "Urbino 10,5 IV",
+      "variant": "SU10.5|DAF|Voith|2D VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|su10 5 daf voith 3d": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "SU10.5|DAF|Voith|3D",
+      "maker": "Solaris",
+      "model": "Urbino 10,5 IV",
+      "variant": "SU10.5|DAF|Voith|3D VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|su10 5 daf zf 2d": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "SU10.5|DAF|ZF|2D",
+      "maker": "Solaris",
+      "model": "Urbino 10,5 IV",
+      "variant": "SU10.5|DAF|ZF|2D VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|su10 5 daf zf 3d": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "SU10.5|DAF|ZF|3D",
+      "maker": "Solaris",
+      "model": "Urbino 10,5 IV",
+      "variant": "SU10.5|DAF|ZF|3D VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|su12 cng voith 2dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "SU12|CNG|Voith|2Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV CNG",
+      "variant": "SU12|CNG|Voith|2Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|su12 cng voith 2dp": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "SU12|CNG|Voith|2Dp",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV CNG",
+      "variant": "SU12|CNG|Voith|2Dp VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|su12 cng voith 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "SU12|CNG|Voith|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV CNG",
+      "variant": "SU12|CNG|Voith|3Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|su12 cng voith 3dt": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "SU12|CNG|Voith|3Dt",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV CNG",
+      "variant": "SU12|CNG|Voith|3Dt VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|su12 cng zf 2dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "SU12|CNG|ZF|2Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV CNG",
+      "variant": "SU12|CNG|ZF|2Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|su12 cng zf 2dp": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "SU12|CNG|ZF|2Dp",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV CNG",
+      "variant": "SU12|CNG|ZF|2Dp VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|su12 cng zf 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "SU12|CNG|ZF|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV CNG",
+      "variant": "SU12|CNG|ZF|3Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|su12 cng zf 3dt": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "SU12|CNG|ZF|3Dt",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV CNG",
+      "variant": "SU12|CNG|ZF|3Dt VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|su12 cummins voith 2dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "SU12|Cummins|Voith|2Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "SU12|Cummins|Voith|2Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|su12 cummins voith 2dp": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "SU12|Cummins|Voith|2Dp",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "SU12|Cummins|Voith|2Dp VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|su12 cummins voith 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "SU12|Cummins|Voith|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "SU12|Cummins|Voith|3Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|su12 cummins voith 3dt": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "SU12|Cummins|Voith|3Dt",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "SU12|Cummins|Voith|3Dt VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|su12 cummins zf 2dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "SU12|Cummins|ZF|2Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "SU12|Cummins|ZF|2Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|su12 cummins zf 2dp": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "SU12|Cummins|ZF|2Dp",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "SU12|Cummins|ZF|2Dp VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|su12 cummins zf 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "SU12|Cummins|ZF|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "SU12|Cummins|ZF|3Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|su12 cummins zf 3dt": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "SU12|Cummins|ZF|3Dt",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "SU12|Cummins|ZF|3Dt VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|su12 daf voith 2dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "SU12|DAF|Voith|2Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "SU12|DAF|Voith|2Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|su12 daf voith 2dp": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "SU12|DAF|Voith|2Dp",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "SU12|DAF|Voith|2Dp VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|su12 daf voith 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "SU12|DAF|Voith|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "SU12|DAF|Voith|3Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|su12 daf voith 3dt": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "SU12|DAF|Voith|3Dt",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "SU12|DAF|Voith|3Dt VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|su12 daf zf 2dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "SU12|DAF|ZF|2Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "SU12|DAF|ZF|2Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|su12 daf zf 2dp": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "SU12|DAF|ZF|2Dp",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "SU12|DAF|ZF|2Dp VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|su12 daf zf 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "SU12|DAF|ZF|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "SU12|DAF|ZF|3Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|su12 daf zf 3dt": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "SU12|DAF|ZF|3Dt",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "SU12|DAF|ZF|3Dt VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|su12 electric tsa tmf 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "SU12|Electric|TSA TMF|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "SU12|Electric|TSA TMF|3Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|su12 electric tsa tmf 3dt": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "SU12|Electric|TSA TMF|3Dt",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "SU12|Electric|TSA TMF|3Dt VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|su12 electric zf ave 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "SU12|Electric|ZF AVE|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "SU12|Electric|ZF AVE|3Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|su12 electric zf ave 3dt": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "SU12|Electric|ZF AVE|3Dt",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "variant": "SU12|Electric|ZF AVE|3Dt VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|su12 hybrid 2dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "SU12|Hybrid|2Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Hybrid",
+      "variant": "SU12|Hybrid|2Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|su12 hybrid 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "SU12|Hybrid|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Hybrid",
+      "variant": "SU12|Hybrid|3Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|su18 cng voith 4dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "SU18|CNG|Voith|4Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV CNG",
+      "variant": "SU18|CNG|Voith|4Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|su18 cng zf 4dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "SU18|CNG|ZF|4Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV CNG",
+      "variant": "SU18|CNG|ZF|4Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|su18 daf voith 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "SU18|DAF|Voith|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV",
+      "variant": "SU18|DAF|Voith|3Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|su18 daf voith 4dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "SU18|DAF|Voith|4Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV",
+      "variant": "SU18|DAF|Voith|4Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|su18 daf zf 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "SU18|DAF|ZF|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV",
+      "variant": "SU18|DAF|ZF|3Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|su18 daf zf 4dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "SU18|DAF|ZF|4Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV",
+      "variant": "SU18|DAF|ZF|4Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|su18 electric tsa tmf 4dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "SU18|Electric|TSA TMF|4Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV Electric",
+      "variant": "SU18|Electric|TSA TMF|4Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|su18 electric zf ave 4dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "SU18|Electric|ZF AVE|4Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV Electric",
+      "variant": "SU18|Electric|ZF AVE|4Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo continental|su18 hybrid 4dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO Continental",
+      "raw_model": "SU18|Hybrid|4Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV Hybrid",
+      "variant": "SU18|Hybrid|4Dn VDO Continental",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo fap|su12 cummins voith 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO FAP",
+      "raw_model": "SU12|Cummins|Voith|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "SU12|Cummins|Voith|3Dn VDO FAP",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo fap|su12 cummins zf 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO FAP",
+      "raw_model": "SU12|Cummins|ZF|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "SU12|Cummins|ZF|3Dn VDO FAP",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo fap|su12 daf voith 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO FAP",
+      "raw_model": "SU12|DAF|Voith|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "SU12|DAF|Voith|3Dn VDO FAP",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo fap|su12 daf zf 3dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO FAP",
+      "raw_model": "SU12|DAF|ZF|3Dn",
+      "maker": "Solaris",
+      "model": "Urbino 12 IV",
+      "variant": "SU12|DAF|ZF|3Dn VDO FAP",
+      "ignore": false
+    },
+    "urbino iv pack by iwo vdo fap|su18 daf voith 4dn": {
+      "raw_maker": "Urbino IV Pack by Iwo - VDO FAP",
+      "raw_model": "SU18|DAF|Voith|4Dn",
+      "maker": "Solaris",
+      "model": "Urbino 18 IV",
+      "variant": "SU18|DAF|Voith|4Dn VDO FAP",
+      "ignore": false
     },
     "urbino stadtbus|urbino 12 ii 2 türer": {
       "raw_maker": "Urbino Stadtbus",
@@ -11402,6 +14642,70 @@
       "from": 0,
       "to": 0
     },
+    "neoplan polska|k 4010 td": {
+      "maker": "Neoplan Polska",
+      "model": "K 4010 TD",
+      "size": "MAXI",
+      "class": "City",
+      "from": 1999,
+      "to": 1999
+    },
+    "neoplan polska|k 4016 td": {
+      "maker": "Neoplan Polska",
+      "model": "K 4016 TD",
+      "size": "MAXI",
+      "class": "City",
+      "from": 1998,
+      "to": 1999
+    },
+    "neoplan polska|n 4009": {
+      "maker": "Neoplan Polska",
+      "model": "N 4009",
+      "size": "MIDI",
+      "class": "City",
+      "from": 1997,
+      "to": 1999
+    },
+    "neoplan polska|n 4016": {
+      "maker": "Neoplan Polska",
+      "model": "N 4016",
+      "size": "MAXI",
+      "class": "City",
+      "from": 1997,
+      "to": 1999
+    },
+    "neoplan polska|n 4016 td": {
+      "maker": "Neoplan Polska",
+      "model": "N 4016 TD",
+      "size": "MAXI",
+      "class": "City",
+      "from": 1998,
+      "to": 1998
+    },
+    "neoplan polska|n 4020": {
+      "maker": "Neoplan Polska",
+      "model": "N 4020",
+      "size": "MAXI",
+      "class": "City",
+      "from": 1997,
+      "to": 1999
+    },
+    "neoplan polska|n 4020 td": {
+      "maker": "Neoplan Polska",
+      "model": "N 4020 TD",
+      "size": "MAXI",
+      "class": "City",
+      "from": 1997,
+      "to": 1999
+    },
+    "neoplan polska|n 4021 td": {
+      "maker": "Neoplan Polska",
+      "model": "N 4021 TD",
+      "size": "MAXI",
+      "class": "City",
+      "from": 1997,
+      "to": 1999
+    },
     "neoplan|n 4014 nf": {
       "maker": "Neoplan",
       "model": "N 4014 NF",
@@ -11626,13 +14930,53 @@
       "from": 1972,
       "to": 1992
     },
+    "solaris|trollino 12 iv": {
+      "maker": "Solaris",
+      "model": "Trollino 12 IV",
+      "size": "MAXI",
+      "class": "City",
+      "from": 2020,
+      "to": 0
+    },
+    "solaris|trollino 18 iv": {
+      "maker": "Solaris",
+      "model": "Trollino 18 IV",
+      "size": "MEGA",
+      "class": "City",
+      "from": 2020,
+      "to": 0
+    },
     "solaris|urbino 10 iii": {
       "maker": "Solaris",
       "model": "Urbino 10 III",
-      "size": "MAXI",
+      "size": "MIDI",
       "class": "City",
-      "from": 2008,
-      "to": 2011
+      "from": 2005,
+      "to": 2020
+    },
+    "solaris|urbino 10,5 iv": {
+      "maker": "Solaris",
+      "model": "Urbino 10,5 IV",
+      "size": "MIDI",
+      "class": "City",
+      "from": 2016,
+      "to": 0
+    },
+    "solaris|urbino 10,5 iv electric": {
+      "maker": "Solaris",
+      "model": "Urbino 10,5 IV Electric",
+      "size": "MIDI",
+      "class": "City",
+      "from": 2016,
+      "to": 0
+    },
+    "solaris|urbino 10,5 iv mild hybrid": {
+      "maker": "Solaris",
+      "model": "Urbino 10,5 IV Mild Hybrid",
+      "size": "MIDI",
+      "class": "City",
+      "from": 2016,
+      "to": 0
     },
     "solaris|urbino 12 ii": {
       "maker": "Solaris",
@@ -11647,7 +14991,7 @@
       "model": "Urbino 12 III",
       "size": "MAXI",
       "class": "City",
-      "from": 2010,
+      "from": 2005,
       "to": 2020
     },
     "solaris|urbino 12 iii electric": {
@@ -11655,7 +14999,7 @@
       "model": "Urbino 12 III Electric",
       "size": "MAXI",
       "class": "City",
-      "from": 2010,
+      "from": 2005,
       "to": 2020
     },
     "solaris|urbino 12 iii hybrid": {
@@ -11663,7 +15007,23 @@
       "model": "Urbino 12 III Hybrid",
       "size": "MAXI",
       "class": "City",
-      "from": 2010,
+      "from": 2005,
+      "to": 2020
+    },
+    "solaris|urbino 12 iii metrostyle": {
+      "maker": "Solaris",
+      "model": "Urbino 12 III MetroStyle",
+      "size": "MAXI",
+      "class": "City",
+      "from": 2005,
+      "to": 2020
+    },
+    "solaris|urbino 12 iii metrostyle hybrid": {
+      "maker": "Solaris",
+      "model": "Urbino 12 III MetroStyle Hybrid",
+      "size": "MAXI",
+      "class": "City",
+      "from": 2005,
       "to": 2020
     },
     "solaris|urbino 12 iv": {
@@ -11671,8 +15031,48 @@
       "model": "Urbino 12 IV",
       "size": "MAXI",
       "class": "City",
-      "from": 2014,
-      "to": 2020
+      "from": 2016,
+      "to": 0
+    },
+    "solaris|urbino 12 iv cng": {
+      "maker": "Solaris",
+      "model": "Urbino 12 IV CNG",
+      "size": "MAXI",
+      "class": "City",
+      "from": 2016,
+      "to": 0
+    },
+    "solaris|urbino 12 iv electric": {
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Electric",
+      "size": "MAXI",
+      "class": "City",
+      "from": 2016,
+      "to": 0
+    },
+    "solaris|urbino 12 iv hybrid": {
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Hybrid",
+      "size": "MAXI",
+      "class": "City",
+      "from": 2016,
+      "to": 0
+    },
+    "solaris|urbino 12 iv hydrogen": {
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Hydrogen",
+      "size": "MAXI",
+      "class": "City",
+      "from": 2016,
+      "to": 0
+    },
+    "solaris|urbino 12 iv mild hybrid": {
+      "maker": "Solaris",
+      "model": "Urbino 12 IV Mild Hybrid",
+      "size": "MAXI",
+      "class": "City",
+      "from": 2016,
+      "to": 0
     },
     "solaris|urbino 15 ii": {
       "maker": "Solaris",
@@ -11685,10 +15085,18 @@
     "solaris|urbino 15 iii": {
       "maker": "Solaris",
       "model": "Urbino 15 III",
-      "size": "MEGA",
+      "size": "MAXI",
       "class": "City",
       "from": 2005,
       "to": 2020
+    },
+    "solaris|urbino 15 le iv electric": {
+      "maker": "Solaris",
+      "model": "Urbino 15 LE IV Electric",
+      "size": "MAXI",
+      "class": "Intercity",
+      "from": 2016,
+      "to": 0
     },
     "solaris|urbino 18 ii": {
       "maker": "Solaris",
@@ -11703,15 +15111,23 @@
       "model": "Urbino 18 III",
       "size": "MEGA",
       "class": "City",
-      "from": 2010,
-      "to": 2015
+      "from": 2005,
+      "to": 2020
     },
     "solaris|urbino 18 iii electric": {
       "maker": "Solaris",
       "model": "Urbino 18 III Electric",
-      "size": "MAXI",
+      "size": "MEGA",
       "class": "City",
-      "from": 2010,
+      "from": 2005,
+      "to": 2020
+    },
+    "solaris|urbino 18 iii hybrid": {
+      "maker": "Solaris",
+      "model": "Urbino 18 III Hybrid",
+      "size": "MEGA",
+      "class": "City",
+      "from": 2005,
       "to": 2020
     },
     "solaris|urbino 18 iv": {
@@ -11719,8 +15135,72 @@
       "model": "Urbino 18 IV",
       "size": "MEGA",
       "class": "City",
-      "from": 2014,
-      "to": 2020
+      "from": 2016,
+      "to": 0
+    },
+    "solaris|urbino 18 iv cng": {
+      "maker": "Solaris",
+      "model": "Urbino 18 IV CNG",
+      "size": "MEGA",
+      "class": "City",
+      "from": 2016,
+      "to": 0
+    },
+    "solaris|urbino 18 iv electric": {
+      "maker": "Solaris",
+      "model": "Urbino 18 IV Electric",
+      "size": "MEGA",
+      "class": "City",
+      "from": 2016,
+      "to": 0
+    },
+    "solaris|urbino 18 iv hybrid": {
+      "maker": "Solaris",
+      "model": "Urbino 18 IV Hybrid",
+      "size": "MEGA",
+      "class": "City",
+      "from": 2016,
+      "to": 0
+    },
+    "solaris|urbino 18 iv hydrogen": {
+      "maker": "Solaris",
+      "model": "Urbino 18 IV Hydrogen",
+      "size": "MEGA",
+      "class": "City",
+      "from": 2016,
+      "to": 0
+    },
+    "solaris|urbino 18 iv mild hybrid": {
+      "maker": "Solaris",
+      "model": "Urbino 18 IV Mild Hybrid",
+      "size": "MEGA",
+      "class": "City",
+      "from": 2016,
+      "to": 0
+    },
+    "solaris|urbino 24 iv electric": {
+      "maker": "Solaris",
+      "model": "Urbino 24 IV Electric",
+      "size": "MEGA",
+      "class": "City",
+      "from": 2016,
+      "to": 0
+    },
+    "solaris|urbino 9 iv electric": {
+      "maker": "Solaris",
+      "model": "Urbino 9 IV Electric",
+      "size": "MIDI",
+      "class": "City",
+      "from": 2020,
+      "to": 0
+    },
+    "solaris|urbino 9 le iv electric": {
+      "maker": "Solaris",
+      "model": "Urbino 9 LE IV Electric",
+      "size": "MIDI",
+      "class": "City",
+      "from": 2020,
+      "to": 0
     },
     "strassenbahn|nf6d": {
       "maker": "Strassenbahn",

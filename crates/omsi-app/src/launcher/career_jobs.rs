@@ -187,6 +187,23 @@ pub(super) fn draw(l: &mut Launcher, r: Rect) {
     let tour_sel = l.career.jobs.tour.min(tour_ix.len().saturating_sub(1));
     let tour = line.as_ref().and_then(|x| tour_ix.get(tour_sel).map(|&i| x.tours[i].clone()));
     let trip_sel = tour.as_ref().map(|t| l.career.jobs.trip.min(t.trips.len().saturating_sub(1))).unwrap_or(0);
+    // [ROLLBACK career-taken-1] the courses a driver is out on: greyed, and not to be taken over or given to another
+    let taken: Vec<(usize, usize, String)> = match (line.as_ref(), tour.as_ref()) {
+        (Some(li), Some(t)) => l.career.company.as_ref().map(|c| c.taken_courses(&home, &li.name, &t.number)).unwrap_or_default(),
+        _ => Vec::new(),
+    };
+    let taken_by = |i: usize| taken.iter().find(|x| i >= x.0 && i <= x.1).map(|x| x.2.clone());
+    let tour_notes: Vec<Option<String>> = match (line.as_ref(), l.career.company.as_ref()) {
+        (Some(li), Some(c)) => tour_ix
+            .iter()
+            .map(|&i| {
+                let t = &li.tours[i];
+                let v = c.taken_courses(&home, &li.name, &t.number);
+                (!v.is_empty()).then(|| format!("{} is out on some courses", v[0].2))
+            })
+            .collect(),
+        _ => Vec::new(),
+    };
 
     // --- the layout: three columns and a bar
     let gap = 14.0;
@@ -262,6 +279,7 @@ pub(super) fn draw(l: &mut Launcher, r: Rect) {
         let row_h = 52.0;
         if let Some(line) = line.as_ref() {
             let tours: Vec<&core::TourInfo> = tour_ix.iter().map(|&i| &line.tours[i]).collect();
+            let notes = &tour_notes;
             l.ui.scroll_area("jobs-tour", list, &mut |ui, v| {
                 for (i, t) in tours.iter().enumerate() {
                     let rr = Rect::new(v.x, v.y + i as f32 * (row_h + 4.0), v.w - 10.0, row_h);
@@ -271,8 +289,13 @@ pub(super) fn draw(l: &mut Launcher, r: Rect) {
                     if ui.row(&format!("jobs-tour-{i}"), rr, tour_sel == i) {
                         pick_tour = Some(i);
                     }
-                    ui.text_in(&format!("Tour {}", t.number), Rect::new(rr.x + 12.0, rr.y + 7.0, rr.w - 20.0, 20.0), 14.0, Weight::Bold, TEXT, Align::Left);
-                    ui.text_in(&format!("{}–{} · {} courses · {}", hhmm(t.first), hhmm(t.last), t.trips.len(), t.days), Rect::new(rr.x + 12.0, rr.y + 28.0, rr.w - 20.0, 16.0), 11.0, Weight::Regular, TEXT_DIM, Align::Left);
+                    let note = notes.get(i).and_then(|n| n.as_ref());
+                    ui.text_in(&format!("Tour {}", t.number), Rect::new(rr.x + 12.0, rr.y + 7.0, rr.w - 20.0, 20.0), 14.0, Weight::Bold, if note.is_some() { TEXT_FAINT } else { TEXT }, Align::Left);
+                    let sub = match note {
+                        Some(n) => format!("{}–{} · {n}", hhmm(t.first), hhmm(t.last)),
+                        None => format!("{}–{} · {} courses · {}", hhmm(t.first), hhmm(t.last), t.trips.len(), t.days),
+                    };
+                    ui.text_in(&sub, Rect::new(rr.x + 12.0, rr.y + 28.0, rr.w - 20.0, 16.0), 11.0, Weight::Regular, if note.is_some() { WARN } else { TEXT_DIM }, Align::Left);
                 }
                 tours.len() as f32 * (row_h + 4.0)
             });
@@ -300,13 +323,18 @@ pub(super) fn draw(l: &mut Launcher, r: Rect) {
                 if rr.bottom() < list.y - 4.0 || rr.y > list.bottom() + 4.0 {
                     continue;
                 }
-                if ui.row(&format!("jobs-trip-{i}"), rr, trip_sel == i) {
+                let by = taken_by(i);
+                if ui.row(&format!("jobs-trip-{i}"), rr, trip_sel == i) && by.is_none() {
                     pick_trip = Some(i);
                 }
-                ui.text_in(&format!("{} → {}", hhmm(x.departure), hhmm(x.arrival)), Rect::new(rr.x + 12.0, rr.y + 6.0, rr.w * 0.6, 20.0), 14.0, Weight::Bold, TEXT, Align::Left);
-                ui.text_in(&format!("{:.1} km", x.km), Rect::new(rr.x + rr.w * 0.6, rr.y + 8.0, rr.w * 0.4 - 12.0, 18.0), 12.5, Weight::Medium, TEXT_SOFT, Align::Right);
+                let (c_main, c_soft, c_dim) = if by.is_some() { (TEXT_FAINT, TEXT_FAINT, TEXT_FAINT) } else { (TEXT, TEXT_SOFT, TEXT_DIM) };
+                ui.text_in(&format!("{} → {}", hhmm(x.departure), hhmm(x.arrival)), Rect::new(rr.x + 12.0, rr.y + 6.0, rr.w * 0.6, 20.0), 14.0, Weight::Bold, c_main, Align::Left);
+                match &by {
+                    Some(name) => { ui.text_in(&format!("{name} drives it"), Rect::new(rr.x + rr.w * 0.5, rr.y + 8.0, rr.w * 0.5 - 12.0, 18.0), 11.5, Weight::Medium, WARN, Align::Right); }
+                    None => { ui.text_in(&format!("{:.1} km", x.km), Rect::new(rr.x + rr.w * 0.6, rr.y + 8.0, rr.w * 0.4 - 12.0, 18.0), 12.5, Weight::Medium, c_soft, Align::Right); }
+                }
                 let from = if x.from.is_empty() { "?" } else { x.from.as_str() };
-                ui.text_in(&format!("{from} → {}", x.terminus), Rect::new(rr.x + 12.0, rr.y + 27.0, rr.w - 24.0, 16.0), 11.0, Weight::Regular, TEXT_DIM, Align::Left);
+                ui.text_in(&format!("{from} → {}", x.terminus), Rect::new(rr.x + 12.0, rr.y + 27.0, rr.w - 24.0, 16.0), 11.0, Weight::Regular, c_dim, Align::Left);
             }
             t.trips.len() as f32 * (row_h + 4.0)
         });
@@ -351,6 +379,11 @@ pub(super) fn draw(l: &mut Launcher, r: Rect) {
     let times: Vec<(f64, f64)> = tour.as_ref().map(|t| t.trips.iter().map(|x| (x.departure, x.arrival)).collect()).unwrap_or_default();
     let until_pick = l.career.jobs.until.filter(|u| u.0 == line_sel && u.1 == tour_sel).map(|u| u.2);
     let run_last = if by_driver { staff::run_end(&times, trip_sel, until_pick) } else { None };
+    // the courses this would take, if a driver is out on one of them
+    let taken_note: Option<String> = {
+        let last = if by_driver { run_last.unwrap_or(trip_sel) } else { trip_sel };
+        (trip_sel..=last.max(trip_sel)).find_map(|i| taken_by(i).map(|n| format!("{n} is out on a course of this: pick another one (greyed courses are taken).")))
+    };
     let mut title_w = bar.w - pad * 2.0 - seg_w - 16.0;
     if let Some(last) = run_last {
         let opts = staff::run_options(&times, trip_sel);
@@ -373,8 +406,22 @@ pub(super) fn draw(l: &mut Launcher, r: Rect) {
         }
         driver = drivers.get(di).cloned();
     }
+    // [ROLLBACK careerweather-1] The weather the course is driven in, beside the start button (the Drive
+    // page's own choice, shared with it; a driver sent out drives in no weather of ours)
+    if !by_driver {
+        let home = l.career.company.as_ref().map(|c| c.active_map()).unwrap_or_default();
+        let opts = weather_choices(l, &home);
+        let names: Vec<String> = opts.iter().map(|o| o.1.clone()).collect();
+        let mut wi = opts.iter().position(|o| o.0 == l.state.choice.weather).unwrap_or(0);
+        if l.ui.select("jobs-weather", Rect::new(go.x - 12.0 - 250.0, row_b, 250.0, ROW), &mut wi, &names) {
+            if let Some(o) = opts.get(wi) {
+                l.state.choice.weather = o.0.clone();
+                l.state.touched();
+            }
+        }
+    }
     let x = bar.x + pad;
-    let note_w = (go.x - if by_driver && !drivers.is_empty() { 12.0 + 250.0 } else { 0.0 } - 16.0 - x).max(120.0);
+    let note_w = (go.x - if (by_driver && !drivers.is_empty()) || !by_driver { 12.0 + 250.0 } else { 0.0 } - 16.0 - x).max(120.0);
     match (bus.as_ref(), line.as_ref(), tour.as_ref()) {
         (Some(b), Some(li), Some(t)) => {
             let first = &t.trips[trip_sel];
@@ -382,6 +429,7 @@ pub(super) fn draw(l: &mut Launcher, r: Rect) {
             let left = t.trips.len() - trip_sel;
             let (note, color) = match block {
                 Some(why) => (format!("{why} (Fleet page)."), DANGER),
+                None if taken_note.is_some() => (taken_note.clone().unwrap_or_default(), DANGER),
                 None if by_driver => match driver.as_ref() {
                     Some(d) => {
                         let drv = l.career.company.as_ref().and_then(|c| c.drivers.iter().find(|x| x.id == d.0));
@@ -429,6 +477,7 @@ pub(super) fn draw(l: &mut Launcher, r: Rect) {
             }
             (Some(_), Some(_), Some(_), Some((_, _, false))) => l.ui.button_off(go, "Driver unavailable", Some("groups"), ButtonKind::Primary),
             (Some(_), _, _, _) if block.is_some() => l.ui.button_off(go, "Bus cannot go out", Some("construction"), ButtonKind::Primary),
+            (Some(_), _, _, _) if taken_note.is_some() => l.ui.button_off(go, "Course taken", Some("groups"), ButtonKind::Primary),
             (Some(b), Some(li), Some(t), Some((id, _, true))) if run_last.is_some() => {
                 if l.ui.button("jobs-send", go, "Send the driver", Some("route"), ButtonKind::Primary) {
                     send_driver_job(l, &b, &li.name, &t, trip_sel, run_last.unwrap_or(trip_sel), id);
@@ -439,6 +488,7 @@ pub(super) fn draw(l: &mut Launcher, r: Rect) {
         return;
     }
     match (bus, line, tour) {
+        (Some(_), _, _) if taken_note.is_some() && block.is_none() => l.ui.button_off(go, "Course taken", Some("groups"), ButtonKind::Primary),
         (Some(b), Some(li), Some(t)) if !busy && block.is_none() => {
             if l.ui.button("jobs-start", go, "Start session", Some("play_arrow"), ButtonKind::Primary) {
                 start(l, &b, &li.name, &t, trip_sel);
@@ -447,6 +497,28 @@ pub(super) fn draw(l: &mut Launcher, r: Rect) {
         (Some(_), _, _) if block.is_some() => l.ui.button_off(go, "Bus cannot go out", Some("construction"), ButtonKind::Primary),
         _ => l.ui.button_off(go, if busy { "A game is running" } else { "Start session" }, Some("play_arrow"), ButtonKind::Primary),
     }
+}
+
+/// The weathers a course can be driven in, as (the choice's value, its name): the physical
+/// model, the current weather (METAR) of the nearest airport, the cycle, and the weathers of
+/// the content that fit the season; the Drive page's own choice (a custom weather, say) first
+/// where it is none of these.
+fn weather_choices(l: &Launcher, home: &str) -> Vec<(String, String)> {
+    let tr = |t: &str| omsi_ui::tr(t).into_owned();
+    let chosen = l.state.choice.weather.clone();
+    let metar = chosen.strip_prefix("metar:").map(str::to_string).unwrap_or_else(|| super::drive::nearest_airport(&l.state.config.root, home));
+    let mut out: Vec<(String, String)> = vec![
+        (String::new(), tr("Natural weather")),
+        (format!("metar:{metar}"), tr("Current weather")),
+        ("cycle".to_string(), tr("Weather cycle")),
+    ];
+    for w in l.state.weathers.iter().filter(|w| l.state.weather_fits(w)) {
+        out.push((w.file.clone(), w.name.clone()));
+    }
+    if !out.iter().any(|o| o.0 == chosen) {
+        out.insert(0, (chosen, tr("Custom weather")));
+    }
+    out
 }
 
 /// The chosen course on the map: the Drive page's map picture framed on the route, dragged and
@@ -515,6 +587,13 @@ fn send_driver_job(l: &mut Launcher, bus: &FleetRow, line: &str, tour: &core::To
     let text = if n == 1 { format!("Line {line} · tour {} · {}", tour.number, hhmm(rest[0].departure)) } else { format!("Line {line} · tour {} · {}–{}", tour.number, hhmm(rest[0].departure), hhmm(rest[rest.len() - 1].arrival)) };
     let name = l.career.company.as_ref().and_then(|c| c.drivers.iter().find(|d| d.id == driver_id)).map(|d| d.name.clone()).unwrap_or_default();
     let res = l.career.company.as_mut().map(|c| c.send_driver(driver_id, bus.id, &text, &size, &spec, seed));
+    if matches!(res, Some(Ok(_))) {
+        // [ROLLBACK career-taken-1] the courses are the driver's from now on
+        if let Some(c) = l.career.company.as_mut() {
+            let map = c.active_map();
+            c.tag_job(driver_id, &map, line, &tour.number, first, last);
+        }
+    }
     match res {
         Some(Ok(secs)) => {
             save(l);
@@ -523,6 +602,35 @@ fn send_driver_job(l: &mut Launcher, bus: &FleetRow, line: &str, tour: &core::To
         Some(Err(e)) => l.state.set_status(e, true),
         None => {}
     }
+}
+
+/// [ROLLBACK careerhired-1] The jobs the company's drivers are out on, on the map `home`, as the game's
+/// timetable gets them (see `career_hired.rs`).
+fn hired_list(c: &company::Company, home: &str) -> Vec<crate::career_hired::Hired> {
+    let t = company::now();
+    c.drivers
+        .iter()
+        .filter_map(|d| {
+            let j = d.job.as_ref()?;
+            if j.ends <= t || j.line.is_empty() || j.map != home {
+                return None;
+            }
+            let bus = c.fleet.iter().find(|b| b.id == j.bus_id)?;
+            Some(crate::career_hired::Hired {
+                map: j.map.clone(),
+                line: j.line.clone(),
+                tour: j.tour.clone(),
+                first: j.first,
+                last: j.last,
+                bus_file: bus.file.clone(),
+                paint: bus.paint.clone(),
+                fleet_no: bus.fleet_no.clone(),
+                plate: bus.plate.clone(),
+                driver: d.name.clone(),
+                ends: j.ends,
+            })
+        })
+        .collect()
 }
 
 /// Write the session file and start the game on the course.
@@ -579,6 +687,9 @@ fn start(l: &mut Launcher, bus: &FleetRow, line: &str, tour: &core::TourInfo, tr
     let start = ((trip.departure - 300.0).max(0.0) / 60.0).floor() as i64;
     d.time = format!("{:02}:{:02}", (start / 60).rem_euclid(24), start % 60);
     d.career = Some(session.path.to_string_lossy().to_string());
+    // [ROLLBACK careerhired-1] the hired drivers out on jobs meanwhile: their buses run those courses on the road
+    let hired = l.career.company.as_ref().map(|c| hired_list(c, &d.map)).unwrap_or_default();
+    crate::career_hired::write(&hired);
     if l.state.launch_duty(d) {
         let label = format!("Line {line} · tour {}", tour.number);
         l.career.jobs.running = Some(Running { bus_id: owned.id, label, started: Instant::now(), seen_game: false, view: Vec::new() });

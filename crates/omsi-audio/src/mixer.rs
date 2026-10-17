@@ -87,6 +87,9 @@ pub struct Listener {
     pub forward: Vec3,
     pub right: Vec3,
     pub master: f32,
+    /// [ROLLBACK radiomenu-3] The master volume for the streams that are `live` (the radio): the settings'
+    /// volume, also while `master` is 0 because the game is paused.
+    pub live_master: f32,
     /// Echo of the place the listener is in (`[triggerbox_setreverb]`: under a bridge):
     /// its reverberation time in seconds, and how much of it is heard (0..1).
     pub reverb_time: f32,
@@ -100,6 +103,7 @@ impl Default for Listener {
             forward: Vec3::Y,
             right: Vec3::X,
             master: 1.0,
+            live_master: 1.0,
             reverb_time: 0.0,
             reverb_mix: 0.0,
         }
@@ -189,7 +193,10 @@ impl Shared {
                 spatial_gain = distance_gain(v.params.range, d.length());
                 (left, right) = pan_gains(&listener, d);
             }
-            let target_gain = (v.params.gain * spatial_gain * listener.master).max(0.0);
+            // (the radio is heard in the pause menu too)
+            let live = v.stream.as_ref().is_some_and(|s| s.lock().ctl.live);
+            let master = if live { listener.live_master } else { listener.master };
+            let target_gain = (v.params.gain * spatial_gain * master).max(0.0);
             if let Some(sb) = v.stream.clone() {
                 let lp_alpha = if v.params.lowpass_hz > 0.0 {
                     1.0 - (-2.0 * std::f32::consts::PI * v.params.lowpass_hz / dev_rate as f32).exp()

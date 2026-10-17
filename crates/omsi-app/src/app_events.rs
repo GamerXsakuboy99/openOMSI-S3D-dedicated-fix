@@ -61,6 +61,7 @@ impl ApplicationHandler for App {
         self.surface = None;
         self.touch.drop_gpu();
         self.quick.drop_gpu();
+        self.route_hint.drop_gpu();
         self.summary.drop_gpu();
         self.input_lost();
         self.save_last_situation();
@@ -97,6 +98,14 @@ impl ApplicationHandler for App {
             WindowEvent::Focused(false) => {
                 self.finish_vr_nav_edit();
                 self.window_focused = false;
+                // [ROLLBACK mousegrab-1] (the system lets the cursor go with the focus; it is held again
+                // when the window has it back)
+                if self.cursor_confined {
+                    self.cursor_confined = false;
+                    if let Some(win) = self.window.as_ref() {
+                        let _ = win.set_cursor_grab(winit::window::CursorGrabMode::None);
+                    }
+                }
                 if let Some(ctl) = self.controllers.as_mut() {
                     ctl.set_focus(false);
                 }
@@ -305,6 +314,10 @@ impl ApplicationHandler for App {
                     }
                     // (a click on a tile of the quick menu is the menu's)
                     if self.quick_menu_click(pressed) {
+                        return;
+                    }
+                    // (the cross of the hint over the minimap)
+                    if self.route_hint_click(pressed) {
                         return;
                     }
                     self.buttons_held.0 = pressed;
@@ -812,6 +825,43 @@ impl ApplicationHandler for App {
                 // mouse steering asks only for a player's vehicle, 0x6f4257; not on foot,
                 // #516)
                 let bus_view = self.mouse_steers_in_view();
+                // [ROLLBACK mousekeys-1] With the mouse steering, the driving keys (WSAD, the numpad)
+                // are not heard; the keys already held are let go the moment it takes over.
+                {
+                    let ignore = self.mouse_drive && bus_view && self.game_menu.is_none();
+                    if let Some(p) = self.player.as_mut() {
+                        if ignore && !p.axes.ignore_keys {
+                            p.axes.release_all();
+                        }
+                        p.axes.ignore_keys = ignore;
+                    }
+                }
+                // [ROLLBACK mousegrab-1] With the mouse steering on and a bus to drive, the cursor stays
+                // inside the window (on several monitors it ran off to the next one at the edge, the
+                // steering stopped at the window's edge and a click landed in another program); in a
+                // menu, a list, the map, with the game paused or in the background it is free.
+                {
+                    let confine = self.mouse_drive && bus_view && self.window_focused && !self.input_away
+                        && !self.paused
+                        && self.game_menu.is_none()
+                        && self.chooser.is_none()
+                        && self.list_kind.is_none()
+                        && self.editor.is_none()
+                        && !self.quick.open
+                        && !self.summary.open
+                        && self.vr_nav_edit.is_none()
+                        && !self.navigator.as_ref().is_some_and(|n| n.map_open());
+                    if confine != self.cursor_confined {
+                        // (once per change, whether the system lets it or not)
+                        self.cursor_confined = confine;
+                        if let Some(win) = self.window.as_ref() {
+                            let mode = if confine { winit::window::CursorGrabMode::Confined } else { winit::window::CursorGrabMode::None };
+                            if let Err(e) = win.set_cursor_grab(mode) {
+                                log::debug!("cursor grab {mode:?}: {e}");
+                            }
+                        }
+                    }
+                }
                 if let (true, Some(s)) = (self.mouse_drive && bus_view && !self.mouse_look && !self.input_away
                                               && self.game_menu.is_none(), self.surface.as_ref()) {
                     let (w, h) = (s.config.width as f32, s.config.height as f32);
@@ -1302,6 +1352,8 @@ impl ApplicationHandler for App {
                             // (silent while paused: the engine's loops would go on)
                             // (the settings' volume: it had been 0.6 whatever the slider said)
                             master: if self.paused { 0.0 } else { self.settings.volume.clamp(0.0, 1.0) },
+                            // [ROLLBACK radiomenu-3] (the radio plays on in the pause menu)
+                            live_master: self.settings.volume.clamp(0.0, 1.0),
                             reverb_time,
                             reverb_mix,
                         });
@@ -2601,7 +2653,9 @@ impl ApplicationHandler for App {
 
                 let mut lighting = match self.weather.as_ref() {
                     Some(w) => {
-                        self.wetness = road_wetness(precip_of(w).1, dt as f64, self.wetness);
+                        // [ROLLBACK roaddry-1] the roads dry by the sun, the warmth and the wind, on the game's clock
+                        let game_dt = dt as f64 * self.time_speed();
+                        self.wetness = road_wetness_step(w, precip_of(w).1, daylight.altitude_deg, dt as f64, game_dt, self.wetness);
                         weather_lighting(
                             &daylight,
                             w,
@@ -2689,6 +2743,7 @@ impl ApplicationHandler for App {
                     let (w, h) = (s.config.width, s.config.height);
                     self.touch_prepare(w, h);
                     self.quick_prepare(w, h);
+                    self.route_hint_prepare(w, h);
                     self.summary_prepare(w, h);
                 }
                 if let (Some(s), Some(r), Some(scene), Some(cam), Some(win)) = (
@@ -3010,6 +3065,8 @@ impl ApplicationHandler for App {
                         self.touch.render(r, &view, s.config.width, s.config.height);
                         // the quick menu (Alt) over the picture
                         self.quick.render(r, &view, s.config.width, s.config.height);
+                        // the hint over the minimap: the line and route to set
+                        self.route_hint.render(r, &view, s.config.width, s.config.height);
                         // the summary of the trip just driven over everything
                         self.summary.render(r, &view, s.config.width, s.config.height);
                         *self.profile.entry("render").or_default() += __t.elapsed().as_secs_f64();

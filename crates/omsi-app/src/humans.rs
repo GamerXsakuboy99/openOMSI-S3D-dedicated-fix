@@ -2535,10 +2535,14 @@ impl Humans {
     }
 
     /// People currently in the player's bus.
+    ///
+    /// [ROLLBACK paxcount-1] Not the driver (or another player) walking about it as an avatar: the
+    /// `humans_count` variable, the info bar, the trip summary and Career Mode counted him as a
+    /// passenger. Before: no `puppet.is_none()`.
     pub fn riding(&self) -> usize {
         self.people
             .iter()
-            .filter(|p| p.inside(BusId::Player))
+            .filter(|p| p.inside(BusId::Player) && p.puppet.is_none())
             .count()
     }
 
@@ -2744,6 +2748,12 @@ impl Humans {
             let mats = self.gpu_materials[&key].clone();
             let id = renderer.add_mesh(scene, &hm.data);
             let inst = renderer.add_instance(scene, id, position, Mat4::IDENTITY, mats);
+            // [ROLLBACK npclamp-1] a person's limbs and clothes shaded the body in dark patches
+            // in the headlamps' shadow map: not a caster of it (the sun's maps still hold them)
+            renderer.set_lamp_caster(scene, inst, false);
+            // [ROLLBACK npclamp-2] and the headlamps' shadow map does not darken it either (stairs of the
+            // map's texels in bands across the jacket and the face)
+            renderer.set_person(scene, inst, true);
             meshes.push((id, inst));
         }
         // walking pace 1.1 m/s +- 0.2, as Omsi.exe draws it for everybody (0x625758:

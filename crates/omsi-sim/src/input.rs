@@ -69,10 +69,17 @@ pub struct KeyboardAxes {
     /// The steering is on its way back to the middle (Omsi.exe +0x5d6): set by the
     /// `steering_neutral` key, cleared by a steering key.
     pub centering: bool,
+    /// [ROLLBACK mousekeys-1] The mouse steers (the cursor is the wheel and the pedals): the
+    /// driving keys (throttle, brake, steering) are not heard - a key pressed with it
+    /// ran against the cursor. Letting go is always heard, so no key stays down.
+    pub ignore_keys: bool,
 }
 
 impl KeyboardAxes {
     pub fn set(&mut self, action: EngineAction, pressed: bool) {
+        if pressed && self.ignore_keys && !matches!(action, EngineAction::Clutch) {
+            return;
+        }
         match action {
             EngineAction::Throttle => self.throttle_key = pressed,
             EngineAction::ThrottleAmplify => self.amplify_key = pressed,
@@ -101,6 +108,7 @@ impl KeyboardAxes {
             lock_curvature: self.lock_curvature,
             pedal_hold: self.pedal_hold,
             centering: self.centering,
+            ignore_keys: self.ignore_keys,
             ..Default::default()
         };
     }
@@ -148,11 +156,25 @@ impl KeyboardAxes {
     /// keys' wheel, and the one on a phone's screen (#1090: that one sprang back to the
     /// middle in a third of a second whatever the speed).
     pub fn let_go(&self, steering: f32, dt: f32) -> f32 {
-        if self.old_steering {
+        // [ROLLBACK steerhold-1] Standing still the wheel stays where the keys left it (a lock set to
+        // park or to pull away with could not be kept: it swung back to the middle within seconds);
+        // the castor pulls it back only while the bus rolls - nothing under 1 km/h, the full pull from 5
+        let rolling = ((self.speed() - 1.0) / 4.0).clamp(0.0, 1.0);
+        self.pull(steering, dt, rolling)
+    }
+
+    /// The same for the wheel on a phone's screen, which has no centring key: it comes back
+    /// standing still as well (slowly), as it did before `let_go` kept the keys' wheel.
+    pub fn let_go_touch(&self, steering: f32, dt: f32) -> f32 {
+        self.pull(steering, dt, 1.0)
+    }
+
+    fn pull(&self, steering: f32, dt: f32, rolling: f32) -> f32 {
+        if self.old_steering || rolling <= 0.0 {
             return steering;
         }
         let ease = (steering.abs() / 0.08).clamp(0.3, 1.0);
-        let step = self.paces().1 * ease * dt;
+        let step = self.paces().1 * ease * rolling * dt;
         let s = steering - steering.clamp(-step, step);
         // (a snap from farther out was a visible jolt of the wheel and the driver's hands)
         if s.abs() < 0.0003 {
@@ -271,7 +293,10 @@ mod tests {
             }
             s
         };
-        assert!((after(0.0, false, 1.0) - 0.8).abs() < 1e-3, "{}", after(0.0, false, 1.0));
+        // (standing still it stays: steerhold-1; rolling slowly it comes back at a part of the pull)
+        assert_eq!(after(0.0, false, 3.0), 1.0);
+        assert_eq!(after(1.0, false, 3.0), 1.0);
+        assert!(after(3.0, false, 1.0) > after(25.0, false, 1.0) && after(3.0, false, 1.0) < 1.0);
         assert!((after(25.0, false, 1.0) - (1.0 - 0.8 / (1.0 + 25.0 / 45.0))).abs() < 1e-3, "{}", after(25.0, false, 1.0));
         assert_eq!(after(25.0, false, 3.0), 0.0);
         assert_eq!(after(25.0, true, 3.0), 1.0);
@@ -291,7 +316,8 @@ mod tests {
         for _ in 0..10 {
             a.update(0.01);
         }
-        assert!(a.steering.is_finite() && a.steering < 0.5, "{}", a.steering);
+        // (no speed counts as standing still: the wheel stays - steerhold-1)
+        assert!(a.steering.is_finite() && (a.steering - 0.5).abs() < 1e-6, "{}", a.steering);
     }
 
     /// `[redSteerSpd]` with the steady pace: Omsi.exe's keys at speed (0x7e614c).
@@ -306,6 +332,21 @@ mod tests {
             assert!((a.steering - want).abs() < 1e-3, "{v} km/h: {} against {want}", a.steering);
         }
         assert!((0.5 * 1.5 * (-0.1f32 * 50.0 / 3.6).exp() - 0.187).abs() < 1e-3);
+    }
+
+    /// The mouse steers: the driving keys are not heard, but letting go always is.
+    #[test]
+    fn driving_keys_are_ignored_while_the_mouse_steers() {
+        let mut a = KeyboardAxes { ignore_keys: true, ..Default::default() };
+        a.set(EngineAction::Throttle, true);
+        a.set(EngineAction::SteeringLeft, true);
+        assert!(!a.throttle_key && !a.left_key);
+        a.ignore_keys = false;
+        a.set(EngineAction::Throttle, true);
+        assert!(a.throttle_key);
+        a.ignore_keys = true;
+        a.set(EngineAction::Throttle, false);
+        assert!(!a.throttle_key, "letting go is heard");
     }
 
     /// Omsi.exe's keyboard pedals: the brake stays until the throttle key, the throttle
@@ -563,25 +604,21 @@ mod tests {
             (0.8..=1.8).contains(&t_back),
             "back in {t_back} s from {from} (turned for 1 s)"
         );
-        // standing still it still comes back, but slowly: well off centre after a second,
-        // not stuck
+        // standing still it stays where the keys left it (steerhold-1), and the centring key
+        // is the way back
         let mut s = KeyboardAxes {
             steering: -0.8,
             speed_kmh: 0.0,
             ..Default::default()
         };
-        for _ in 0..60 {
+        for _ in 0..600 {
             s.update(step);
         }
-        assert!(
-            s.steering < -0.3,
-            "returned too fast standing still: {}",
-            s.steering
-        );
-        assert!(
-            s.steering > -0.78,
-            "hardly came back standing still: {}",
-            s.steering
-        );
+        assert_eq!(s.steering, -0.8, "the wheel left standing still moved");
+        s.neutral_key = true;
+        for _ in 0..600 {
+            s.update(step);
+        }
+        assert_eq!(s.steering, 0.0, "the centring key did not bring it back");
     }
 }

@@ -36,9 +36,10 @@ pub mod economy {
     pub const CLUTTER_SHARE: f64 = 0.5;
     /// What a kilometre of a course earns (a MAXI bus), the punctuality bonus on top (share of the
     /// fare), and what a crash costs.
-    pub const FARE_PER_KM: f64 = 10.8;
+    /// [ROLLBACK careerpay-3] twice what it was (10.8 per km and 21 per stop).
+    pub const FARE_PER_KM: f64 = 21.6;
     /// What a stop served earns (a MAXI bus): a city bus earns at its stops.
-    pub const FARE_PER_STOP: f64 = 21.0;
+    pub const FARE_PER_STOP: f64 = 42.0;
     pub const PUNCTUAL_BONUS: f64 = 0.25;
     pub const CRASH_COST: i64 = 200;
     /// Income and costs by difficulty (Relaxed, Standard, Hardcore): the fares and the
@@ -1029,7 +1030,8 @@ impl Company {
 // --- staff ----------------------------------------------------------------------------------
 
 impl Company {
-    /// How many drivers the company may employ at its level.
+    /// How many drivers the company could employ at its level (no longer a limit: [career-staff-1]).
+    #[allow(dead_code)]
     pub fn staff_limit(&self) -> usize {
         staff::limit(self.level())
     }
@@ -1067,9 +1069,8 @@ impl Company {
 
     /// Hire the applicant at `place` of the pool; returns the new driver's id.
     pub fn hire(&mut self, place: usize) -> Result<u32, String> {
-        if self.drivers.len() >= self.staff_limit() {
-            return Err(format!("At level {} the company employs at most {} driver(s)", self.level(), self.staff_limit()));
-        }
+        // [ROLLBACK career-staff-1] no limit on the staff by the company's level: as many drivers as the
+        // money for their hiring and retainers allows
         let seed = self.applicant_seed_now();
         let (_, mut d) = self.applicants().into_iter().find(|(i, _)| *i == place).ok_or("That applicant has found another job")?;
         let cost = staff::hire_cost(d.skill);
@@ -1163,10 +1164,33 @@ impl Company {
         let share = self.drivers[di].share();
         let secs = staff::job_secs(spec.sched_secs);
         let ends = t + secs;
-        self.drivers[di].job = Some(ActiveJob { bus_id, text: text.to_string(), size: size.to_string(), started: t, ends, weather, night: spec.night, sim, fuel_end, tank, fuel_added, wage, share });
+        self.drivers[di].job = Some(ActiveJob { bus_id, text: text.to_string(), size: size.to_string(), started: t, ends, weather, night: spec.night, sim, fuel_end, tank, fuel_added, wage, share, ..Default::default() });
         self.drivers[di].rest_until = ends + staff::rest_secs(secs);
         self.fleet[bi].away_until = ends;
         Ok(secs)
+    }
+
+    /// [ROLLBACK career-taken-1] Say which courses the driver's job has (called after `send_driver`).
+    pub fn tag_job(&mut self, driver_id: u32, map: &str, line: &str, tour: &str, first: usize, last: usize) {
+        if let Some(j) = self.drivers.iter_mut().find(|d| d.id == driver_id).and_then(|d| d.job.as_mut()) {
+            j.map = map.to_string();
+            j.line = line.to_string();
+            j.tour = tour.to_string();
+            j.first = first;
+            j.last = last;
+        }
+    }
+
+    /// [ROLLBACK career-taken-1] The courses of a tour the drivers out on jobs have: (first, last, the
+    /// driver's name), places in the tour's list.
+    pub fn taken_courses(&self, map: &str, line: &str, tour: &str) -> Vec<(usize, usize, String)> {
+        self.drivers
+            .iter()
+            .filter_map(|d| {
+                let j = d.job.as_ref()?;
+                (!j.line.is_empty() && j.map == map && j.line.eq_ignore_ascii_case(line) && j.tour.eq_ignore_ascii_case(tour)).then(|| (j.first, j.last, d.name.clone()))
+            })
+            .collect()
     }
 
     /// Book the jobs whose time is up at `t`: the fares, the bus's wear and fuel, the driver's
@@ -1811,14 +1835,14 @@ mod tests {
         // two punctual courses of 10 km, 10 stops, on a MAXI bus (standard difficulty)
         let s = settle(&[c(10.0, 10, 10, 0), c(10.0, 10, 10, 0)], "MAXI", 24_000.0, 0, 1, &none);
         assert_eq!(s.courses, 2);
-        // (318 for the first, 1.5 times that for the second; the bonus a quarter of the fares)
-        assert_eq!(s.fares, 795);
-        assert_eq!(s.bonus, 199);
-        assert_eq!((s.streak, s.streak_extra), (1.5, 159));
+        // (636 for the first, 1.5 times that for the second; the bonus a quarter of the fares)
+        assert_eq!(s.fares, 1590);
+        assert_eq!(s.bonus, 398);
+        assert_eq!((s.streak, s.streak_extra), (1.5, 318));
         assert!((s.km - 24.0).abs() < 1e-9);
         // late and unserved stops pay less
         let bad = settle(&[c(10.0, 10, 5, 5)], "MAXI", 0.0, 1, 1, &none);
-        assert!(bad.fares < 318 && bad.bonus == 0 && bad.damage == economy::CRASH_COST);
+        assert!(bad.fares < 636 && bad.bonus == 0 && bad.damage == economy::CRASH_COST);
         assert!(bad.total() < s.total());
         // a smaller bus earns less
         assert!(settle(&[c(10.0, 10, 10, 0)], "MINI", 0.0, 0, 1, &none).fares < settle(&[c(10.0, 10, 10, 0)], "MEGA", 0.0, 0, 1, &none).fares);
@@ -1838,10 +1862,10 @@ mod tests {
     #[test]
     fn a_city_course_pays_something_worth_driving() {
         use crate::career_session::Course;
-        // 5.8 km and 11 stops, all served, a bit late once: some 330-380 euros (about 1500 zl)
+        // 5.8 km and 11 stops, all served, a bit late once: some 660-760 euros (twice what it was before careerpay-3)
         let s = settle(&[Course { km: 5.8, stops: 11, served: 11, late: 1, ..Default::default() }], "MAXI", 0.0, 0, 1, &Extras::default());
         let t = s.total();
-        assert!((300..=420).contains(&t), "{t}");
+        assert!((600..=840).contains(&t), "{t}");
         // and the longer the series, the more a course pays
         let c = Course { km: 5.8, stops: 11, served: 11, ..Default::default() };
         let one = settle(&[c.clone()], "MAXI", 0.0, 0, 1, &Extras::default()).fares;

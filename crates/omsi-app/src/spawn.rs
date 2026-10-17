@@ -562,6 +562,13 @@ pub(crate) fn spawn_player(
             args.situation_vars.len(),
             args.situation_strvars.len()
         );
+        // [ROLLBACK resumebrake-1] A saved situation holds the brake at 0 (the keys were let go when it
+        // was written), and the bus rolled away from where it stood the moment it was loaded:
+        // it comes back half braked. Only a situation that is loaded (Continue), never a new
+        // start; the throttle or the brake key takes it from there.
+        if args.situation.is_some() && p.axes.brake < 0.5 {
+            p.axes.brake = 0.5;
+        }
     }
     if let Some(sv) = &args.setstr {
         for kv in sv.split(',') {

@@ -264,6 +264,9 @@ pub struct Radio {
     volume: f32,
     /// Shift+R: how far the list is turned from the bus's own station numbers.
     offset: usize,
+    /// [ROLLBACK radiomenu-1] The station chosen in the game menu for a vehicle that has no radio of its
+    /// own (None: not chosen; Some(None): chosen off; Some(Some(i)): station `i` plays).
+    manual: Option<Option<usize>>,
     playing: Option<Playing>,
     /// The smoothed place of the sound: 0..1 how near the head is to the radio, and the
     /// balance -1..1 (see `update`).
@@ -395,7 +398,7 @@ impl Radio {
         if !stations.is_empty() {
             log::info!("radio: {} stations", stations.len());
         }
-        Radio { stations: stations.clone(), own: stations, frequencies: frequencies.clone(), own_frequencies: frequencies, map: String::new(), relisted: false, volume, offset: 0, playing: None, near: 1.0, bal: 0.0 }
+        Radio { stations: stations.clone(), own: stations, frequencies: frequencies.clone(), own_frequencies: frequencies, map: String::new(), relisted: false, volume, offset: 0, manual: None, playing: None, near: 1.0, bal: 0.0 }
     }
 
     /// The frequency the station that plays is on where the bus is (`94.6 MHz`), for a
@@ -439,6 +442,11 @@ impl Radio {
     fn wanted(&self, v: &omsi_sim::VehicleInstance) -> Option<usize> {
         if self.stations.is_empty() {
             return None;
+        }
+        // (what the game menu chose plays, whether the vehicle has a radio of its own or not; "cab
+        // radio" in the menu gives the choice back to the buttons)
+        if let Some(m) = self.manual {
+            return m.filter(|i| *i < self.stations.len());
         }
         let button = match v.var("SndExt_Radio") {
             Some(x) if x >= 0.5 => Some(x.round() as usize - 1),
@@ -503,7 +511,7 @@ impl Radio {
             VoiceParams { gain, position: Some(source.as_vec3()), range: 4.0, lowpass_hz: 700.0, ..Default::default() }
         };
         audio.set_params(p.voice, params);
-        p.buf.set_control(StreamControl { balance: if inside { self.bal } else { 0.0 }, fx: fx.clamped() });
+        p.buf.set_control(StreamControl { balance: if inside { self.bal } else { 0.0 }, fx: fx.clamped(), live: true });
         let status = p.buf.status();
         if status != p.shown && !status.is_empty() && status != "connecting …" {
             p.shown = status.clone();
@@ -539,10 +547,45 @@ impl Radio {
         Some(marquee(&p.line.0, DISPLAY_WIDTH, p.line.1.elapsed().as_secs_f32()))
     }
 
+    /// Whether the vehicle has a radio of its own: the variables its scripts switch the
+    /// stations (`SndExt_Radio`) or the cassette player (`Snd_Radio`) with.
+    pub fn has_built_in(v: &omsi_sim::VehicleInstance) -> bool {
+        v.var("SndExt_Radio").is_some() || v.var("Snd_Radio").is_some()
+    }
+
+    /// The names of the stations the list has now (the map's first).
+    pub fn station_names(&self) -> Vec<String> {
+        self.stations.iter().map(|s| s.0.clone()).collect()
+    }
+
+    /// The station chosen in the game menu: None not chosen, Some(None) off.
+    pub fn manual(&self) -> Option<Option<usize>> {
+        self.manual
+    }
+
+    pub fn set_manual(&mut self, m: Option<Option<usize>>) {
+        self.manual = m;
+    }
+
+    pub fn volume(&self) -> f32 {
+        self.volume
+    }
+
+    /// The loudness of the radio for this session (0.05..1; the file's `volume` is the start).
+    pub fn set_volume(&mut self, v: f32) {
+        self.volume = v.clamp(0.05, 1.0);
+    }
+
     /// Shift+R: the next station of the list on every button.
     pub fn next_station(&mut self) -> String {
         if self.stations.is_empty() {
             return "No radio stations (see ~/.openomsi/radio.cfg)".into();
+        }
+        // (the game menu's station on a vehicle with no radio: the next of the list)
+        if let Some(m) = self.manual {
+            let next = m.map(|i| (i + 1) % self.stations.len()).unwrap_or(0);
+            self.manual = Some(Some(next));
+            return format!("Radio {}: {}", next + 1, self.stations[next].0);
         }
         self.offset = (self.offset + 1) % self.stations.len();
         match &self.playing {

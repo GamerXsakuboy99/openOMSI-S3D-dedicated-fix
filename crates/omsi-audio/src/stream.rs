@@ -14,6 +14,9 @@ pub struct StreamControl {
     pub balance: f32,
     /// The optional radio effects (all off by default).
     pub fx: RadioFx,
+    /// [ROLLBACK radiomenu-3] Heard while the game is paused (the Esc menu), at the volume of the settings:
+    /// the radio goes on playing there, the engine and the world do not.
+    pub live: bool,
 }
 
 pub struct StreamBuf {

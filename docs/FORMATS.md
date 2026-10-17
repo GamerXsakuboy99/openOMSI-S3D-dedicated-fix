@@ -340,7 +340,15 @@ read as `Axle_SurfaceID_`.
 
 `.map.water` = `u32 count` + 4 f32: one water surface over the tile with a height at each
 corner (every stock file has count 1). The riverbed is ordinary terrain and the water plane
-sits over it, so the shoreline is wherever the terrain rises through it. `.terrain_x.rdy` = editor cache, ignored.
+sits over it, so the shoreline is wherever the terrain rises through it.
+Omsi.exe (TFileWater 0x7ab878, TD3DWater 0x7abdac/0x7ac360, the map's water record 0x78a8bd):
+the file is read only when its count is 1 (else all four corners stay at -5 m); the corners
+run x fastest, (0,0), (300,0), (0,300), (300,300); the quad is cut along the diagonal from the first corner to the last (two triangles 0-3-1 and 0-2-3: for corners at different heights the other diagonal is a different surface); the quad's texture coordinates are 0 and 15
+(the texture repeats 15 times over a tile); the material is the map's `texture\water.tga`
+(alpha mode 2: blended, **depth written** - no noZwrite) with `water_envmap.bmp` at 0.5 and
+`water_bump.bmp` at 0.3. The map's draw (0x78ee90) does the water in its stage 1, right after the
+terrain and before the splines (stages 2-3) and objects: whatever lies below the water plane
+is behind its depth and is not drawn. `.terrain_x.rdy` = editor cache, ignored.
 
 ## Splines (.sli) - unit `mc_splines`
 
@@ -497,6 +505,17 @@ texture active.
 builds at run time: the SD200's destination roller sets `Rollband_Tex_V` from the map's
 `.hof` depot and terminus strings. `$.yard` is the depot's `[name]`, which is how
 `Linienlisten\<yard>_RLB.jpg` resolves.
+
+Where the picture such a name asks for is not on disk (most maps came without their
+`Anzeigen\Rollband_*` pictures) openOMSI draws it from the texts of the destination
+(`omsi_sim::blindtex`), in the look of the folder in the name: `Rollband_SD79`/`SD83`,
+`Rollband_O307*`, `Rollband_Phantom`, `Rollband_Mirage`, `Rollband_N40*`, `PR110`,
+`Dykty*` and `Steckschild*`. The player's changes to a folder's look (Settings > Rollbands)
+are in `~/.openomsi/rollbands.cfg`, a `[folder]` block of `key=value` lines for each folder
+that is not as drawn - `sd79`, `o307`, `phantom`, `mirage`, `pr110`, `dykty`, `n40`,
+`steckschild` -, with `bg` and `ink` (`RRGGBB`), `font` (the path of a `.ttf` / `.otf`; Roboto where it cannot be read), `size`, `second`, `width`, `letters` (factors, 1 =
+as drawn), `weight` (added to Roboto's 100..900), `track` (em), `shift` (share of the
+picture's height, down) and `caps` (0/1). Nothing in the file touches a picture that is on disk.
 
 `[texcoordtransX/Y] <variable>` scrolls **one material slot's** texture, not the whole mesh:
 the SD200's roller-blind mesh has five of them (three line bands and two destination bands),
@@ -847,7 +866,10 @@ original way: string `SetLineTo` + `AI_target_index` (terminus index) and the
 `ai_scheduled_settarget` trigger. Depot callbacks with index -1 (what the lookups answer for an
 unknown code) return "" / -1, never entry 0. A depot file belongs to a map: when the bus folder
 has none of the name the map's `ailists.cfg` wants (a mod bus brings only its own map's), the
-openOMSI takes it from another vehicle folder (`omsi_vehicle::hof::depot_anywhere`). The FloFix
+openOMSI takes it from elsewhere (`omsi_vehicle::hof::depot_anywhere`): the bus's own folder is always asked first; then a
+`.hof` lying loose in `Vehicles/` (or in a folder of it that holds no `.bus`, up to three deep), then the folder of
+another vehicle; failing a file of that name, `depot_like_anywhere` takes the installed file sharing the most words
+with the map's depot name, title and folder (loose files before vehicle folders). The FloFix
 "Atron" IBIS of many mods starts in a PIN mode (`IBIS_mode` 10) and wants the `PIN` constant
 of its constfile typed and confirmed before the mode keys work.
 

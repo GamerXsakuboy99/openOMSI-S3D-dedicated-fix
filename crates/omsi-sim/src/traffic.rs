@@ -1809,6 +1809,9 @@ const PLAN_AHEAD: f32 = 90.0;
 /// At most this many lanes are planned ahead (junction pieces can be a few metres long).
 // [ROLLBACK lights-130] 20 lanes (was 10): on a road of short pieces ten lanes were not
 // ninety metres, and a light further ahead was not seen in time to stop
+/// [ROLLBACK roundabout-1] How many of its last lanes a wandering car remembers (a roundabout with
+/// its entries and exits is well within it).
+const TRAIL_LANES: usize = 48;
 const PLAN_LANES: usize = 20;
 /// Linked lanes may end up to 1.5 m apart; over this many metres on either side of a joint
 /// the way is bent so that it has no step (half the gap on each side).
@@ -1847,6 +1850,10 @@ pub struct AiState {
     pub change_plan: Vec<usize>,
     /// The lane the car came from (the way behind it, for the rear axle).
     pub prev_lane: Option<usize>,
+    /// [ROLLBACK roundabout-1] The last lanes a wandering car drove, oldest first: where it has a
+    /// choice, it takes a way it has not just been along (a roundabout is left after a lap, not
+    /// driven round for ever, which also held up the cars behind).
+    pub trail: std::collections::VecDeque<usize>,
     /// Seconds spent waiting to enter a crossing (deadlock breaker).
     pub yield_time: f32,
     /// Fixed lane sequence (timetable track); empty = wander randomly.
@@ -2057,7 +2064,7 @@ impl LaneSeq {
 
 impl AiState {
     pub fn new(lane: usize, s: f32, seed: u64) -> AiState {
-        AiState { traffic_pool: None, veh_type: 0, lane, s, speed: 0.0, max_speed_kmh: 50.0, accel: 1.2, decel: 3.0, length: 5.0, rng: seed | 1, blinker: 0, braking: false, odometer: 0.0, planned_next: None, ahead: Vec::new(), change_plan: Vec::new(), prev_lane: None, yield_time: 0.0, route: Vec::new(), route_index: 0, change: None, change_cooldown: 5.0, lateral: 0.0, lateral_target: 0.0, lateral_ramp: (0.0, 0.0, 0.0, 1.0), lateral_curve: Vec::new(), turn_wish: 0, signal: 0, signal_time: 0.0, lat_accel: 2.8, desire: 1.0, headway: 1.4, min_gap: 2.0, accept_gap: 4.0, reaction: 0.7, front: 2.5, rear: 2.5, held: false, start_timer: 0.0, acc: 0.0, accel_cap: None }
+        AiState { traffic_pool: None, veh_type: 0, lane, s, speed: 0.0, max_speed_kmh: 50.0, accel: 1.2, decel: 3.0, length: 5.0, rng: seed | 1, blinker: 0, braking: false, odometer: 0.0, planned_next: None, ahead: Vec::new(), change_plan: Vec::new(), prev_lane: None, trail: std::collections::VecDeque::new(), yield_time: 0.0, route: Vec::new(), route_index: 0, change: None, change_cooldown: 5.0, lateral: 0.0, lateral_target: 0.0, lateral_ramp: (0.0, 0.0, 0.0, 1.0), lateral_curve: Vec::new(), turn_wish: 0, signal: 0, signal_time: 0.0, lat_accel: 2.8, desire: 1.0, headway: 1.4, min_gap: 2.0, accept_gap: 4.0, reaction: 0.7, front: 2.5, rear: 2.5, held: false, start_timer: 0.0, acc: 0.0, accel_cap: None }
     }
 
     fn rand(&mut self) -> u64 {
@@ -2115,6 +2122,15 @@ impl AiState {
             let through: Vec<usize> = choices.iter().copied().filter(|&n| net.reach[n] >= DEAD_END).collect();
             if !through.is_empty() {
                 choices = through;
+            }
+        }
+        // [ROLLBACK roundabout-1] not along a lane the car drove in its last lanes (a lap of a
+        // roundabout is a dozen lanes or so): at the exit of the second lap the way round is
+        // the one it knows, so it takes the exit. Where every way is one it knows, it goes on.
+        if choices.len() > 1 && !self.trail.is_empty() {
+            let fresh: Vec<usize> = choices.iter().copied().filter(|n| !self.trail.contains(n)).collect();
+            if !fresh.is_empty() {
+                choices = fresh;
             }
         }
         if self.turn_wish != 0 {
@@ -2676,6 +2692,11 @@ impl AiState {
             self.prev_lane = Some(self.lane);
             self.lane = next;
             if self.route.is_empty() {
+                // (the lane just driven; a lane change does not count)
+                self.trail.push_back(next);
+                while self.trail.len() > TRAIL_LANES {
+                    self.trail.pop_front();
+                }
                 self.planned_next = if self.ahead.is_empty() { None } else { Some(self.ahead.remove(0)) };
             } else {
                 // the plan may have stepped over a lane-change entry of the route
@@ -3149,6 +3170,29 @@ mod tests {
         car.ahead.clear();
         car.plan_next(&net);
         assert_eq!(car.planned_next, None);
+    }
+
+    #[test]
+    fn a_wandering_car_leaves_a_roundabout_after_a_lap() {
+        // [ROLLBACK roundabout-1] four lanes round, each forking to an exit: with the ring in its
+        // trail the car takes the exit; without, it may do either
+        let st = LaneKind::Street;
+        let mut lanes: Vec<_> = (0..8).map(|i| LaneBuilder::arc(DVec3::new(i as f64 * 50.0, 0.0, 0.0), 0.0, 30.0, 0.0, 0.0, st, 3.0)).collect();
+        for i in 0..4 {
+            lanes[i].next = vec![(i + 1) % 4, 4 + i];
+        }
+        let net = Network { lanes, ..Default::default() };
+        let mut round = 0;
+        for seed in 1..60 {
+            let mut car = AiState::new(0, 0.0, seed);
+            car.trail = [0, 1, 2, 3].into_iter().collect();
+            assert_eq!(car.choose_after(&net, 3, &|_| false), Some(7), "seed {seed}");
+            let mut car = AiState::new(0, 0.0, seed);
+            if car.choose_after(&net, 3, &|_| false) == Some(0) {
+                round += 1;
+            }
+        }
+        assert!(round > 5 && round < 55, "{round}");
     }
 
     #[test]

@@ -820,6 +820,10 @@ impl Launcher {
             // The Controls page may still own the same DirectInput wheel non-exclusively.
             // Drop it before the child asks for exclusive foreground access for force feedback.
             self.pages.pads.release_io();
+            // [ROLLBACK careerhired-1] only a Career Mode session shows the hired drivers' buses on the road
+            if d.career.is_none() {
+                crate::career_hired::write(&[]);
+            }
             self.state.spawn_launch(d);
         }
     }
@@ -924,7 +928,15 @@ impl Launcher {
                 let tex = renderer.device.create_texture(&wgpu::TextureDescriptor { label: Some("server icon"), size: wgpu::Extent3d { width: w, height: h, depth_or_array_layers: 1 }, mip_level_count: 1, sample_count: 1, dimension: wgpu::TextureDimension::D2, format: wgpu::TextureFormat::Rgba8UnormSrgb, usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST, view_formats: &[] });
                 renderer.queue.write_texture(tex.as_image_copy(), &img, wgpu::TexelCopyBufferLayout { offset: 0, bytes_per_row: Some(4 * w), rows_per_image: Some(h) }, wgpu::Extent3d { width: w, height: h, depth_or_array_layers: 1 });
                 let view = tex.create_view(&Default::default());
-                let id = gpu.add_view(&renderer.device, &view, (w, h));
+                // [ROLLBACK rollbands-1] the Rollbands tab's preview is drawn again at every change: it takes the
+                // place of the last one on the GPU instead of adding a texture each time
+                let id = match self.icons.get(&addr).copied().filter(|_| addr == pages::RB_KEY) {
+                    Some(id) => {
+                        gpu.set_view(&renderer.device, id, &view, (w, h));
+                        id
+                    }
+                    None => gpu.add_view(&renderer.device, &view, (w, h)),
+                };
                 self.icons.insert(addr, id);
             }
         }
@@ -1074,11 +1086,12 @@ impl Launcher {
         let disconnected = self.state.disconnected.is_some();
         let crash = !disconnected && self.state.crash.is_some();
         let reset = !crash && !disconnected && self.pages.confirm_reset;
-        let debug = !crash && !disconnected && !reset && self.career.debug_open;
-        if self.browser.is_some() || crash || reset || disconnected || debug {
+        let pics = !crash && !disconnected && !reset && self.pages.thumbs_dialog;
+        let debug = !crash && !disconnected && !reset && !pics && self.career.debug_open;
+        if self.browser.is_some() || crash || reset || disconnected || debug || pics {
             self.pages.pads.cancel_feedback_test();
         }
-        let saved = (self.browser.is_some() || crash || reset || disconnected || debug).then(|| {
+        let saved = (self.browser.is_some() || crash || reset || disconnected || debug || pics).then(|| {
             let i = self.ui.input.clone();
             self.ui.input.mouse = Vec2::new(-1e4, -1e4);
             self.ui.input.pressed = false;
@@ -1138,6 +1151,8 @@ impl Launcher {
                 self.draw_crash_dialog();
             } else if reset {
                 pages::reset_dialog(self);
+            } else if pics {
+                thumbs::all_dialog(self);
             } else if debug {
                 career_debug::draw(self);
             } else {
@@ -1150,6 +1165,9 @@ impl Launcher {
     /// dragged on it turns the bus, the wheel zooms.
     pub fn preview(&mut self, r: Rect) {
         self.preview_rect = Some(r);
+        // [ROLLBACK showfit-1] the picture is the whole card: the bus stands in its middle (before: whatever
+        // the page before had asked for with `preview_full` stayed, and the bus stood off to one side)
+        self.showroom.focus_x = 0.5;
         self.ui.solid(r);
         self.ui.p().rounded(r, RADIUS, FIELD);
         match (self.preview_tex, self.showroom.has_picture()) {
@@ -1166,10 +1184,19 @@ impl Launcher {
         }
         if self.ui.hover(r) && self.ui.input.wheel.y.abs() > 0.0 {
             self.showroom.wheel((1.0 - self.ui.input.wheel.y * 0.08).clamp(0.8, 1.25));
+            self.ui.take_wheel();
         }
         if self.ui.hover(r) {
             self.ui.cursor = winit::window::CursorIcon::Grab;
         }
+    }
+
+    /// [ROLLBACK showfit-1] The preview inside a panel drawn before it: `over_before` is `ui.over_ui` as it
+    /// was *before* that panel (the panel marks the mouse as over the interface, and so did the picture, so
+    /// the drag that turns the bus never began - the dealership's bus could not be turned).
+    pub fn preview_in_panel(&mut self, r: Rect, over_before: bool) {
+        self.preview(r);
+        self.ui.over_ui = over_before;
     }
 
     /// The chosen map across `r`, the whole page behind the panels: every road the map has,
@@ -1239,13 +1266,19 @@ impl Launcher {
         }
         if self.ui.input.wheel.y.abs() > 0.0 {
             self.showroom.wheel((1.0 - self.ui.input.wheel.y * 0.08).clamp(0.8, 1.25));
+            self.ui.take_wheel();
         }
         self.ui.cursor = winit::window::CursorIcon::Grab;
     }
 
     pub fn go(&mut self, p: Page) {
         if self.page != p {
+            // [ROLLBACK seatview-1] (the Drive page's seat view is its own: the other pages show the bus from outside)
+            self.showroom.set_seat(None);
+            self.drive.seat_view = 0;
             self.page = p;
+            // [ROLLBACK thumbsall-2] the pictures the page left asked for are not taken (the new page asks for its own)
+            self.thumbs.cancel_queued(true);
             self.page_anim = 0.0;
             self.page_scroll = 0.0;
             self.phone.page = match p {

@@ -205,8 +205,13 @@ struct Probe {
     /// behind the camera, so the clouds shook and lagged. The cube keeps one eye; the dome
     /// takes the parallax out, and the eye moves on (the whole cube redrawn) once the
     /// camera has gone far enough for the correction to show.
+    /// [ROLLBACK skyjump-2] Since then the eye is the camera of the last window frame (the dome's
+    /// correction is zero) and the cube is drawn again as a whole only for a camera put elsewhere.
     cube_eye: Option<DVec3>,
     cube_recapture: bool,
+    /// [ROLLBACK skyjump-2] How far the camera moves between two window frames (m, smoothed,
+    /// weighted up when the clouds are near): the faster, the less of the old picture a face keeps.
+    cube_move: f32,
 }
 
 /// Face size of the enhanced sky cube (see `Probe::cube_view`): about as many texels per
@@ -218,6 +223,27 @@ const SKY_CUBE_SIZE: u32 = 1024;
 const SKY_CUBE_ROUNDS: u32 = 8;
 /// The old picture's share when a face is redrawn in the window.
 const SKY_CUBE_HISTORY: f64 = 0.8;
+/// [ROLLBACK skyjump-2] A camera that moves further than this between two window frames (m) has been
+/// put somewhere else (a teleport, a new map): the whole cube is drawn again from where it stands.
+const SKY_CUBE_TELEPORT: f32 = 250.0;
+/// [ROLLBACK skyjump-2] How far the camera may go while a face's picture is being replaced (m): the
+/// clouds in the cube then lag by about this much behind the camera's parallax, which is smooth.
+const SKY_CUBE_LAG_M: f64 = 40.0;
+
+/// [ROLLBACK skyjump-2] The old picture's share when a face is redrawn, for a camera that moves
+/// `step` metres a window frame (weighted for the clouds' nearness): a face is replaced
+/// every `6 * SKY_CUBE_EVERY` frames and the history makes the picture that many times older; the
+/// faster the camera, the shorter the history, so the lag stays about `SKY_CUBE_LAG_M`.
+fn sky_cube_history(step: f32) -> f64 {
+    if step <= 0.0 {
+        return SKY_CUBE_HISTORY;
+    }
+    let sweep = (6 * SKY_CUBE_EVERY) as f64;
+    // (mean age of a face's picture, in sweeps, is k + 1/2 with history k / (1 + k))
+    let k = (SKY_CUBE_LAG_M / (sweep * step as f64) - 0.5).max(0.0);
+    (k / (1.0 + k)).clamp(0.35, SKY_CUBE_HISTORY)
+}
+
 /// A face is redrawn every this many window frames: the clouds drift by a pixel of the
 /// cube in seconds, and a face a frame (a 32-step march of 1024x1024 texels) cost 2.9 ms of
 /// every enhanced frame on an M4.
@@ -1322,11 +1348,18 @@ pub struct Instance {
     /// it - except a spline standing clear of the ground (a bridge deck, an elevated
     /// railway), which is raised with `set_casts_shadow`.
     pub casts_shadow: bool,
+    /// It may cast into the headlamps' shadow map (`LampShadow`): every instance but a person,
+    /// whose skinned limbs and clothes shaded the body in patches under a vehicle's lights
+    /// ([ROLLBACK npclamp-1]; set with `set_lamp_caster`).
+    pub lamp_caster: bool,
     /// Part of a vehicle whose roof lies this high over its origin (model frame): what faces
     /// up under the roof (the floor, the seats) is out of the weather - no snow nor wet on
     /// it. (Only the vehicle the camera is in was spared, by its box; every other bus showed
     /// its saloon under snow through the windows.)
     pub roof: Option<f32>,
+    /// A person (a pedestrian or a passenger): the headlamps' shadow map does not darken it
+    /// ([ROLLBACK npclamp-2], `PERSON_LAMP_SHADOW` in enhanced.wgsl).
+    pub person: bool,
     /// Drawn with every slot in model order among the blended draws, as Omsi.exe draws a
     /// model: mesh after mesh, each material subset with its own states and depth write
     /// (0x7c32c4 -> 0x7fd6c4, DrawSubset), not its opaque parts first. Set on the models
@@ -4679,6 +4712,7 @@ impl Renderer {
                 cube_wait: 0,
                 cube_eye: None,
                 cube_recapture: false,
+                cube_move: 0.0,
             }
         };
         let overlay_pipeline_1x = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -6579,7 +6613,9 @@ impl Renderer {
             omsi_caster: false,
             ordered: false,
             casts_shadow: true,
+            lamp_caster: true,
             roof: None,
+            person: false,
         });
         if scene.bounds_known.get(mesh).copied().unwrap_or(false) {
             scene.bounds_users.push(scene.instances.len() - 1);
@@ -6636,7 +6672,9 @@ impl Renderer {
             omsi_caster: false,
             ordered: false,
             casts_shadow: false,
+            lamp_caster: true,
             roof: None,
+            person: false,
         });
         if scene.bounds_known.get(mesh).copied().unwrap_or(false) {
             scene.bounds_users.push(scene.instances.len() - 1);
@@ -6747,7 +6785,24 @@ impl Renderer {
         }
     }
 
+    /// Let an instance cast into the headlamps' shadow map or not (see [`Instance::lamp_caster`]).
+    pub fn set_lamp_caster(&self, scene: &mut Scene, instance: usize, on: bool) {
+        if let Some(i) = scene.instances.get_mut(instance) {
+            i.lamp_caster = on;
+        }
+    }
+
     /// The vehicle roof height of an instance (see [`Instance::roof`]).
+    /// Mark an instance as a person (see [`Instance::person`]).
+    pub fn set_person(&self, scene: &mut Scene, instance: usize, on: bool) {
+        if let Some(i) = scene.instances.get_mut(instance) {
+            if i.person != on {
+                i.person = on;
+                Self::mark_changed(scene, instance);
+            }
+        }
+    }
+
     pub fn set_roof(&self, scene: &mut Scene, instance: usize, roof: Option<f32>) {
         if let Some(i) = scene.instances.get_mut(instance) {
             if i.roof != roof {
@@ -7515,27 +7570,36 @@ impl Renderer {
             }
             None => (false, 1.0),
         };
-        // the sky cube's eye (see Probe::cube_eye): the correction for a camera that moved
-        // away from it is exact for the base of the clouds, and wrong by up to the layer's
-        // depth over their distance; a climb shows far sooner than driving along
+        // the sky cube's eye (see Probe::cube_eye)
+        // [ROLLBACK skyjump-2] The eye used to stay where it was until the camera was ~140 m away and
+        // then jump to it with all six faces redrawn at once: in between the dome corrected the picture
+        // for the clouds' base alone (wrong for their bodies, up to 50 pixels), and at the redraw the whole
+        // sky moved to where it should be - the sky "ran ahead to catch the player" every 140 m. Now the
+        // eye is the camera, always: each face is drawn from where the camera is when its turn comes and
+        // the history carries it on, so the clouds' parallax is smooth and lags a little (about 1.8 s at
+        // a walk, less the faster the camera: `sky_cube_history`). Only a camera put somewhere else
+        // (SKY_CUBE_TELEPORT in one frame) redraws the cube.
         let cam_w = ro + cam_rel.as_dvec3();
         let eye_off = match self.probe.as_mut() {
             Some(p) => {
                 let to_clouds = (1400.0 - cam_rel.z as f64).max(120.0);
-                let far = match p.cube_eye {
+                let (jump, step) = match p.cube_eye {
                     Some(e) if p.cube_filled => {
                         let m = cam_w - e;
-                        // (a third of what it was: flying the free camera fast, the clouds
-                        // drifted with the old cube for 400 m and then jumped back into place)
-                        (m.truncate().length() * 0.1 + m.z.abs()) / to_clouds > 0.01
+                        let step = (m.truncate().length() + m.z.abs()) as f32;
+                        (step > SKY_CUBE_TELEPORT, step)
                     }
-                    _ => true,
+                    _ => (true, 0.0),
                 };
-                if far {
-                    p.cube_eye = Some(cam_w);
+                if jump {
+                    p.cube_move = 0.0;
                     p.cube_recapture = p.cube_filled;
+                } else {
+                    let weighted = step * (1400.0 / to_clouds as f32).clamp(1.0, 6.0);
+                    p.cube_move += (weighted - p.cube_move) * 0.1;
                 }
-                (p.cube_eye.unwrap_or(cam_w) - cam_w).as_vec3()
+                p.cube_eye = Some(cam_w);
+                Vec3::ZERO
             }
             None => Vec3::ZERO,
         };
@@ -7654,13 +7718,16 @@ impl Renderer {
                 } else {
                     i.interior.min(0.99)
                 },
-                // the surface flag: 1 ground, 2 a vehicle's shadow blob (no snow on it),
+                // the surface flag: 1 ground, 2 a vehicle's shadow blob (no snow on it), -2 a person,
                 // 1.25 a legacy pulled decal, 0.9 an OMSI-ordered surface (weather
                 // classification without view-space pull), 0.75 a painted ground layer;
                 // below -500 a vehicle part, -(5000 + the roof height relative to origin)
                 if let Some(roof) = i.roof.filter(|_| !i.blob && !i.surface) {
                     let z = (i.origin - ro).z as f32 + i.transform.transform_point3(Vec3::new(0.0, 0.0, roof)).z;
                     -(5000.0 + z.clamp(-4000.0, 4000.0))
+                } else if i.person && !i.blob && !i.surface {
+                    // [ROLLBACK npclamp-2] -2: a person (no shadow of the headlamps on it)
+                    -2.0
                 } else {
                     surface_instance_code(
                         i.blob,
@@ -9401,6 +9468,10 @@ impl Renderer {
                     if !active[cascade] {
                         continue;
                     }
+                    // [ROLLBACK npclamp-1] (a person is no caster of the headlamps' map)
+                    if cascade == 3 && !inst.lamp_caster {
+                        continue;
+                    }
                     let dbg = dbg_shadow && cascade == 0 && r >= dbg_r;
                     if m.bounds_radius > 0.0 && m.bounds_radius < min_radius {
                         if dbg_shadow && cascade == 0 && m.bounds_radius >= dbg_r {
@@ -10507,11 +10578,19 @@ impl Renderer {
                     // the eye moved on: every face from the new one, nothing kept from the
                     // old place
                     let round = (probe.cube_round / 6) % SKY_CUBE_ROUNDS;
-                    (0..6).map(|f| (f, round, 0.0)).collect()
+                    // [ROLLBACK skyjump-1] two rounds of every face averaged, not one: a single round has
+                    // the noise of one sample, and the whole sky changed its grain in one frame every
+                    // ~140 m of driving (about as often as the tiles stream in)
+                    if std::env::var_os("OMSI_DEBUG_SKY").is_some() {
+                        log::info!("sky cube: all six faces drawn again from the new eye");
+                    }
+                    (0..6)
+                        .flat_map(|f| [(f, round, 0.0), (f, (round + 1) % SKY_CUBE_ROUNDS, 0.5)])
+                        .collect()
                 } else if (probe.cube_wait >= SKY_CUBE_EVERY && !redraw_near) || probe.cube_wait >= SKY_CUBE_EVERY * 2 || !lead_view {
                     // (on a frame that keeps the near shadow map: the two costliest
                     // occasional passes never fall on the same frame)
-                    vec![(probe.cube_next, (probe.cube_round / 6) % SKY_CUBE_ROUNDS, SKY_CUBE_HISTORY)]
+                    vec![(probe.cube_next, (probe.cube_round / 6) % SKY_CUBE_ROUNDS, sky_cube_history(probe.cube_move))]
                 } else {
                     Vec::new()
                 };

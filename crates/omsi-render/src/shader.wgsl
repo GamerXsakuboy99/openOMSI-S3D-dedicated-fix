@@ -2057,13 +2057,21 @@ fn shade_vanilla_linear(in: FsIn, puddle_weight: ptr<function, f32>, eye: vec3<f
     var n = safe_normal(in.normal);
     // [ROLLBACK foliage-140] a leaf card whose back copy points its normals down is lit
     // like the front one (OMSI points a crown's normals up), not left to the ambient alone
-    if (mode > 0.5 && mode < 1.5 && material.extra.x < 0.5 && n.z < 0.0) {
+    // [ROLLBACK cutveh-1] only foliage is lit as a leaf (see enhanced.wgsl): a cut-out part of a
+    // vehicle (`in.params2.w` below -500) is a solid surface, lit on the face that is seen, with
+    // the shadow looked up at its own place. Before: no `foliage` (every alpha-tested slot was `thin`).
+    let cut_vehicle = mode > 0.5 && mode < 1.5 && in.params2.w < -500.0;
+    let foliage = mode > 0.5 && mode < 1.5 && !cut_vehicle;
+    if (foliage && material.extra.x < 0.5 && n.z < 0.0) {
+        n = -n;
+    }
+    if (cut_vehicle && dot(n, camera.cam_pos.xyz - in.world) < 0.0) {
         n = -n;
     }
     let ndl = max(dot(n, camera.sun_dir.xyz), 0.0);
     // three lights like the original: direct sun (A), light from above (B), ambient (C)
     let from_above = 0.5 + 0.5 * n.z;
-    let shadow = sun_shadow(in.world, n, mode > 0.5 && mode < 1.5);
+    let shadow = sun_shadow(in.world, n, foliage);
     // screen-space ambient occlusion darkens the indirect light (sky and ambient) in
     // corners, under the bus, between the seats - not the sun, which the shadow map handles
     var ao = 1.0;
@@ -2090,6 +2098,11 @@ fn shade_vanilla_linear(in: FsIn, puddle_weight: ptr<function, f32>, eye: vec3<f
     let tree_unlamped = camera.sky_color.w > 0.5 && material.params.y > 0.1 && material.params.y < 0.2;
     let map_lamps = select(1.0, 0.0, (material.params.y > 0.2 && material.params.y < 0.3) || lm_only || tree_unlamped);
     let lamp_light = point_lights(in.world, n, map_lamps);
+    // (the saloon lamps' light on this surface; both faces of a cut-out vehicle part)
+    var cabin_in = interior_lamps(in.world, n, in.params2.z);
+    if (cut_vehicle) {
+        cabin_in = max(cabin_in, interior_lamps(in.world, -n, in.params2.z));
+    }
     var light = diffuse + lamp_light;
     // D3D lights the material's diffuse colour with the sun, the light from above and the
     // lamps, and its ambient colour with the ambient light (C). Omsi.exe makes every o3d
@@ -2115,7 +2128,7 @@ fn shade_vanilla_linear(in: FsIn, puddle_weight: ptr<function, f32>, eye: vec3<f
         && material.extra.w < 1.5;
     let terrain_night = classic && terrain_map;
     if (classic && material.params.y < 0.5) {
-        var v = clamp(material.emissive.rgb + mat_light + material.color.rgb * interior_lamps(in.world, n, in.params2.z), vec3<f32>(0.0), vec3<f32>(1.0));
+        var v = clamp(material.emissive.rgb + mat_light + material.color.rgb * cabin_in, vec3<f32>(0.0), vec3<f32>(1.0));
         if (light_mapped) {
             let lm = srgb_encode(textureSample(t_light, s_diffuse, buv).rgb) * clamp(in.params2.x, 0.0, 1.0);
             v = v + lm * (vec3<f32>(1.0) - v);
@@ -2149,7 +2162,7 @@ fn shade_vanilla_linear(in: FsIn, puddle_weight: ptr<function, f32>, eye: vec3<f
         // saloon lamps lit a cabin twice over, flat white where the map was full; and the
         // material's colour took the map down with it.)
         let lm = textureSample(t_light, s_diffuse, buv).rgb * clamp(in.params2.x, 0.0, 1.0);
-        let v = clamp(material.emissive.rgb + mat_light + material.color.rgb * interior_lamps(in.world, n, in.params2.z), vec3<f32>(0.0), vec3<f32>(1.0));
+        let v = clamp(material.emissive.rgb + mat_light + material.color.rgb * cabin_in, vec3<f32>(0.0), vec3<f32>(1.0));
         lit = albedo * (v + lm * (vec3<f32>(1.0) - v));
     }
     // the D3D material's own highlight (specular colour and power of the o3d file or a
@@ -2165,7 +2178,7 @@ fn shade_vanilla_linear(in: FsIn, puddle_weight: ptr<function, f32>, eye: vec3<f
     // [interiorlight]: the saloon lamps on the meshes and passengers they illuminate (in
     // a light-mapped material's vertex light already, above)
     if (!light_mapped && !classic) {
-        lit = lit + tex.rgb * interior_lamps(in.world, n, in.params2.z);
+        lit = lit + tex.rgb * cabin_in;
     }
     // (Vanilla+: the map's lamps light the ground, as they light the roads)
     if (material.extra.w > 0.5 && !terrain_map) {

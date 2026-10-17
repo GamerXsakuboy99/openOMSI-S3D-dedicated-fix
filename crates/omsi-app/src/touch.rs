@@ -880,7 +880,7 @@ impl App {
             // linearity, less at speed with Dynamic steering), not at all with Old Steering;
             // it sprang back to the middle in a third of a second whatever the speed (#1090)
             t.steer = match self.player.as_ref() {
-                Some(p) => p.axes.let_go(t.steer, dt),
+                Some(p) => p.axes.let_go_touch(t.steer, dt),
                 None => 0.0,
             };
         }

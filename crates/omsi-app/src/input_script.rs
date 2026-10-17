@@ -14,6 +14,19 @@ pub(crate) fn is_game_action(name: &str) -> bool {
 }
 
 
+/// [ROLLBACK resetpri-1] The [game] action to run for a key that has several (in the order of
+/// `keyboard.cfg`). Normally the first; but where `view_reset_direction` and
+/// `view_reset_all_directions` sit on the same key - the player gave both one button - the
+/// bigger reset wins, whatever their order in the file.
+pub(crate) fn pick_game_action<'a>(actions: &[&'a str]) -> Option<&'a str> {
+    let all = actions.iter().find(|a| a.eq_ignore_ascii_case("view_reset_all_directions"));
+    let one = actions.iter().any(|a| a.eq_ignore_ascii_case("view_reset_direction"));
+    match all {
+        Some(a) if one => Some(*a),
+        _ => actions.first().copied(),
+    }
+}
+
 /// How far (m) a click reaches a page (`[htmltexture]`) on a scenery object.
 const HTML_OBJECT_REACH: f32 = 4.0;
 
@@ -265,7 +278,7 @@ impl App {
                 }
                 return;
             }
-            // the quick menu: Alt tapped alone shows and hides it, Esc hides it
+            // the quick menu: Alt tapped alone shows and hides it (Esc leaves it showing)
             if self.quick_menu_key(code, pressed, repeat) {
                 return;
             }
@@ -393,10 +406,13 @@ impl App {
                 // (Ctrl+Alt+arrows turn the mirror looked at: not Ctrl+arrow's gear or camera)
                 let mirror_aim = ctrl && alt && matches!(code, KeyCode::ArrowLeft | KeyCode::ArrowRight | KeyCode::ArrowUp | KeyCode::ArrowDown);
                 if let Some(scan) = keys::dik_code(code).filter(|_| !ours && !flying && !mirror_aim) {
-                    let action = self.game_keys.iter().find(|b| b.scan_code == scan && b.matches(m)
+                    // [ROLLBACK resetpri-1] more than one [game] action on the key: `pick_game_action`
+                    // (view_reset_all_directions wins over view_reset_direction, else the first)
+                    let on_key: Vec<&str> = self.game_keys.iter().filter(|b| b.scan_code == scan && b.matches(m)
                         && !b.action.starts_with("vr_")
                         && !b.action.starts_with("walk_")
-                        && !(plain_arrow && b.action.starts_with("view_interiorcam_"))).map(|b| b.action.clone());
+                        && !(plain_arrow && b.action.starts_with("view_interiorcam_"))).map(|b| b.action.as_str()).collect();
+                    let action = pick_game_action(&on_key).map(str::to_string);
                     // (a key bound in [game] and in [vehicles] does both, as in Omsi.exe: the
                     // parking brake put on Space, the stock view_reset_all_directions key,
                     // reset the view and never reached the bus - #745)
@@ -1881,7 +1897,6 @@ impl App {
     /// Open the game menu: the simulation pauses (not in a LAN session, which runs on
     /// for the other players).
     pub(crate) fn open_game_menu(&mut self) {
-        self.quick.open = false;
         self.menu_prev_pause = self.paused;
         // the menu takes the keys, their key-ups too: what is held now is let go here, or a
         // steering key let go in the menu went on turning the wheel to full lock once the
@@ -2437,7 +2452,7 @@ impl App {
     /// A settings window (options, vehicle, world) is open.
     fn settings_list(&self) -> bool {
         use crate::game_lists::ListKind;
-        self.chooser.is_some() && matches!(self.list_kind, Some(ListKind::Options(_) | ListKind::Vehicle(_) | ListKind::World(_) | ListKind::Controls | ListKind::Keyboard(_) | ListKind::ControllerDevices(_) | ListKind::Controller(..) | ListKind::ControllerAxis(..) | ListKind::ControllerButtonSettings(..)))
+        self.chooser.is_some() && matches!(self.list_kind, Some(ListKind::Options(_) | ListKind::Vehicle(_) | ListKind::World(_) | ListKind::Radio | ListKind::Controls | ListKind::Keyboard(_) | ListKind::ControllerDevices(_) | ListKind::Controller(..) | ListKind::ControllerAxis(..) | ListKind::ControllerButtonSettings(..)))
     }
 
     /// The open list is closed: back to the game menu.
@@ -2500,7 +2515,7 @@ impl App {
     pub(crate) fn list_adjust(&mut self, k: usize, mv: crate::game_lists::Move) {
         use crate::game_lists::ListKind;
         let Some(kind) = self.list_kind.clone() else { return };
-        if !matches!(kind, ListKind::Options(_) | ListKind::World(_) | ListKind::ControllerDevices(_) | ListKind::Controller(..) | ListKind::ControllerAxis(..) | ListKind::ControllerButtonSettings(..)) {
+        if !matches!(kind, ListKind::Options(_) | ListKind::World(_) | ListKind::Radio | ListKind::ControllerDevices(_) | ListKind::Controller(..) | ListKind::ControllerAxis(..) | ListKind::ControllerButtonSettings(..)) {
             return;
         }
         let Some(action) = self.admin_list.as_ref().and_then(|l| l.get(k)).map(|x| x.1.clone()) else { return };
@@ -3412,6 +3427,7 @@ impl App {
             "number" => self.open_list(crate::game_lists::ListKind::Numbers),
             "dest" => self.open_list(crate::game_lists::ListKind::Destinations),
             "hof" => self.open_list(crate::game_lists::ListKind::Hofs),
+            "radio" => self.open_list(crate::game_lists::ListKind::Radio),
             "tplist" => self.open_list(crate::game_lists::ListKind::Spots),
             "editor" => {
                 self.close_game_menu();
@@ -4976,6 +4992,14 @@ impl crate::App {
         {
             v.retain(|x| x.0 != "map");
         }
+        // [ROLLBACK radiomenu-1, radiomenu-2] a line for the internet radio in every vehicle, under
+        // "Vehicle options"
+        if self.player.is_some() && self.on_foot.is_none() {
+            if let Some(c) = v.iter().position(|x| x.0 == "vehicle") {
+                v.insert(c + 1, ("radio", "Radio..."));
+                at = at.max(c + 2);
+            }
+        }
         // [ROLLBACK walkmenus-125] in the cabin: the driver's view and the mirrors a line away
         if self.player.is_some() && self.on_foot.is_none() && self.view == "driver" {
             if let Some(c) = v.iter().position(|x| x.0 == "options") {
@@ -5292,5 +5316,29 @@ fn month_len(y: i32, m: i32) -> i32 {
         2 => 28,
         4 | 6 | 9 | 11 => 30,
         _ => 31,
+    }
+}
+
+#[cfg(test)]
+mod reset_priority_tests {
+    use super::pick_game_action;
+
+    /// [ROLLBACK resetpri-1] Both resets on one key: the bigger one, in either file order.
+    #[test]
+    fn view_reset_all_wins_over_view_reset_on_the_same_key() {
+        assert_eq!(pick_game_action(&["view_reset_direction", "view_reset_all_directions"]), Some("view_reset_all_directions"));
+        assert_eq!(pick_game_action(&["view_reset_all_directions", "view_reset_direction"]), Some("view_reset_all_directions"));
+        // other actions on the key do not matter
+        assert_eq!(pick_game_action(&["sim_pause", "view_reset_direction", "view_reset_all_directions"]), Some("view_reset_all_directions"));
+    }
+
+    /// Everything else stays as it was: the first binding of the key.
+    #[test]
+    fn other_keys_keep_the_first_binding() {
+        assert_eq!(pick_game_action(&["view_reset_direction"]), Some("view_reset_direction"));
+        assert_eq!(pick_game_action(&["view_reset_all_directions"]), Some("view_reset_all_directions"));
+        assert_eq!(pick_game_action(&["view_set_driver", "view_set_passenger"]), Some("view_set_driver"));
+        assert_eq!(pick_game_action(&["view_reset_all_directions", "sim_pause"]), Some("view_reset_all_directions"));
+        assert_eq!(pick_game_action(&[]), None);
     }
 }

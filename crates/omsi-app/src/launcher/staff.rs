@@ -206,6 +206,18 @@ pub struct ActiveJob {
     pub wage: i64,
     #[serde(default)]
     pub share: f64,
+    /// [ROLLBACK career-taken-1] Which courses the driver has: the map, the line, the tour and the
+    /// first and last course (places in the tour's list), so they are not offered to anyone else.
+    #[serde(default)]
+    pub map: String,
+    #[serde(default)]
+    pub line: String,
+    #[serde(default)]
+    pub tour: String,
+    #[serde(default)]
+    pub first: usize,
+    #[serde(default)]
+    pub last: usize,
 }
 
 /// A line of the staff's log.

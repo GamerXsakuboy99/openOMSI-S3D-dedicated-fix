@@ -6088,7 +6088,7 @@ impl World {
                 None,
                 None,
                 None,
-                env.map(|e| (e, 0.45)),
+                env.map(|e| (e, 0.5)), // [ROLLBACK water-1] 0.5 as Omsi.exe sets it (the map's water record, 0x78a9b2)
                 [0.0; 3],
                 omsi_render::MaterialExtra { water: true, ..Default::default() },
             )
@@ -6923,9 +6923,16 @@ impl World {
                             {
                                 wm.positions.push(glam::Vec3::new(x, y, h[i]));
                                 wm.normals.push(glam::Vec3::Z);
-                                wm.uvs.push(glam::Vec2::new(x / 40.0, y / 40.0));
+                                // [ROLLBACK water-1] Omsi.exe (TD3DWater 0x7abdac) gives the corners the
+                                // coordinates 0 and 15 (index * 15): the texture repeats 15 times over a tile
+                                wm.uvs.push(glam::Vec2::new(x / t * 15.0, y / t * 15.0));
                             }
-                            wm.indices.extend_from_slice(&[0, 1, 2, 2, 1, 3]);
+                            // [ROLLBACK water-2] The two triangles share the diagonal from the first corner to the last
+                            // (Omsi.exe 0x7ac0b2: indices 0 3 1 and 0 2 3), not the other one: with corners at different
+                            // heights - the editor sets each - the two diagonals give two different surfaces, which
+                            // differ by half the difference of the two diagonals' sums, and ours stood above the original's
+                            // (over the road) wherever the corners were not level.
+                            wm.indices.extend_from_slice(&[0, 1, 3, 0, 3, 2]);
                             wm.ranges.push((0, 6, 0));
                             let wid = gpu.add_mesh(renderer, scene, &wm);
                             tg.meshes.push(wid);
@@ -6935,13 +6942,23 @@ impl World {
                             // an ordinary instance, not a surface: the surface depth bias would let a
                             // tile-wide water quad win the depth test against the banks and flood the
                             // whole tile when seen at a shallow angle
-                            let _ = instance!(renderer.add_instance(
+                            let wi = instance!(renderer.add_instance(
                                 scene,
                                 wid,
                                 p.origin,
                                 Mat4::IDENTITY,
                                 vec![water_mat]
                             ));
+                            // [ROLLBACK water-1] drawn with the terrain, before the roads and the objects, as
+                            // Omsi.exe does (TMap draw 0x78ee90, stage 1: the terrain, then each tile's water;
+                            // splines are stages 2-3, objects 5-6). The water is an alpha-blended material with
+                            // its depth written (the exe sets no noZwrite on it), so what lies below its plane
+                            // and is drawn after it - a road, a pier, a boat - fails the depth test and stays
+                            // hidden; drawn with the objects (before) it was blended over them and they
+                            // showed through it.
+                            if let Some(inst) = scene.instances.get_mut(wi) {
+                                inst.render_phase = RenderPhase::Terrain;
+                            }
                         }
                     }
                     pl.phase = 1;
@@ -10213,6 +10230,10 @@ fn sync_materials(
             if f.blind.is_some() && f.blind_missing {
                 shown_row = blind_row(vehicle, f.blind_row);
                 key = format!("{key}|r{}", shown_row.map_or(-1, |r| r as i64));
+                // [ROLLBACK rollbands-1] the look the player set for the folder (Settings > Rollbands) is part of
+                // the picture: one set while the game runs is drawn again at once, as another picture
+                omsi_sim::blindtex::ensure_loaded(|| omsi_launcher_lib::data_dir().join("rollbands.cfg"));
+                key = format!("{key}|s{}", omsi_sim::blindtex::tweaks_version());
                 if f.blind.is_some_and(|s| s.wants_line()) {
                     key = format!("{key}|{}", crate::game_lists::line_shown(vehicle).unwrap_or_default());
                 }

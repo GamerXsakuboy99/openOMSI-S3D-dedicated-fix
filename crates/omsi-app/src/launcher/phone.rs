@@ -872,8 +872,8 @@ fn time_sheet(l: &mut Launcher, r: Rect) -> bool {
             yy += 46.0;
             changed |= ui.slider("ps-custom-temp", Rect::new(v.x, yy, v.w - 8.0, 40.0), &mut custom.temp_c, -30.0, 45.0, 1.0, "Temperature", &|x| format!("{x:.0} °C"));
             yy += 46.0;
-            let t = custom.temp_c;
-            changed |= ui.slider("ps-custom-hum", Rect::new(v.x, yy, v.w - 8.0, 40.0), &mut custom.humidity, 0.0, 100.0, 1.0, "Humidity", &|x| format!("{x:.0} % · dew {:.0} °C", crate::weather_setup::dew_point_c(t, x)));
+            // ([ROLLBACK humlabel-1] the percentage alone)
+            changed |= ui.slider("ps-custom-hum", Rect::new(v.x, yy, v.w - 8.0, 40.0), &mut custom.humidity, 0.0, 100.0, 1.0, "Humidity", &|x| format!("{x:.0} %"));
             yy += 50.0;
 
             ui.label(Rect::new(v.x, yy, 120.0, 38.0), "Cloud type");

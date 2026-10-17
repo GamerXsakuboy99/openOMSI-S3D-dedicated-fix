@@ -48,7 +48,7 @@ pub const VERSION: u32 = 2;
 pub const UNKNOWN_MAKER: &str = "Unknown manufacturer";
 
 /// The catalogue the game comes with: the file `bus_catalog_export.json` of the launcher's
-/// Settings > Bus catalogue > Export, kept as it was written. To change what new players start
+/// Setup > Buses > Bus catalogue > Export, kept as it was written. To change what new players start
 /// with, export a catalogue and put the file here.
 const DEFAULT_JSON: &str = include_str!("../data/bus_catalog_default.json");
 
