@@ -138,11 +138,11 @@ send a "Server Offline" message.
 
 ## Linux
 
-The Linux artifact is server-only. Admin Plus and Discord Bridge shipped
-here are Windows-specific PowerShell utilities; they are not background
-services for Linux. The server's local `/status` and JSONL activity log can
-be integrated with an external notifier that you choose to run on the
-server machine.
+The Linux artifact is server-only. It includes the optional
+`DiscordBridge/Start-DiscordBridge.sh` Python 3 webhook watcher, using the
+same private config.json format as the Windows PowerShell bridge. It requires
+Python 3 but no pip dependencies. Admin Plus is Windows WPF only; you can
+still administer the server from the original in-game administration menu.
 
 ## Testing and limitations
 

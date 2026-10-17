@@ -39,3 +39,20 @@ messages indefinitely. Run DiscordBridge.ps1 -SelfTest for offline checks.
 
 Keep config.json secret: its webhook URL grants posting access to the channel.
 The script restricts webhooks to Discord HTTPS hosts and disables @mentions.
+
+## Linux (Python 3 standard library)
+
+The Linux server artifact also includes `DiscordBridge.py` and
+`Start-DiscordBridge.sh`. This is a separate, optional Linux process,
+requiring `python3` but **no pip-installed modules**. Use the same
+`config.json` described above, kept only on the server machine.
+
+```sh
+./Start-DiscordBridge.sh --self-test
+./Start-DiscordBridge.sh --check-config
+./Start-DiscordBridge.sh
+```
+
+The tool polls `http://127.0.0.1:<web_port>/status` and tails the same
+private JSONL duty journal as the Windows PowerShell version. No player
+coordinates are posted to Discord.

@@ -10,6 +10,7 @@ on:
       - '.github/workflows/linux.yml'
       - 'Cargo.toml'
       - 'Cargo.lock'
+      - 'addons/DiscordBridge/**'
 
 permissions:
   contents: read
@@ -30,6 +31,16 @@ jobs:
         run: cargo check --locked -p omsi-app --bin openomsi-server
       - name: Build Linux dedicated server
         run: sh scripts/build-linux.sh
+      - name: Test optional Linux Discord Bridge
+        run: |
+          python3 -m py_compile addons/DiscordBridge/DiscordBridge.py
+          python3 addons/DiscordBridge/DiscordBridge.py --self-test
+          mkdir -p dist/linux-server/DiscordBridge
+          cp addons/DiscordBridge/DiscordBridge.py dist/linux-server/DiscordBridge/
+          cp addons/DiscordBridge/Start-DiscordBridge.sh dist/linux-server/DiscordBridge/
+          cp addons/DiscordBridge/config.example.json dist/linux-server/DiscordBridge/
+          cp addons/DiscordBridge/README.md dist/linux-server/DiscordBridge/
+          chmod +x dist/linux-server/DiscordBridge/Start-DiscordBridge.sh
       - name: Confirm release contains no playable client
         run: |
           test -f dist/linux-server/openomsi-server
