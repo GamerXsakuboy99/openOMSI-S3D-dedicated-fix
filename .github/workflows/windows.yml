@@ -68,7 +68,7 @@ jobs:
           foreach ($folder in @('Infobox','TM-Summertime')) {
             Copy-Item "assets/$folder" "$out/Assets/$folder" -Recurse -Force
           }
-          if (Test-Path "$out/openomsi.exe" -or Test-Path "$out/openomsi-launcher.exe") {
+          if ((Test-Path "$out/openomsi.exe") -or (Test-Path "$out/openomsi-launcher.exe")) {
             throw 'Client binary was included accidentally'
           }
       - name: Validate Windows management tools
