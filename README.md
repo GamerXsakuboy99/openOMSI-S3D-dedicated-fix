@@ -71,22 +71,24 @@ available settings, ports, METAR, weather, and administration.
 
 ## Linux playable game client (separate download)
 
-This repository also provides an **independent Linux x64 game-client builder**
-based on Sobol3D Edition. It compiles the actual `openomsi` graphical game
-and `openomsi-launcher`, not the Dedicated Server.
+This fork also builds **the normal Sobol3D graphical game for Linux x64**,
+from the same current Rust game source that Sobol uses to build the Windows
+client. It is not converted from a Windows EXE or repackaged from an old
+Linux release.
 
-**[Build / download Linux Game Client](https://github.com/GamerXsakuboy99/openOMSI-Sobol3D-Edition-dedicatedserver/actions/workflows/linux-client.yml)**
+**[Download/build Linux Game Client](https://github.com/GamerXsakuboy99/openOMSI-Sobol3D-Edition-dedicatedserver/actions/workflows/linux-client.yml)**
 
-Select a successful run and download the artifact
-`openOMSI-Sobol3D-0.4.2-linux-client-x64`. After extracting it, run
-`./start-client.sh` on a graphical Linux desktop. The game still needs
-your original OMSI 2 installation and the corresponding maps/vehicle content.
+From a successful workflow run download the **Sobols-openOMSI-linux-x64-tar-gz**
+artifact. GitHub wraps the download in ZIP; inside you will find
+**Sobols-openOMSI-0.4.2-linux-x64.tar.gz**. This has the six top-level items
+shown in Sobol's older Linux archive: Assets/, libsteam_api.so, openomsi,
+openomsi.desktop, openomsi.png, and openomsi-launcher.
 
-See the full [Linux game client installation guide](docs/LINUX-CLIENT.md).
+Extract the tar.gz and launch the game with **./openomsi** on Linux.
+Set the original OMSI 2 installation folder in the graphical launcher.
 
-**Important:** Client builds are published as **separate GitHub Actions
-artifacts**. They are **not** included in the Dedicated Server Releases ZIPs;
-the server-only build workflows and their release requirements are unchanged.
+See the [Linux client guide](docs/LINUX-CLIENT.md). Client artifacts are
+**separate** from the server-only Releases downloads.
 
 ## Administration and Discord
 

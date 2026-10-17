@@ -1,63 +1,69 @@
-# openOMSI Sobol3D Edition — Linux Game Client (x86-64)
+# Normal Sobol3D Edition Game — Linux x64
 
-This is the **playable graphical client**, built from this Sobol3D Edition
-fork. It is **not** the Dedicated Server, even though both share source
-libraries. It includes `openomsi` (the actual game) and
-`openomsi-launcher` (launcher helper).
+This is the normal, playable graphical openOMSI game. It is compiled natively
+for Linux from the same maintained Rust game/launcher source targets as
+Sobol's current Windows version. It is not a conversion of a Windows EXE,
+a recycled old Linux binary, or a Dedicated Server build.
 
-## Download
+## Download from GitHub Actions
 
-1. Open [Build Linux Game Client](https://github.com/GamerXsakuboy99/openOMSI-Sobol3D-Edition-dedicatedserver/actions/workflows/linux-client.yml).
-2. Select the latest **successful** workflow run, or choose **Run workflow**.
-3. Under **Artifacts**, download `openOMSI-Sobol3D-0.4.2-linux-client-x64`.
-4. Unzip the complete archive to one folder; do not run the binary inside ZIP.
+1. Open the [Build Linux Game Client workflow](https://github.com/GamerXsakuboy99/openOMSI-Sobol3D-Edition-dedicatedserver/actions/workflows/linux-client.yml).
+2. Select a **successful** run and download its artifact named
+   Sobols-openOMSI-linux-x64-tar-gz.
+3. GitHub Actions wraps each artifact in a ZIP: unzip that to get
+   Sobols-openOMSI-0.4.2-linux-x64.tar.gz.
+4. Extract the .tar.gz itself to a writable game folder.
 
-This is a **separate Actions artifact** and is intentionally NOT attached to
-Dedicated Server Releases. Only successful builds provide artifacts.
+Like the old Sobol Linux archive shown in the screenshot, this tar.gz contains
+exactly six top-level entries:
 
-## Start the game
+    Assets/
+    libsteam_api.so
+    openomsi
+    openomsi.desktop
+    openomsi.png
+    openomsi-launcher
 
-You need a **graphical Linux desktop** with working GPU drivers. The source
-game uses Vulkan/OpenGL graphics via wgpu. OMSI 2's original proprietary game
-content is **not bundled**: provide a complete original OMSI 2 installation
-or an appropriately copied folder containing `Omsi.exe`, `maps`,
-`Vehicles`, and the remaining required assets.
+The server binary and the Admin Plus/Discord Bridge addons are not included.
+It is a separate download from the Dedicated Server Releases.
 
-Inside the extracted Linux client folder:
+## Run
 
-```sh
-./start-client.sh
-```
+An actual Linux graphical desktop and GPU graphics drivers are required.
+The original OMSI 2 installation is also required and is NOT bundled.
 
-The game normally opens its launcher; select the original OMSI 2 content
-folder in the launcher Setup screen. If you know the OMSI 2 path already:
+From a terminal in the extracted game folder run:
 
-```sh
-./start-client.sh --root "/home/user/Games/OMSI 2" --menu
-```
+    ./openomsi
 
-To use the separate launcher helper, run `./openomsi-launcher`. Both files
-must remain beside each other. The folder also includes the Steam runtime
-library, an application icon and extra `Assets/` models.
+The game's built-in launcher will appear. In Setup, choose the original
+OMSI 2 folder that contains Omsi.exe, maps, Vehicles, etc. For explicit path:
 
-## Build locally
+    ./openomsi --root "/home/user/Games/OMSI 2" --menu
 
-On Ubuntu 22.04, install Rust via <https://rustup.rs> and:
+The separate openomsi-launcher helper should remain beside openomsi.
+If executable permissions were lost during extraction, use:
 
-```sh
-sudo apt-get install build-essential pkg-config libasound2-dev libudev-dev \
-    libgtk-3-dev libxkbcommon-dev libwayland-dev libssl-dev
-sh scripts/build-linux-client.sh
-```
+    chmod +x openomsi openomsi-launcher
 
-Look for the finished client in `dist/linux-client/`. This script builds
-ONLY the client and its launcher, never the server executable.
+## Building locally
 
-### Scope of automated tests
+Install Rust from https://rustup.rs, then install native dependencies:
 
-CI checks Cargo, builds the release executables, validates the package and
-starts the Linux client with `--help` in headless mode. This is **not a full
-graphical gameplay test**; a Linux desktop and your own OMSI 2 content are
-needed to test maps, controls and multiplayer.
+    sudo apt-get install build-essential pkg-config libasound2-dev libudev-dev libgtk-3-dev libxkbcommon-dev libwayland-dev libssl-dev
+    sh scripts/build-linux-client.sh
 
-Upstream: <https://github.com/sobolx30/openOMSI-Sobol3D-Edition>.
+This builds the normal game/launcher, NOT the dedicated-server binary.
+The result is in the dist/ directory as a Sobols-openOMSI-*-linux-x64.tar.gz
+archive.
+
+## Upstream updates and validation
+
+The fork uses Sobol's maintained game source, but GitHub forks do not
+automatically sync new upstream commits. Sync upstream changes into this
+fork when you want newer Windows-game functionality included in the Linux
+client.
+
+GitHub Actions checks and builds both Rust binaries, extracts the tar.gz
+and tests that the Linux game can start with --help. CI does not prove
+actual graphical gameplay, maps, mods or multiplayer work on every Linux PC.
