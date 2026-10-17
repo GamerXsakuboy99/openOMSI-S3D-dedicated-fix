@@ -11,6 +11,16 @@ permissions:
   contents: read
 
 jobs:
+  linux-discord:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Python Discord Bridge syntax and offline tests
+        run: |
+          python3 -m py_compile addons/DiscordBridge/DiscordBridge.py
+          python3 addons/DiscordBridge/DiscordBridge.py --self-test
+          python3 -m json.tool addons/DiscordBridge/config.example.json > /dev/null
+
   tools:
     runs-on: windows-2022
     steps:
