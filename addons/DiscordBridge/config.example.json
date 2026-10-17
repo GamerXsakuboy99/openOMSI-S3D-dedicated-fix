@@ -1,0 +1,21 @@
+{
+  "webhook_url": "",
+  "server_web_port": 27025,
+  "discord_username": "openOMSI Server",
+  "poll_interval_seconds": 10,
+  "offline_after_failures": 3,
+  "notify_online_offline": true,
+  "notify_initial_online": true,
+  "notify_player_join": true,
+  "notify_player_leave": true,
+  "notify_player_count": true,
+  "notify_weather_change": true,
+  "summary_interval_minutes": 0,
+  "duty_events_log_path": "",
+  "notify_duty_started": true,
+  "notify_duty_disconnected": true,
+  "notify_duty_ended": true,
+  "notify_duty_switched": true,
+  "notify_line_changed": false,
+  "notify_bus_changed": false
+}
