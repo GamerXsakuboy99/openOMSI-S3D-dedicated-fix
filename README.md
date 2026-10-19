@@ -125,4 +125,37 @@ your OMSI 2 installation, a map and players before public deployment.
 This is an independent fork, **not an official Sobol3D Edition release**.
 Original project: [sobolx30/openOMSI-Sobol3D-Edition](https://github.com/sobolx30/openOMSI-Sobol3D-Edition).
 
-License: [MIT](LICENSE).
+## Licence, permitted use and attribution
+
+**This repository is NOT licensed entirely under MIT.** The applicable
+licence depends on who owns each part of the code:
+
+- **Original openOMSI code** by usonskyyyy retains the **MIT licence**.
+  The original MIT-licensed portions remain reusable under MIT on their own,
+  including in other projects when the MIT terms are met.
+- **Sobol3D Edition modifications** by sobolx30 retain the upstream
+  **All Rights Reserved** terms. Reusing or redistributing those protected
+  changes requires compliance with Sobol's licence and any necessary
+  rightsholder permission.
+- **Original changes first made for this Dedicated Server fork** and
+  copyright-owned by GamerXsakuboy99 are **All Rights Reserved** with
+  permission limited to this Sobol3D Edition-based fork and the official
+  Sobol3D Edition project. They are not offered for copying, porting or
+  integrating into independent projects such as **NeoOMSI** or the
+  **original openOMSI** without prior written permission from their
+  copyright holder.
+
+The fork-specific restrictions cover only **copyrightable implementation
+work owned by the contributor** (for example, original Dedicated Server
+tooling, Admin Plus, Discord Bridge and duty-tracking implementation), not
+the freely available MIT parts, third-party materials or general ideas.
+Naming other projects does not imply they have infringed anyone's rights.
+
+**Important for redistributors:** The fork's permission for its own original
+contributions does not override Sobol3D Edition's upstream restrictions.
+Obtain any permission required by the upstream rightsholder before
+redistributing modified packages containing their protected material.
+
+Read the complete **[LICENSE](LICENSE)**, including all three parts and the
+third-party notices, before reusing or distributing code from this repository.
+

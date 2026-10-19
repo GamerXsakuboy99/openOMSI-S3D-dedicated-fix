@@ -57,6 +57,62 @@ Copyright (c) 2026 sobolx30. All rights reserved.
    holder is not liable for any damages arising from their use.
 
 ==============================================================================
+PART 3 - ORIGINAL CONTRIBUTIONS TO THIS DEDICATED SERVER FORK
+         (All Rights Reserved; Sobol3D Edition Use Only)
+==============================================================================
+
+"Fork Contributions" means the original, copyrightable source code, scripts,
+documentation and other material first introduced in
+https://github.com/GamerXsakuboy99/openOMSI-Sobol3D-Edition-dedicatedserver
+by GamerXsakuboy99, or contributed on that author's behalf with the rights
+necessary to apply these terms, to the extent that GamerXsakuboy99 owns the
+copyright or is authorized to license those specific contributions.
+
+This can include original work on the dedicated server, its Windows and Linux
+build tooling, Admin Plus, Discord Bridge, duty tracking and weather
+administration. This definition does NOT include the Original Code from Part 1,
+Sobol3D Edition Modifications from Part 2, third-party materials, or any
+contribution for which another licence or rightsholder controls the rights.
+
+Copyright (c) 2026 GamerXsakuboy99. All rights reserved.
+
+1. Permission is granted to run and use Fork Contributions as part of the
+   Sobol3D Edition application and this named Sobol3D Edition Dedicated Server
+   fork, subject to the rights and licences applicable to all other components.
+
+2. Permission is granted to the maintainers of the official Sobol3D Edition
+   project (https://github.com/sobolx30/openOMSI-Sobol3D-Edition) to incorporate,
+   adapt and distribute Fork Contributions solely as part of their Sobol3D
+   Edition project and releases, with this copyright and licence notice
+   preserved. This permission does not extend to unrelated projects.
+
+3. Except for the uses expressly permitted above, Fork Contributions may NOT,
+   without prior written permission from their copyright holder, be copied,
+   extracted, adapted, ported, sublicensed or redistributed for use in a
+   separate project or application. This includes, for example, NeoOMSI and
+   the original openOMSI project (openOMSI-Project/openOMSI), and other
+   unrelated forks or derivatives, regardless of whether they are described
+   as openOMSI-compatible. Naming these projects is illustrative and is not
+   an allegation of infringement.
+
+4. A file may contain materials subject to different terms: the underlying
+   MIT-licensed Original Code remains governed by Part 1; Sobol3D Edition's
+   protected Modifications remain governed by Part 2; and only copyrightable
+   Fork Contributions owned or validly licensed by the identified copyright
+   holder are subject to Part 3. Nothing in Part 3 revokes, narrows or replaces
+   permissions already granted by other copyright holders or in earlier
+   distributions. No permission is granted here to relicense or redistribute
+   Sobol3D Edition's protected Modifications beyond Part 2.
+
+5. This copyright restriction protects original expression to the extent
+   provided by applicable law. It is not a claim of exclusive ownership of
+   general ideas, concepts, functionality, methods or independently created
+   implementations.
+
+6. Fork Contributions are provided "as is", without warranty of any kind, to
+   the maximum extent permitted by applicable law.
+
+==============================================================================
 THIRD-PARTY FILES AND TRADEMARKS
 ==============================================================================
 
