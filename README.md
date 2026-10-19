@@ -1,181 +1,80 @@
-# openOMSI Sobol3D Edition — Dedicated Server
+# Sobol3D Edition — Dedicated Server passenger spawning fix
 
-**Dedicated server releases • based on Sobol3D Edition 0.4.2 • Windows x64 & Linux x64**
+**Temporary, minimal fork of [Sobol3D Edition 0.4.2](https://github.com/sobolx30/openOMSI-Sobol3D-Edition).**
 
-The **Dedicated Server releases** contain the headless multiplayer server,
-**not** the playable client or launcher. A separately built Linux game client
-is available from its own workflow (details below). It can host existing OMSI 2 maps, timetables, AI
-traffic and passengers. An **original OMSI 2 installation** and any content
-used by the server are still required.
+This branch (`openOMSI-S3D-dedicated-fix`) exists **only to preserve a
+passenger spawning fix for the Dedicated Server** while the corresponding
+problem remains unresolved in Sobol3D Edition's official version.
+It is not intended to compete with or replace Sobol3D Edition.
 
-## Why this fork exists
+## The only functional change
 
-> **Temporary Dedicated Server fork**
->
-> This fork exists primarily to work around passenger spawning issues in the
-> official Sobol3D Edition Dedicated Server. It will be maintained as needed
-> until the corresponding Dedicated Server passenger issue is resolved in
-> Sobol3D Edition's official upstream version.
->
-> The goal is to support Sobol3D Edition users, **not to replace or compete
-> with the official project**. Once the upstream server fix is available and
-> verified, a separate server fork should no longer be necessary.
+**[`crates/omsi-app/src/humans.rs`](crates/omsi-app/src/humans.rs)**
 
-**Admin Plus and Discord Bridge are separate, optional add-ons**, not
-built-in parts of the game client. After the Dedicated Server passenger issue
-has been fixed upstream, their original contributions **may be proposed as
-separate pull requests** to the official Sobol3D Edition project. No such PRs
-have been submitted or accepted as part of this plan, and any integration
-would depend on upstream review and applicable licence permissions.
+When a Dedicated Server knows stop/line targets but has no nearby
+departure-time window (`soon`), the original destination filter rejects
+every destination. Waiting passengers can therefore fail to spawn.
 
-## Download the Dedicated Server
+This fix limits destinations to imminent departures **only when a
+departure window is available**. Without one, the normal eligible
+stop destinations are considered instead. Existing filtering remains
+in place when a real departure window is present.
 
-### [Download the latest Dedicated Server release](https://github.com/GamerXsakuboy99/openOMSI-Sobol3D-Edition-dedicatedserver/releases)
+Original fix: [`bf3f6d1`](https://github.com/GamerXsakuboy99/openOMSI-S3D-dedicatedserver/commit/bf3f6d178df9314418d831daa8baf409a03c216c).
 
-**Use the [Releases page](https://github.com/GamerXsakuboy99/openOMSI-Sobol3D-Edition-dedicatedserver/releases) for downloadable
-server ZIPs**, not the temporary build artifacts in GitHub Actions. Releases
-are created automatically only after the Windows **and** Linux build workflows
-both pass on the *same source commit*, and after the package contents are
-checked.
+**Everything else is taken from upstream 0.4.2.** No extra admin API,
+custom weather commands, duty-event logging, Discord Bridge, Admin Plus,
+separate dedicated-only binary or independent game-client builder is
+part of this branch.
 
-| Platform | File on Releases | Includes |
-| --- | --- | --- |
-| Windows x64 | `openOMSI-DedicatedServer-0.4.2-windows-x64.zip` | `openomsi-server.exe`, `start.cmd`, required bundled assets/runtime DLLs, **Admin Plus**, **Discord Bridge** |
-| Linux x64 | `openOMSI-DedicatedServer-0.4.2-linux-x64.zip` | `openomsi-server`, `start.sh`, bundled assets/runtime files, **Discord Bridge (Python 3)** |
+## Building and using the server
 
-Every published release also contains `SHA256SUMS.txt`, which lists checksums
-for both ZIP files. Each release links back to the exact Git commit used to
-build it. Older versions remain available on the Releases page.
+The project uses the **original Sobol3D Edition build and startup
+scripts**; no new GitHub Actions or release-publishing workflows are
+provided here.
 
-**If no release is listed yet**, a release is still awaiting successful
-verification or publication. You can inspect the [build status](https://github.com/GamerXsakuboy99/openOMSI-Sobol3D-Edition-dedicatedserver/actions).
-Do not assume an unverified or failed Actions run provides a working release.
-
-## Installation
-
-Extract the downloaded ZIP into a **new folder**. Do not run the executable
-directly from inside the ZIP.
-
-**Windows:** Double-click **`start.cmd`** in the extracted ZIP folder.
-You do not need to write command-line arguments or manually use `--root`.
-
-On the first start the script checks common Steam installations. If it cannot
-find OMSI 2 automatically, a folder selection window opens: select the
-**original OMSI 2 game folder containing `Omsi.exe`** (not the `maps` folder
-and not the openOMSI server folder). It verifies that the original maps and
-other required files exist, saves your choice to `omsi-root.json`, and uses
-the same folder automatically next time. To change the selected folder later,
-double-click **`Change-OMSI-Folder.cmd`**.
-
-On Windows Server Core or without a desktop, the script asks you to **paste
-the OMSI 2 folder path** instead. Advanced users may still run
-`start.cmd "D:\SteamLibrary\steamapps\common\OMSI 2"` to choose a folder
-directly.
-
-`--root` is supplied to `openomsi-server.exe` **internally by the script**,
-not typed as a Windows command.
-
-**Linux**, in the extracted server folder:
+On Linux, install Rust and the native dependencies described in the
+upstream [build instructions](docs/BUILDING.md), then run:
 
 ```sh
-./start.sh "/srv/omsi2"
+sh scripts/build-server.sh
+./dist/server/start.sh "/path/to/OMSI 2"
 ```
 
-Replace the OMSI 2 path with your actual installation directory. The first
-start creates a commented `server.cfg` when it doesn't exist. Edit the
-configuration and restart the server. Preserve your own `server.cfg` and
-Discord `config.json` when updating from an older release.
+On Windows, the upstream build uses `scripts/build-windows.cmd` and
+produces `openomsi.exe` in `dist/windows/`. The same executable can
+host a headless server when started with:
 
-See **[Dedicated Server setup and configuration](docs/SERVER.md)** for all
-available settings, ports, METAR, weather, and administration.
+```text
+openomsi.exe --root "C:\\path\\to\\OMSI 2" --server "server.cfg"
+```
 
-## Linux playable game client (separate download)
+A **complete licensed OMSI 2 installation** and its maps/vehicles are
+required. The server's configuration and gameplay are documented in
+[upstream server documentation](docs/SERVER.md).
 
-This fork also builds **the normal Sobol3D graphical game for Linux x64**,
-from the same current Rust game source that Sobol uses to build the Windows
-client. It is not converted from a Windows EXE or repackaged from an old
-Linux release.
+The change in this branch is source-level only. **It does not prove
+that passenger spawning works on every map or that graphical clients
+have been tested with this patch.** Verify with a real dedicated server,
+original OMSI 2 content and players before production use.
 
-**[Download/build Linux Game Client](https://github.com/GamerXsakuboy99/openOMSI-Sobol3D-Edition-dedicatedserver/actions/workflows/linux-client.yml)**
+## Other branches and add-ons
 
-From a successful workflow run download the **Sobols-openOMSI-linux-x64-tar-gz**
-artifact. GitHub wraps the download in ZIP; inside you will find
-**Sobols-openOMSI-0.4.2-linux-x64.tar.gz**. This has the six top-level items
-shown in Sobol's older Linux archive: Assets/, libsteam_api.so, openomsi,
-openomsi.desktop, openomsi.png, and openomsi-launcher.
+- [**Addons**](https://github.com/GamerXsakuboy99/openOMSI-S3D-dedicatedserver/tree/Addons):
+  independent Admin Plus and Discord Bridge tools, maintained separately.
+- [**Redux-Dedicated**](https://github.com/GamerXsakuboy99/openOMSI-S3D-dedicatedserver/tree/Redux-Dedicated):
+  the previous expanded dedicated-server build and its extra functionality.
+  It is kept intact for reference and rollback.
 
-Extract the tar.gz and launch the game with **./openomsi** on Linux.
-Set the original OMSI 2 installation folder in the graphical launcher.
+The old extended builds or Releases associated with this repository
+may contain features **not present in this minimal branch**. Do not
+mistake those older binaries for a build of only the passenger fix.
 
-See the [Linux client guide](docs/LINUX-CLIENT.md). Client artifacts are
-**separate** from the server-only Releases downloads.
+Once the official Dedicated Server fix has been verified upstream, this
+temporary branch may no longer be needed.
 
-## Administration and Discord
+## Licence
 
-- **Admin Plus (Windows):** an English-language, standalone WPF GUI in the
-  `AdminPlus/` folder. It controls the local server using its existing
-  password-protected `/admin` endpoint. Custom weather changes are sent live;
-  unmodified 0.4.2 game clients may still fade between weather states.
-- **Discord Bridge:** a separate webhook notifier in `DiscordBridge/` for
-  Windows (PowerShell) or Linux (Python 3). Server online/offline, player count,
-  weather, and optionally selected driving-duty changes.
-- **Duty Tracking:** opt in with `duty_tracking = 1` in `server.cfg`. It
-  writes a private `duty-events.jsonl` beside the config, without exposing
-  player locations. The 0.4.2 clients do **not** provide server-verifiable
-  trip-completion events, so the bridge does not invent those notifications.
-
-Keep `share_positions = 0` unless you intentionally want to expose player
-positions through the HTTP API. Never forward `/admin` to the internet, and
-never publish your Discord webhook URL.
-
-## Build and release checks
-
-[Windows build](https://github.com/GamerXsakuboy99/openOMSI-Sobol3D-Edition-dedicatedserver/actions/workflows/windows.yml) ·
-[Linux build](https://github.com/GamerXsakuboy99/openOMSI-Sobol3D-Edition-dedicatedserver/actions/workflows/linux.yml) ·
-[Management tools tests](https://github.com/GamerXsakuboy99/openOMSI-Sobol3D-Edition-dedicatedserver/actions/workflows/management-tools.yml)
-
-The automated release pipeline checks that both Windows and Linux artifacts
-were built successfully from the same commit; ensures the archives include
-their startup scripts and expected components, and do not contain the game
-client; and produces checksum-verified release downloads.
-
-**Build success is not a full multiplayer gameplay certification.** Test with
-your OMSI 2 installation, a map and players before public deployment.
-
-This is an independent fork, **not an official Sobol3D Edition release**.
-Original project: [sobolx30/openOMSI-Sobol3D-Edition](https://github.com/sobolx30/openOMSI-Sobol3D-Edition).
-
-## Licence, permitted use and attribution
-
-**This repository is NOT licensed entirely under MIT.** The applicable
-licence depends on who owns each part of the code:
-
-- **Original openOMSI code** by usonskyyyy retains the **MIT licence**.
-  The original MIT-licensed portions remain reusable under MIT on their own,
-  including in other projects when the MIT terms are met.
-- **Sobol3D Edition modifications** by sobolx30 retain the upstream
-  **All Rights Reserved** terms. Reusing or redistributing those protected
-  changes requires compliance with Sobol's licence and any necessary
-  rightsholder permission.
-- **Original changes first made for this Dedicated Server fork** and
-  copyright-owned by GamerXsakuboy99 are **All Rights Reserved** with
-  permission limited to this Sobol3D Edition-based fork and the official
-  Sobol3D Edition project. They are not offered for copying, porting or
-  integrating into independent projects such as **NeoOMSI** or the
-  **original openOMSI** without prior written permission from their
-  copyright holder.
-
-The fork-specific restrictions cover only **copyrightable implementation
-work owned by the contributor** (for example, original Dedicated Server
-tooling, Admin Plus, Discord Bridge and duty-tracking implementation), not
-the freely available MIT parts, third-party materials or general ideas.
-Naming other projects does not imply they have infringed anyone's rights.
-
-**Important for redistributors:** The fork's permission for its own original
-contributions does not override Sobol3D Edition's upstream restrictions.
-Obtain any permission required by the upstream rightsholder before
-redistributing modified packages containing their protected material.
-
-Read the complete **[LICENSE](LICENSE)**, including all three parts and the
-third-party notices, before reusing or distributing code from this repository.
-
+The original openOMSI MIT licence and the Sobol3D Edition changes'
+existing protections continue to apply. Original copyrightable work
+on the passenger fix is separately identified in [LICENSE](LICENSE).

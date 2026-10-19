@@ -529,22 +529,6 @@ fn weather_file_ok(file: &str) -> bool {
     f.starts_with("weather/") && f.ends_with(".owt") && !f.contains("..") && f.matches('/').count() == 1
 }
 
-/// Validate all custom-weather fields before accepting an administrator's setting.
-fn custom_weather_wire(value: &str) -> Option<String> {
-    let body=value.strip_prefix("custom:")?;
-    if value.len()>180 { return None; }
-    const KEYS:[&str;14]=["vis","br","wd","ws","t","rh","p","c","cb","pt","pi","wet","snow","snowroad"];
-    let mut present=std::collections::HashSet::new();
-    for field in body.split(';') {
-        let (key,num)=field.split_once('=')?;
-        if !KEYS.contains(&key) || !present.insert(key) || !num.parse::<f32>().ok()?.is_finite() {
-            return None;
-        }
-    }
-    if present.len()!=KEYS.len() { return None; }
-    Some(crate::weather_setup::CustomWeather::parse(value)?.encode())
-}
-
 /// Who the commands of the web gateway's `POST /admin` come from: no player has this id.
 pub(crate) const LOCAL_ADMIN: u32 = u32::MAX;
 
@@ -622,10 +606,6 @@ pub(crate) fn server_command(lan: &mut LanSession, from: u32, text: &str, adm: &
                 // weather; a server took every one of them for "next"
                 "weather" => match a.trim().split_once(' ').map(|(k, f)| (k, f.trim())) {
                     Some(("set", file)) if weather_file_ok(file) => adm.set_weather = Some(file.replace('\\', "/")),
-                    Some(("custom", wire)) => {
-                        if let Some(valid)=custom_weather_wire(wire) { adm.set_weather=Some(valid); }
-                        else { log::warn!("server: invalid custom weather from admin {from}"); }
-                    }
                     _ => adm.next_weather = true,
                 },
                 "say" => {
@@ -871,17 +851,5 @@ mod weather_file_tests {
         assert!(!weather_file_ok("Weather/sub/x.owt"));
         assert!(!weather_file_ok("maps/x.owt"));
         assert!(!weather_file_ok("Weather/x.cfg"));
-    }
-}
-
-#[cfg(test)]
-mod custom_weather_admin_tests {
-    use super::custom_weather_wire;
-    #[test]
-    fn requires_complete_finite_custom_weather() {
-        let valid="custom:vis=50000;br=1;wd=0;ws=2;t=15;rh=50;p=1013;c=0;cb=500;pt=0;pi=0;wet=0;snow=0;snowroad=0";
-        assert!(custom_weather_wire(valid).is_some());
-        assert!(custom_weather_wire("custom:t=15").is_none());
-        assert!(custom_weather_wire(&valid.replace("t=15", "t=NaN")).is_none());
     }
 }

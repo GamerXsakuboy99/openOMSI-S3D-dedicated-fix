@@ -1,22 +1,19 @@
 #!/bin/sh
-# Dedicated Server only. No playable client or GUI launcher is produced.
+# Build openOMSI for Linux x86_64 into dist/linux (the game, which is also the launcher
+# window, and the launcher's terminal tools). Needs Rust and, on Debian/Ubuntu:
+#   sudo apt install build-essential pkg-config libasound2-dev libudev-dev libgtk-3-dev \
+#     libxkbcommon-dev libwayland-dev libssl-dev
 set -eu
 cd "$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 export PATH="$HOME/.cargo/bin:$PATH"
-command -v cargo >/dev/null 2>&1 || { echo 'Install Rust from https://rustup.rs' >&2; exit 1; }
-cargo build --locked --release --bin openomsi-server -p omsi-app
-out=dist/linux-server
-mkdir -p "$out"
-cp target/release/openomsi-server "$out/"
-cp scripts/server/start.sh "$out/start.sh"
-cp docs/SERVER.md "$out/README.md"
-cp LICENSE "$out/LICENSE"
-mkdir -p "$out/Assets"
-for folder in Infobox TM-Summertime; do
-    if [ -d "assets/$folder" ]; then
-        cp -R "assets/$folder" "$out/Assets/$folder"
-    fi
-done
-if [ -f assets/steam_redist/libsteam_api.so ]; then cp assets/steam_redist/libsteam_api.so "$out/"; fi
-chmod +x "$out/openomsi-server" "$out/start.sh"
-printf 'Dedicated server built in %s\n' "$out"
+command -v cargo >/dev/null 2>&1 || { echo "Install Rust from https://rustup.rs, then run this script again." >&2; exit 1; }
+export OPENOMSI_VERSION="${OPENOMSI_VERSION:-$(sh scripts/version.sh 2>/dev/null || echo 0.0.0)}"
+cargo build --locked --release -p omsi-app -p omsi-launcher-core
+out=dist/linux
+mkdir -p "$out"   # (the folder is also the content folder: mods stay)
+cp target/release/openomsi target/release/openomsi-launcher "$out/"
+cp assets/icons/app/openomsi-256.png "$out/openomsi.png"
+# (Steam's library, x86-64 only: an ARM build has no Steam, see crates/omsi-app/build.rs)
+[ "$(uname -m)" = x86_64 ] && cp assets/steam_redist/libsteam_api.so "$out/"
+cp scripts/linux/openomsi.desktop "$out/"
+printf '\nopenOMSI %s built in %s\n' "$OPENOMSI_VERSION" "$out"

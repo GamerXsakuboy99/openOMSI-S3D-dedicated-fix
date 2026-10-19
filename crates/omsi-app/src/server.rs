@@ -48,8 +48,6 @@ pub(crate) struct ServerCfg {
     pub vehicles: Vec<String>,
     /// `GET /players` on the web port tells who drives what and where (for a web map).
     pub share_positions: bool,
-    /// Opt-in journal for the dedicated Discord Bridge; never exposes player positions.
-    pub duty_tracking: bool,
     /// The GreenTeaSpeak server and channel the players talk in (`voice`).
     pub voice: Option<crate::voice::VoiceServer>,
 }
@@ -113,10 +111,6 @@ vehicles =
 # positions - for a live map of the server on a website; tell your players when it is on
 share_positions = 0
 
-# Optional local duty-events.jsonl journal for Discord Bridge (contains names, not positions).
-# Does not identify successful trip completion; server only sees chosen duty/tour.
-duty_tracking = 0
-
 # voice chat: the players hear each other where they stand, through GreenTeaSpeak and its
 # openOMSI plugin (as SaltyChat does for FiveM). voice_server_uid is the voice server's unique
 # id (its info panel; needed: without it there is no voice chat), voice_channel the in-game
@@ -173,7 +167,6 @@ impl ServerCfg {
             metar_station: kv.get("metar_station").map(|v| v.chars().filter(|c| c.is_ascii_alphabetic()).take(4).collect::<String>().to_ascii_uppercase()).unwrap_or_default(),
             vehicles: kv.get("vehicles").map(|v| v.split(';').map(|x| x.trim().replace('\\', "/")).filter(|x| !x.is_empty()).collect()).unwrap_or_default(),
             share_positions: flag("share_positions", false),
-            duty_tracking: flag("duty_tracking", false),
             voice: crate::voice::VoiceServer::from_kv(|k| kv.get(k).cloned()),
         })
     }
@@ -205,7 +198,6 @@ pub(crate) fn info_of(cfg: &ServerCfg) -> omsi_net::ws::ServerInfo {
 /// host loop, see `offscreen::run_offscreen`).
 pub(crate) fn prepare(args: &mut Args, path: &Path) -> Result<ServerCfg> {
     let cfg = ServerCfg::load(path)?;
-    if cfg.duty_tracking { crate::duty_events::configure(path); }
     SERVER_MODE.store(true, std::sync::atomic::Ordering::Relaxed);
     let _ = SERVER_ADMIN.set((cfg.admin_password.clone(), if cfg.real_time { 1.0 } else { cfg.time_speed }));
     crate::real_time::set_server_real(cfg.real_time);
@@ -292,7 +284,6 @@ pub(crate) fn tick_status(lan: &omsi_net::LanSession, time: f64, weather: &str) 
     let poses: Vec<&omsi_net::Pose> = lan.peers().filter(|p| p.has_info && p.has_pose).map(|p| &p.pose).collect();
     let list = poses.iter().filter_map(|q| player_info(q, |id| poses.iter().copied().find(|o| o.id == id))).collect();
     crate::lan::update_server_players(list);
-    crate::duty_events::tick(lan);
 }
 
 /// A player for `GET /players`: on foot - a walker in its state - where it walks, or with the

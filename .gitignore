@@ -15,12 +15,3 @@ node_modules/
 /android/build
 tools/greenteaspeak-plugin/*.zip
 /out/
-
-# Player names and shift assignments: private server-side journal
-**/duty-events.jsonl
-**/duty-events.jsonl.old
-# Secret Discord webhook credentials in separate addon
-/addons/DiscordBridge/config.json
-
-# Local OMSI 2 installation path saved by the Windows start wizard
-**/omsi-root.json

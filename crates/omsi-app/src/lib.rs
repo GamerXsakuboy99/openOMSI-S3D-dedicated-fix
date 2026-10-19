@@ -105,7 +105,6 @@ mod ground_gap;
 mod on_foot;
 mod route_arrows;
 mod server;
-mod duty_events;
 mod player;
 mod plugins;
 mod services;

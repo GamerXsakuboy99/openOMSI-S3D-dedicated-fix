@@ -468,29 +468,17 @@ pub(crate) fn run_offscreen(
                     None => {}
                 }
                 if let Some(want) = srv_admin.set_weather.take() {
-                    if let Some(custom) = crate::weather_setup::CustomWeather::parse(&want) {
-                        if srv_metar.is_some() {
-                            log::info!("server: custom weather ignored while METAR sync is enabled");
-                        } else {
-                            let wire=custom.encode();
-                            log::info!("server: custom weather changed by an admin");
-                            l.set_weather(&wire);
-                            srv_weather_name="Custom weather".into();
+                    // only an installed weather (the name came over the network)
+                    let found = omsi_cfg::read_dir_merged("Weather")
+                        .into_iter()
+                        .filter_map(|p| p.file_name().map(|n| format!("Weather/{}", n.to_string_lossy())))
+                        .find(|f| f.eq_ignore_ascii_case(&want));
+                    match found {
+                        Some(f) => {
+                            log::info!("server: weather now {f}");
+                            l.set_weather(&f);
                         }
-                    } else {
-                        let found=omsi_cfg::read_dir_merged("Weather")
-                            .into_iter()
-                            .filter_map(|p|p.file_name().map(|n|format!("Weather/{}",p.file_name().unwrap_or_default().to_string_lossy())))
-                            .find(|f|f.eq_ignore_ascii_case(&want));
-                        match found {
-                            Some(f) if srv_metar.is_none() => {
-                                log::info!("server: weather now {f}");
-                                srv_weather_name=f.clone();
-                                l.set_weather(&f);
-                            }
-                            Some(_) => log::info!("server: preset ignored while METAR sync is enabled"),
-                            None => log::info!("server: weather {want} is not installed"),
-                        }
+                        None => log::info!("server: weather {want} is not installed"),
                     }
                 }
                 // (the weather follows the METAR report: no next weather for the admins)
@@ -506,7 +494,6 @@ pub(crate) fn run_offscreen(
                         let cur = l.weather().replace('\\', "/").to_ascii_lowercase();
                         let k = files.iter().position(|f| f.to_ascii_lowercase() == cur).map(|k| (k + 1) % files.len()).unwrap_or(0);
                         log::info!("server: weather now {}", files[k]);
-                        srv_weather_name=files[k].clone();
                         l.set_weather(&files[k]);
                     }
                 }
