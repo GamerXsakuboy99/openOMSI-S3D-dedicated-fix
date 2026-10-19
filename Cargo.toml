@@ -62,7 +62,7 @@ ureq = { version = "2", default-features = false, features = ["tls"] }
 sha2 = "0.10"
 flate2 = "1"
 ab_glyph = "0.2"
-rfd = "0.15"
+rfd = "0.17"
 libc = "0.2"
 windows = "0.62"
 winresource = "0.1"
