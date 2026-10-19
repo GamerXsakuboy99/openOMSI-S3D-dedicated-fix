@@ -8,6 +8,26 @@ is available from its own workflow (details below). It can host existing OMSI 2 
 traffic and passengers. An **original OMSI 2 installation** and any content
 used by the server are still required.
 
+## Why this fork exists
+
+> **Temporary Dedicated Server fork**
+>
+> This fork exists primarily to work around passenger spawning issues in the
+> official Sobol3D Edition Dedicated Server. It will be maintained as needed
+> until the corresponding Dedicated Server passenger issue is resolved in
+> Sobol3D Edition's official upstream version.
+>
+> The goal is to support Sobol3D Edition users, **not to replace or compete
+> with the official project**. Once the upstream server fix is available and
+> verified, a separate server fork should no longer be necessary.
+
+**Admin Plus and Discord Bridge are separate, optional add-ons**, not
+built-in parts of the game client. After the Dedicated Server passenger issue
+has been fixed upstream, their original contributions **may be proposed as
+separate pull requests** to the official Sobol3D Edition project. No such PRs
+have been submitted or accepted as part of this plan, and any integration
+would depend on upstream review and applicable licence permissions.
+
 ## Download the Dedicated Server
 
 ### [Download the latest Dedicated Server release](https://github.com/GamerXsakuboy99/openOMSI-Sobol3D-Edition-dedicatedserver/releases)
