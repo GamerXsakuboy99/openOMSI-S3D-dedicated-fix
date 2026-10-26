@@ -45,7 +45,7 @@ clap = { version = "4", features = ["derive"] }
 hashbrown = "0.17"
 smallvec = "1"
 parking_lot = "0.12"
-rand = "0.9"
+rand = "0.10"
 wgpu = { version = "29", default-features = false, features = ["std", "parking_lot", "metal", "vulkan", "dx12", "gles", "wgsl", "noop"] }
 # wgpu's parts that are used directly: always wgpu's own version, or their types do not
 # match wgpu's (Dependabot's `wgpu` group updates the three together)
